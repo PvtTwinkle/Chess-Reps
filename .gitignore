@@ -24,3 +24,6 @@ vite.config.ts.timestamp-*
 
 # SQLite database — lives in data/ at runtime, must not be committed
 /data/
+
+# Claude Code local instructions — personal, not for version control
+CLAUDE.md
