@@ -1,0 +1,41 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Chess Reps — Stockfish sidecar
+#
+# Stockfish is a UCI chess engine. UCI (Universal Chess Interface) is a text
+# protocol spoken over stdin/stdout — there is no built-in network listener.
+#
+# socat bridges a TCP port to a process's stdin/stdout. When the app connects
+# to stockfish:3001, socat forks a new Stockfish process for that connection
+# and pipes bytes in both directions. Each analysis request gets its own
+# dedicated engine process that is cleaned up when the connection closes.
+#
+# The service is on the internal Docker network only — not exposed to the host.
+# The app reaches it by the service name "stockfish" on port 3001.
+#
+# Why Debian and not Alpine?
+#   stockfish is not available in Alpine's package repos. Debian's bookworm
+#   (stable) release ships stockfish 15 in its main repo. bookworm-slim strips
+#   out docs and locales so the image stays reasonably small (~80MB).
+# ─────────────────────────────────────────────────────────────────────────────
+
+FROM debian:bookworm-slim
+
+# stockfish — the chess engine binary (installed to /usr/games/stockfish)
+# socat    — bridges TCP port 3001 to stockfish's stdin/stdout
+# --no-install-recommends keeps the install lean
+# The rm -rf /var/lib/apt/lists/* removes the package index after install
+# to reduce the final layer size.
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends stockfish socat && \
+    rm -rf /var/lib/apt/lists/*
+
+# Document the port. The app connects here to speak UCI.
+EXPOSE 3001
+
+# Listen on TCP port 3001. For each incoming connection:
+#   - fork: handle connections in parallel (one child process per connection)
+#   - reuseaddr: allow quick restarts without "address already in use" errors
+#   - EXEC: spawn a fresh stockfish process and pipe its stdio to the socket
+#
+# Debian installs game binaries to /usr/games — hence the full path.
+CMD ["socat", "TCP-LISTEN:3001,reuseaddr,fork", "EXEC:/usr/games/stockfish"]

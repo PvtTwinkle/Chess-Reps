@@ -1,11 +1,11 @@
-import adapter from '@sveltejs/adapter-auto';
+// adapter-node compiles SvelteKit into a plain Node.js HTTP server.
+// This is the correct adapter for a self-hosted Docker deployment.
+// The built output lands in /build and is started with: node build/index.js
+import adapter from '@sveltejs/adapter-node';
 
 /** @type {import('@sveltejs/kit').Config} */
 const config = {
 	kit: {
-		// adapter-auto only supports some environments, see https://svelte.dev/docs/kit/adapter-auto for a list.
-		// If your environment is not supported, or you settled on a specific environment, switch out the adapter.
-		// See https://svelte.dev/docs/kit/adapters for more information about adapters.
 		adapter: adapter()
 	}
 };

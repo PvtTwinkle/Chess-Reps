@@ -1,0 +1,102 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Chess Reps — Docker Compose
+#
+# Two services:
+#   app        — the SvelteKit application (Node.js HTTP server)
+#   stockfish  — Stockfish chess engine, UCI over TCP on the internal network
+#
+# Quick start:
+#   docker compose up -d
+#
+# On first run the app automatically creates the database tables and the
+# default user using the DEFAULT_USERNAME / DEFAULT_PASSWORD values below.
+# Change those before the first run, then keep them safe.
+#
+# Upgrade to a new release:
+#   docker compose pull && docker compose up -d
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  # ── App ─────────────────────────────────────────────────────────────────────
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: chess-reps:latest
+    container_name: chess-reps-app
+    restart: unless-stopped
+
+    ports:
+      # HOST_PORT:CONTAINER_PORT
+      # Change the left side if you want to run on a different host port, e.g. 8080:3000
+      - "3000:3000"
+
+    environment:
+      # ── Required ────────────────────────────────────────────────────────────
+
+      # Full path to the SQLite file inside the container.
+      # Must match the target path in the volume mount below.
+      - DATABASE_URL=/app/data/db.sqlite
+
+      # The canonical URL of this instance. SvelteKit uses this to validate
+      # cross-site request forgery (CSRF) protection.
+      # Change this to your actual domain if accessed via a reverse proxy,
+      # e.g. ORIGIN=https://chess.yourdomain.com
+      - ORIGIN=http://localhost:3000
+
+      # ── First-run user ──────────────────────────────────────────────────────
+      # These are only used when the database is empty (first container start).
+      # After the first run, change the password through the settings page.
+      # IMPORTANT: Change DEFAULT_PASSWORD before your first run.
+      - DEFAULT_USERNAME=admin
+      - DEFAULT_PASSWORD=changeme
+
+      # ── Stockfish sidecar ───────────────────────────────────────────────────
+      # How the app reaches the Stockfish engine.
+      # "stockfish" resolves to the sidecar container on the internal network.
+      - STOCKFISH_HOST=stockfish
+      - STOCKFISH_PORT=3001
+
+      # ── Optional tweaks ─────────────────────────────────────────────────────
+      # Increase if you plan to upload large PGN files (default is 512kb).
+      # Example: - BODY_SIZE_LIMIT=5242880  # 5 MB
+
+    volumes:
+      # Mount the host ./data directory to /app/data inside the container.
+      # This is where the SQLite database file lives.
+      # The host path is relative to this docker-compose.yml file.
+      # Back up by copying ./data/db.sqlite from the host.
+      - ./data:/app/data
+
+    depends_on:
+      - stockfish
+
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+
+  # ── Stockfish sidecar ────────────────────────────────────────────────────────
+  stockfish:
+    build:
+      context: .
+      dockerfile: Dockerfile.stockfish
+    image: chess-reps-stockfish:latest
+    container_name: chess-reps-stockfish
+    restart: unless-stopped
+
+    # No port mapping here — this service is intentionally NOT exposed to the
+    # host. Only the app container can reach it, via the internal Docker network,
+    # using the hostname "stockfish" on port 3001.
+
+    # Limit CPU and memory so Stockfish analysis does not starve the app.
+    # Adjust these based on your host machine's available resources.
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 512M
