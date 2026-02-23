@@ -53,7 +53,10 @@
 		padding: 0;
 		background: #1a1a2e;
 		color: #e0e0e0;
-		font-family: system-ui, -apple-system, sans-serif;
+		font-family:
+			system-ui,
+			-apple-system,
+			sans-serif;
 	}
 
 	.app-header {
@@ -86,7 +89,9 @@
 		padding: 0.3rem 0.6rem;
 		border-radius: 4px;
 		font-size: 0.9rem;
-		transition: color 0.15s, background 0.15s;
+		transition:
+			color 0.15s,
+			background 0.15s;
 	}
 
 	.nav-links a:hover {
@@ -114,7 +119,9 @@
 		color: #a0a0b0;
 		font-size: 0.875rem;
 		cursor: pointer;
-		transition: border-color 0.15s, color 0.15s;
+		transition:
+			border-color 0.15s,
+			color 0.15s;
 	}
 
 	.signout-btn:hover {

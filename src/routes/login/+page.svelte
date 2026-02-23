@@ -27,13 +27,7 @@
 
 			<div class="field">
 				<label for="username">Username</label>
-				<input
-					id="username"
-					type="text"
-					name="username"
-					required
-					autocomplete="username"
-				/>
+				<input id="username" type="text" name="username" required autocomplete="username" />
 			</div>
 
 			<div class="field">
@@ -64,7 +58,10 @@
 		align-items: center;
 		justify-content: center;
 		background: #1a1a2e;
-		font-family: system-ui, -apple-system, sans-serif;
+		font-family:
+			system-ui,
+			-apple-system,
+			sans-serif;
 	}
 
 	.login-card {

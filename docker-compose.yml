@@ -17,7 +17,6 @@
 # ─────────────────────────────────────────────────────────────────────────────
 
 services:
-
   # ── App ─────────────────────────────────────────────────────────────────────
   app:
     build:
@@ -30,7 +29,7 @@ services:
     ports:
       # HOST_PORT:CONTAINER_PORT
       # Change the left side if you want to run on a different host port, e.g. 8080:3000
-      - "3000:3000"
+      - '3000:3000'
 
     environment:
       # ── Required ────────────────────────────────────────────────────────────
@@ -73,12 +72,11 @@ services:
       - stockfish
 
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
+      test: ['CMD', 'wget', '-qO-', 'http://localhost:3000/api/health']
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 30s
-
 
   # ── Stockfish sidecar ────────────────────────────────────────────────────────
   stockfish:
@@ -98,5 +96,5 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "2.0"
+          cpus: '2.0'
           memory: 512M

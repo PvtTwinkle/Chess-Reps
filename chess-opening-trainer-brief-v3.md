@@ -106,6 +106,7 @@ than duplicated.
 ### Stockfish Role
 
 Stockfish is a fallback and suggestion tool, not a gatekeeper:
+
 - Suggests moves when the user is beyond the shared book in build mode
 - Shows evaluation scores alongside all candidate moves in build mode
 - Analyzes blunder positions in game review
@@ -118,6 +119,7 @@ Drill mode queries nodes where `due <= now`. The full path from the starting pos
 is always played through for context.
 
 Drill mode has three sub-modes:
+
 - **Main lines only** — standard repertoire drilling
 - **Punishment lines only** — practice responding to blunders
 - **Mixed** — interleaved, most realistic
@@ -126,16 +128,16 @@ Drill mode has three sub-modes:
 
 ## Tech Stack
 
-| Piece | Technology | Reason |
-|---|---|---|
-| Framework | SvelteKit | Simpler syntax, beginner friendly, fast, scales well |
-| Board UI | Chessground | What Lichess uses, highly configurable, actively maintained |
-| Chess Logic | Chess.js | Move validation, FEN/PGN handling, well documented |
-| ORM | Drizzle | Lightweight, TypeScript-first, SQL-like syntax, good for SQLite |
-| Database | SQLite | Single user self-hosted, simple backup, no extra container |
-| SR Algorithm | ts-fsrs | State of the art spaced repetition, what modern Anki uses |
-| Chess Engine | Stockfish | Industry standard, runs as Docker sidecar |
-| Containers | Docker Compose | Two services: app + stockfish |
+| Piece        | Technology     | Reason                                                          |
+| ------------ | -------------- | --------------------------------------------------------------- |
+| Framework    | SvelteKit      | Simpler syntax, beginner friendly, fast, scales well            |
+| Board UI     | Chessground    | What Lichess uses, highly configurable, actively maintained     |
+| Chess Logic  | Chess.js       | Move validation, FEN/PGN handling, well documented              |
+| ORM          | Drizzle        | Lightweight, TypeScript-first, SQL-like syntax, good for SQLite |
+| Database     | SQLite         | Single user self-hosted, simple backup, no extra container      |
+| SR Algorithm | ts-fsrs        | State of the art spaced repetition, what modern Anki uses       |
+| Chess Engine | Stockfish      | Industry standard, runs as Docker sidecar                       |
+| Containers   | Docker Compose | Two services: app + stockfish                                   |
 
 ---
 
