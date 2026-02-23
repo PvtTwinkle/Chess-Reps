@@ -19,6 +19,7 @@
 		"@sveltejs/adapter-auto": "^7.0.0",
 		"@sveltejs/kit": "^2.50.2",
 		"@sveltejs/vite-plugin-svelte": "^6.2.4",
+		"@types/bcryptjs": "^2.4.6",
 		"@types/better-sqlite3": "^7.6.13",
 		"@types/node": "^22",
 		"drizzle-kit": "^0.31.9",
@@ -35,6 +36,7 @@
 		"vite": "^7.3.1"
 	},
 	"dependencies": {
+		"bcryptjs": "^3.0.3",
 		"better-sqlite3": "^12.6.2",
 		"drizzle-orm": "^0.45.1"
 	}
