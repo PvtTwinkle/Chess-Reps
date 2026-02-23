@@ -58,6 +58,19 @@ export const user = sqliteTable('user', {
 	createdAt: integer('created_at', { mode: 'timestamp' }).notNull()
 });
 
+// Active login sessions. One row per logged-in browser session.
+// The `id` (a random UUID) is stored as a cookie in the browser.
+// On every request, the server reads the cookie, looks it up here,
+// and retrieves the associated user_id to identify who is logged in.
+// Sessions expire after 30 days. Logging out deletes the row immediately.
+export const session = sqliteTable('session', {
+	id: text('id').primaryKey(), // random UUID — this is what goes in the cookie
+	userId: integer('user_id')
+		.notNull()
+		.references(() => user.id),
+	expiresAt: integer('expires_at', { mode: 'timestamp' }).notNull() // 30 days from login
+});
+
 // Per-user configuration. One row per user.
 export const userSettings = sqliteTable('user_settings', {
 	id: integer('id').primaryKey({ autoIncrement: true }),
