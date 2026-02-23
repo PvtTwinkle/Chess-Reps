@@ -1,0 +1,68 @@
+# GitHub Actions CI workflow
+#
+# This file tells GitHub to run automated checks on every push to main and
+# every pull request that targets main. If any step fails, GitHub marks the
+# commit or PR as broken — so a red X is visible before anyone merges bad code.
+#
+# GitHub reads any .yml files in .github/workflows/ automatically. No other
+# configuration is needed to activate this.
+
+name: CI
+
+on:
+  # Run when code is pushed directly to main
+  push:
+    branches: [main]
+  # Run when a pull request is opened or updated against main
+  pull_request:
+    branches: [main]
+
+jobs:
+  ci:
+    name: Build, Type Check & Migrations
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Check out the repository code onto the GitHub-hosted machine.
+      # Without this step, the machine has no code to work with.
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Step 2: Install the correct version of Node.js.
+      # We pin to Node 22 because that matches the @types/node version in package.json.
+      # cache: 'npm' tells GitHub to save the npm cache between runs so that
+      # repeated CI runs don't have to re-download every package from scratch.
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      # Step 3: Install all dependencies exactly as specified in package-lock.json.
+      # `npm ci` is the CI-safe version of `npm install` — it never modifies
+      # package-lock.json and fails loudly if anything is out of sync.
+      # This also runs the `prepare` script (svelte-kit sync) automatically.
+      - name: Install dependencies
+        run: npm ci
+
+      # Step 4: TypeScript and Svelte type checking.
+      # Runs `svelte-kit sync && svelte-check` — this checks that all TypeScript
+      # types are correct across the entire project, including inside .svelte files.
+      # Catches type errors that the build step alone might not surface.
+      - name: Type check
+        run: npm run check
+
+      # Step 5: Production build.
+      # Runs `vite build` with the adapter-node adapter to produce a self-contained
+      # Node.js server in the build/ directory. If any import fails, a component
+      # is malformed, or a SvelteKit API route has a problem, this step fails.
+      - name: Build
+        run: npm run build
+
+      # Step 6: Migration smoke test.
+      # Runs our custom script that applies every migration file in drizzle/migrations/
+      # against a fresh in-memory SQLite database. If any SQL file has a syntax error,
+      # a missing table reference, or a constraint problem, this step fails.
+      # Uses :memory: so nothing is written to disk.
+      - name: Smoke test migrations
+        run: node scripts/test-migrations.mjs
