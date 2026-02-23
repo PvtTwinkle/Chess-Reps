@@ -3,8 +3,10 @@
 	import { base } from '$app/paths';
 	import type { Snippet } from 'svelte';
 	import type { LayoutData } from './$types';
+	import RepertoireSelector from '$lib/components/RepertoireSelector.svelte';
 
-	// `data` comes from +layout.server.ts. It contains `user`.
+	// `data` comes from +layout.server.ts and includes `user`, `repertoires`,
+	// and `activeRepertoireId`.
 	// `children` is the content of the current page — rendered with {@render children()}.
 	let { children, data }: { children: Snippet; data: LayoutData } = $props();
 </script>
@@ -29,6 +31,16 @@
 			<a href="{base}/review">Review</a>
 			<a href="{base}/settings">Settings</a>
 		</nav>
+
+		<!--
+			The repertoire selector lives between the nav links and the sign-out area.
+			It passes the full list and the active ID down to the component so it can
+			render the current selection and offer switching/management.
+		-->
+		<RepertoireSelector
+			repertoires={data.repertoires}
+			activeRepertoireId={data.activeRepertoireId}
+		/>
 
 		<!--
 			Sign-out is a POST form, not a link.
@@ -64,7 +76,7 @@
 	.app-header {
 		display: flex;
 		align-items: center;
-		gap: 1.5rem;
+		gap: 1rem;
 		padding: 0 1.5rem;
 		height: 52px;
 		background: #16213e;
@@ -105,7 +117,7 @@
 		display: flex;
 		align-items: center;
 		gap: 0.75rem;
-		margin-left: auto;
+		flex-shrink: 0;
 	}
 
 	.username {

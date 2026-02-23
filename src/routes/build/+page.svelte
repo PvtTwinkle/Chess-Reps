@@ -53,7 +53,7 @@
 				<p class="empty">No moves yet — drag a piece to start.</p>
 			{:else}
 				<ol>
-					{#each moveLog as move}
+					{#each moveLog as move (move.from + move.to + move.san)}
 						<li><strong>{move.san}</strong> ({move.from} → {move.to})</li>
 					{/each}
 				</ol>

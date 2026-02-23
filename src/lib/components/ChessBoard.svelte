@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { SvelteMap } from 'svelte/reactivity';
 	import { Chessground } from '@lichess-org/chessground';
 	import { Chess } from 'chess.js';
 	import type { Square } from 'chess.js';
@@ -82,7 +83,7 @@
 	 * so Chessground only sees one destination per square.
 	 */
 	function buildDests(chess: Chess): Map<Key, Key[]> {
-		const dests = new Map<Key, Key[]>();
+		const dests = new SvelteMap<Key, Key[]>();
 		for (const move of chess.moves({ verbose: true })) {
 			const from = move.from as Key;
 			const to = move.to as Key;
