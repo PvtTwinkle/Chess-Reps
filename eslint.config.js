@@ -22,7 +22,11 @@ export default defineConfig(
 		rules: {
 			// typescript-eslint strongly recommend that you do not use the no-undef lint rule on TypeScript projects.
 			// see: https://typescript-eslint.io/troubleshooting/faqs/eslint/#i-get-errors-from-the-no-undef-rule-about-global-variables-not-being-defined-even-though-there-are-no-typescript-errors
-			'no-undef': 'off'
+			'no-undef': 'off',
+
+			// The recommended rule expects resolve() from $app/paths, which was removed in SvelteKit 2.
+			// Internal links use {base} from $app/paths instead, which is the correct SvelteKit 2 pattern.
+			'svelte/no-navigation-without-resolve': ['error', { ignoreLinks: true }]
 		}
 	},
 	{

@@ -1,10 +1,12 @@
 <script lang="ts">
 	import favicon from '$lib/assets/favicon.svg';
+	import { base } from '$app/paths';
+	import type { Snippet } from 'svelte';
 	import type { LayoutData } from './$types';
 
 	// `data` comes from +layout.server.ts. It contains `user`.
 	// `children` is the content of the current page — rendered with {@render children()}.
-	let { children, data }: { children: any; data: LayoutData } = $props();
+	let { children, data }: { children: Snippet; data: LayoutData } = $props();
 </script>
 
 <svelte:head>
@@ -17,15 +19,15 @@
 -->
 {#if data.user}
 	<header class="app-header">
-		<a href="/" class="brand">♟ Chess Reps</a>
+		<a href="{base}/" class="brand">♟ Chess Reps</a>
 
 		<nav class="nav-links">
-			<a href="/">Dashboard</a>
-			<a href="/build">Build</a>
-			<a href="/drill">Drill</a>
-			<a href="/explorer">Explorer</a>
-			<a href="/review">Review</a>
-			<a href="/settings">Settings</a>
+			<a href="{base}/">Dashboard</a>
+			<a href="{base}/build">Build</a>
+			<a href="{base}/drill">Drill</a>
+			<a href="{base}/explorer">Explorer</a>
+			<a href="{base}/review">Review</a>
+			<a href="{base}/settings">Settings</a>
 		</nav>
 
 		<!--
