@@ -36,8 +36,10 @@
 		"vite": "^7.3.1"
 	},
 	"dependencies": {
+		"@lichess-org/chessground": "^9.10.3",
 		"bcryptjs": "^3.0.3",
 		"better-sqlite3": "^12.6.2",
+		"chess.js": "^1.4.0",
 		"drizzle-orm": "^0.45.1"
 	}
 }
