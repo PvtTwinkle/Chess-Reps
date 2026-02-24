@@ -27,6 +27,12 @@ const DEFAULT_ENGINE_MOVES = 5;
 // Search depth. Will eventually be driven by the user's settings page.
 const DEFAULT_DEPTH = 15;
 
+// Upper bounds to prevent a crafted request from pinning the engine.
+// Depth 20 already takes several seconds; going higher is impractical.
+// More than 5 candidates is overwhelming in the UI and wastes engine time.
+const MAX_DEPTH = 20;
+const MAX_CANDIDATES = 5;
+
 // Shape of each candidate move returned to the browser.
 export interface Candidate {
 	san: string; // move in Standard Algebraic Notation, e.g. "e4", "Nf3"
@@ -43,7 +49,13 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	}
 
 	const body = (await request.json()) as { fen?: string; depth?: number; numMoves?: number };
-	const { fen, depth = DEFAULT_DEPTH, numMoves = DEFAULT_ENGINE_MOVES } = body;
+	const {
+		fen,
+		depth: rawDepth = DEFAULT_DEPTH,
+		numMoves: rawNumMoves = DEFAULT_ENGINE_MOVES
+	} = body;
+	const depth = Math.min(rawDepth, MAX_DEPTH);
+	const numMoves = Math.min(rawNumMoves, MAX_CANDIDATES);
 
 	if (!fen || typeof fen !== 'string') {
 		return json({ error: 'fen is required' }, { status: 400 });

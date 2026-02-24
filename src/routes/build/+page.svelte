@@ -224,7 +224,6 @@
 				body: JSON.stringify({
 					repertoireId: data.repertoire.id,
 					fromFen: currentFen,
-					toFen: newFen,
 					san,
 					type: 'MAIN'
 				})

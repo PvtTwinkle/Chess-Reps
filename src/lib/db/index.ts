@@ -105,7 +105,7 @@ const existingUserCount = db.select({ count: count() }).from(user).get();
 
 if (existingUserCount && existingUserCount.count === 0) {
 	const username = process.env.DEFAULT_USERNAME ?? 'admin';
-	const password = process.env.DEFAULT_PASSWORD ?? 'password';
+	const password = process.env.DEFAULT_PASSWORD ?? 'changeme';
 
 	// Hash the password before storing it.
 	// A hash is a one-way mathematical transformation — given the hash, you cannot

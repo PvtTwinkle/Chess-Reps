@@ -56,14 +56,17 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	if (!locals.user) throw error(401, 'Not authenticated');
 
 	const body = await request.json();
-	const { repertoireId, fromFen, toFen, san, type = 'MAIN' } = body;
+	// toFen is intentionally NOT read from the body — we compute it server-side
+	// by applying the move to fromFen. Accepting it from the client would allow
+	// a crafted request to store an arbitrary FEN as the destination position,
+	// corrupting the move tree.
+	const { repertoireId, fromFen, san, type = 'MAIN' } = body;
 
 	// Input validation
 	if (!repertoireId || typeof repertoireId !== 'number') {
 		throw error(400, 'repertoireId is required and must be a number');
 	}
 	if (!fromFen || typeof fromFen !== 'string') throw error(400, 'fromFen is required');
-	if (!toFen || typeof toFen !== 'string') throw error(400, 'toFen is required');
 	if (!san || typeof san !== 'string') throw error(400, 'san is required');
 	if (type !== 'MAIN' && type !== 'PUNISHMENT') {
 		throw error(400, 'type must be "MAIN" or "PUNISHMENT"');
@@ -78,17 +81,24 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 
 	if (!rep) throw error(404, 'Repertoire not found');
 
-	// Determine if it is the user's turn at this position.
+	// Determine if it is the user's turn at this position, and compute toFen.
 	// Chess.js parses the FEN and tells us whose turn it is ('w' or 'b').
 	// We compare that against the repertoire's color to decide.
+	// Applying chess.move(san) also validates that san is a legal move from
+	// fromFen — if it isn't, Chess.js throws and we return 400.
 	let isUserTurn: boolean;
+	let toFen: string;
 	try {
 		const chess = new Chess(fromFen);
 		const fenTurn = chess.turn(); // 'w' or 'b'
 		isUserTurn =
 			(rep.color === 'WHITE' && fenTurn === 'w') || (rep.color === 'BLACK' && fenTurn === 'b');
+		// Apply the move to validate it and compute the resulting position.
+		const result = chess.move(san);
+		if (!result) throw new Error('Illegal move');
+		toFen = chess.fen();
 	} catch {
-		throw error(400, 'Invalid FEN string');
+		throw error(400, 'Invalid FEN or move');
 	}
 
 	if (isUserTurn) {
