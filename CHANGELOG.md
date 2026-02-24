@@ -13,7 +13,24 @@ Docker images are tagged per version. To stay on stable releases, pin your
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+
+- **ChessBoard component** (`src/lib/components/ChessBoard.svelte`) — interactive
+  board powered by Chessground with props for FEN, orientation, movable squares,
+  last-move highlight, and check highlight
+- **Multiple repertoire management** (`src/lib/components/RepertoireSelector.svelte`):
+  - Selector button in the nav bar showing the active repertoire
+  - Dropdown to switch between repertoires
+  - Modal for create, rename, and delete with inline confirmation
+  - Active repertoire persisted in a cookie and validated against the database on
+    every request
+  - API endpoints: `GET/POST /api/repertoires`, `PATCH/DELETE /api/repertoires/[id]`,
+    `POST /api/repertoires/active`
+- **Onboarding / empty state screen** (`src/lib/components/OnboardingWelcome.svelte`):
+  - Shown on the dashboard when the user has no repertoires
+  - Welcomes the user and explains Build mode and Drill mode
+  - Inline "Create your first repertoire" form (name + color)
+  - Disappears automatically once the first repertoire is created
 
 ---
 
