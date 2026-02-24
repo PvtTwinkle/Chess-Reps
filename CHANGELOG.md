@@ -15,6 +15,23 @@ Docker images are tagged per version. To stay on stable releases, pin your
 
 ### Added
 
+- **Build mode** (`src/routes/build/`) — interactive repertoire builder:
+  - Two-panel layout: 520 px board on the left, move tree sidebar on the right
+  - Auto-saves every move immediately; no manual save button needed
+  - Turn indicator shows whose move it is (yellow = your turn, blue = opponent's turn)
+  - One-move-per-position rule on your turn with conflict warning and board snap-back
+  - Opponent positions accept multiple moves (all deviations you want to prepare for)
+  - Undo navigates backwards through the current line without deleting saved moves
+  - Delete (✕) button removes a move and its entire downstream subtree from the DB
+  - Current line breadcrumb is clickable for fast navigation to any prior position
+  - Moves-from-position panel shows all saved continuations from the current square
+  - FSRS spaced-repetition card created automatically for every user-turn move saved
+  - Redirects to dashboard if no repertoire is active
+- **Moves API** (`src/routes/api/moves/`):
+  - `GET /api/moves?repertoireId=X` — load all saved moves for a repertoire
+  - `POST /api/moves` — save a move; enforces turn rules and creates SR cards
+  - `DELETE /api/moves/[id]` — delete a move and cascade-delete its subtree
+
 - **ChessBoard component** (`src/lib/components/ChessBoard.svelte`) — interactive
   board powered by Chessground with props for FEN, orientation, movable squares,
   last-move highlight, and check highlight
