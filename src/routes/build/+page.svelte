@@ -32,6 +32,7 @@
 <script lang="ts">
 	import ChessBoard from '$lib/components/ChessBoard.svelte';
 	import CandidateMoves from '$lib/components/CandidateMoves.svelte';
+	import OpeningName from '$lib/components/OpeningName.svelte';
 	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 	import { Chess } from 'chess.js';
 	import type { PageData } from './$types';
@@ -149,6 +150,13 @@
 
 	// All saved moves from the current position, shown in the sidebar.
 	const movesFromCurrentPosition = $derived(movesFromFen.get(currentFen) ?? []);
+
+	// The FENs from the navigation history, ordered newest-to-oldest.
+	// Passed to OpeningName so it can walk backwards to find the deepest
+	// recognised ECO position even if the exact current FEN has no entry.
+	// Each navHistory entry's fromFen is the board state BEFORE that move,
+	// so reversing gives us: (position before last move), ..., starting FEN.
+	const fenHistory = $derived([...navHistory].reverse().map((e) => e.fromFen));
 
 	// The navigation history grouped into move-number pairs for display.
 	// e.g. [[e4, e5], [Nf3, Nc6]] represents "1. e4 e5 2. Nf3 Nc6"
@@ -419,6 +427,9 @@
 				{data.repertoire.color === 'WHITE' ? 'White' : 'Black'}
 			</span>
 		</div>
+
+		<!-- ECO opening name (updates as moves are played) -->
+		<OpeningName {currentFen} {fenHistory} />
 
 		<!-- Turn indicator -->
 		<div class="turn-indicator" class:user-turn={isUserTurn} class:opp-turn={!isUserTurn}>

@@ -1,0 +1,53 @@
+// POST /api/eco
+//
+// Given a list of FEN strings (current position first, then move history
+// going backwards), returns the most specific ECO opening name match.
+//
+// Request body: { fens: string[] }
+// Response:     { code: string; name: string } | null
+//
+// Why POST instead of GET?
+//   FEN strings contain spaces and special characters that make URL-encoding
+//   awkward, especially when passing a whole list of them. A POST body is
+//   cleaner and less fragile.
+//
+// Why a list of FENs instead of just one?
+//   The current position may be past the last named ECO position (e.g. the
+//   user is on move 10 in the Najdorf). Passing the full history lets the
+//   server walk backwards and find the most specific recognised name.
+
+import { json, error } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
+import { db } from '$lib/db';
+import { lookupEco } from '$lib/eco';
+
+export const POST: RequestHandler = async ({ request, locals }) => {
+	if (!locals.user) throw error(401, 'Not authenticated');
+
+	let body: unknown;
+	try {
+		body = await request.json();
+	} catch {
+		throw error(400, 'Invalid JSON body');
+	}
+
+	if (
+		typeof body !== 'object' ||
+		body === null ||
+		!Array.isArray((body as Record<string, unknown>).fens)
+	) {
+		throw error(400, 'Request body must be { fens: string[] }');
+	}
+
+	const { fens } = body as { fens: unknown[] };
+
+	// Validate that every element is a non-empty string.
+	// This is user-supplied data coming from the board position — sanitise it.
+	const fenList = fens.filter((f): f is string => typeof f === 'string' && f.length > 0);
+
+	// Cap at 50 FENs — a typical opening is 15–20 moves deep, so this is
+	// generous while preventing abuse of the IN clause.
+	const result = lookupEco(db, fenList.slice(0, 50));
+
+	return json(result);
+};

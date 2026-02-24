@@ -37,6 +37,16 @@ Docker images are tagged per version. To stay on stable releases, pin your
   - Clicking any candidate plays that move on the board (same path as drag-and-drop)
   - Book/Engine toggle checkboxes let you show or hide each source independently
   - Gracefully degrades when the engine sidecar is not running (book-only mode)
+- **ECO opening name display** — shows the recognised opening name as moves are played
+  in Build mode:
+  - `drizzle/migrations/0003_seed_eco_codes.sql` seeds the `eco_opening` table with
+    90 positions covering all major opening families (A00–E97)
+  - `src/lib/eco.ts` — server-side helper; queries all FENs in move history in a
+    single round-trip and returns the most specific match
+  - `POST /api/eco` — authenticated endpoint accepting up to 50 FENs, returns
+    `{ code, name }` or `null`
+  - `OpeningName` component displays the result as `"B90 · Sicilian Defence, Najdorf
+    Variation"` with the ECO code highlighted in gold; renders nothing if no match
 - **Opening book seed** (`drizzle/migrations/0002_seed_book_moves.sql`) — Alapin
   Sicilian mainline (1.e4 c5 2.c3 d5) as a minimal test dataset; FEN strings
   generated from Chess.js to match runtime FEN output exactly

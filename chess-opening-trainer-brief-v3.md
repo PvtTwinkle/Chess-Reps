@@ -544,6 +544,15 @@ be reviewed and optimized for mobile screen sizes once the desktop version is so
 place. Adding a user management screen and multi-user auth is the remaining work.
 Required before any cloud-hosted version is possible.
 
+**Full ECO opening database** — the current `eco_opening` seed covers ~90 representative
+positions. Lichess publishes a free, open-source opening database at
+`github.com/lichess-org/chess-openings` (~3,000 named positions, A–E volumes as TSV
+files) with columns `eco`, `name`, `pgn`, and `fen`. Importing it as a migration would
+give near-complete coverage of all ECO codes and sub-variations. The main task is a
+small script to convert TSV rows into `INSERT OR IGNORE INTO eco_opening` statements,
+plus verifying that Lichess FEN strings (which include en passant and move counters)
+are stripped consistently with how the `lookupEco` helper normalises FENs at runtime.
+
 ---
 
 ## What to Build First (Ordered)
