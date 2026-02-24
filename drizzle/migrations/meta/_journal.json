@@ -15,6 +15,13 @@
 			"when": 1771867259368,
 			"tag": "0001_sessions",
 			"breakpoints": true
+		},
+		{
+			"idx": 2,
+			"version": "6",
+			"when": 1772006400000,
+			"tag": "0002_seed_book_moves",
+			"breakpoints": true
 		}
 	]
 }

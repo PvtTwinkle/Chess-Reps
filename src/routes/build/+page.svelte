@@ -31,6 +31,7 @@
 
 <script lang="ts">
 	import ChessBoard from '$lib/components/ChessBoard.svelte';
+	import CandidateMoves from '$lib/components/CandidateMoves.svelte';
 	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 	import { Chess } from 'chess.js';
 	import type { PageData } from './$types';
@@ -317,6 +318,26 @@
 		errorMsg = null;
 	}
 
+	// ── Candidate move selection ──────────────────────────────────────────────
+
+	// Called when the user clicks a suggested move in the CandidateMoves panel.
+	// Uses Chess.js to resolve the from/to squares from the SAN, then feeds
+	// the move through the same handleMove path as a drag-and-drop move.
+	// This means conflict detection, auto-save, and undo all work identically.
+	async function handleCandidateSelect(san: string) {
+		try {
+			const chess = new Chess(currentFen);
+			const result = chess.move(san);
+			if (result) {
+				await handleMove(result.from, result.to, result.san, chess.fen());
+			}
+		} catch {
+			// Chess.js throws if the move is somehow invalid — shouldn't happen
+			// with candidates from the engine, but guard defensively.
+			errorMsg = 'Could not play the selected move.';
+		}
+	}
+
 	// ── Deletion ─────────────────────────────────────────────────────────────────
 
 	// Remove a move from the repertoire, including all moves that are only
@@ -488,6 +509,9 @@
 				</p>
 			{/if}
 		</div>
+
+		<!-- Candidate moves (book + Stockfish suggestions) -->
+		<CandidateMoves {currentFen} onSelectMove={handleCandidateSelect} disabled={saving} />
 
 		<!-- Navigation controls -->
 		<div class="nav-controls">

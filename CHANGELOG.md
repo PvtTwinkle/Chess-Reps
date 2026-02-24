@@ -27,6 +27,20 @@ Docker images are tagged per version. To stay on stable releases, pin your
   - Moves-from-position panel shows all saved continuations from the current square
   - FSRS spaced-repetition card created automatically for every user-turn move saved
   - Redirects to dashboard if no repertoire is active
+- **Stockfish integration** — engine sidecar + UCI wrapper + candidate move display:
+  - `src/lib/stockfish/index.ts` — TCP client that speaks the UCI protocol to the
+    Stockfish sidecar; uses MultiPV to fetch top N moves in one analysis pass
+  - `POST /api/stockfish` — merges book moves and engine analysis into a single ranked
+    candidate list; scores normalised to white's perspective
+  - `CandidateMoves` component shows suggested moves in the Build mode sidebar with
+    evaluation scores (`+0.45`, `-1.20`, `#3`) and `BOOK` badges for book moves
+  - Clicking any candidate plays that move on the board (same path as drag-and-drop)
+  - Book/Engine toggle checkboxes let you show or hide each source independently
+  - Gracefully degrades when the engine sidecar is not running (book-only mode)
+- **Opening book seed** (`drizzle/migrations/0002_seed_book_moves.sql`) — Alapin
+  Sicilian mainline (1.e4 c5 2.c3 d5) as a minimal test dataset; FEN strings
+  generated from Chess.js to match runtime FEN output exactly
+
 - **Moves API** (`src/routes/api/moves/`):
   - `GET /api/moves?repertoireId=X` — load all saved moves for a repertoire
   - `POST /api/moves` — save a move; enforces turn rules and creates SR cards
