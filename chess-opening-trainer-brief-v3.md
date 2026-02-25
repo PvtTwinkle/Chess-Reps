@@ -409,7 +409,7 @@ running. Users can monitor this with Uptime Kuma or any other monitoring tool.
 4. Their prepared moves shown as highlighted arrows on the board
 5. Opponent responses shown in a different color
 6. Positions with gaps (unresolved opponent moves) marked visually
-7. Move tree shown as a collapsible list alongside the board
+7. Move tree shown as a collapsible list alongside the board _(future enhancement — initial implementation uses a "moves from current position" sidebar with a current-line breadcrumb, which gives full navigation without the full tree renderer)_
 8. Clicking any move in the list jumps the board to that position
 9. ECO name shown for current position
 10. Read-only — no moves can be added here (that is build mode's job)

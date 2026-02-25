@@ -129,12 +129,7 @@ export const PATCH: RequestHandler = async ({ locals, request, params }) => {
 		}
 	}
 
-	const updated = db
-		.update(userMove)
-		.set({ notes })
-		.where(eq(userMove.id, id))
-		.returning()
-		.get();
+	const updated = db.update(userMove).set({ notes }).where(eq(userMove.id, id)).returning().get();
 
 	return json(updated);
 };

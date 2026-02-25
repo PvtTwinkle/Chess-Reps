@@ -6,6 +6,7 @@
 	import type { Square } from 'chess.js';
 	import type { Api } from '@lichess-org/chessground/api';
 	import type { Key } from '@lichess-org/chessground/types';
+	import type { DrawShape } from '@lichess-org/chessground/draw';
 
 	// These three CSS imports are all you need for a working board.
 	// All piece images (SVGs) and board square colours are base64-encoded
@@ -39,6 +40,12 @@
 		 * and the new FEN after the move.
 		 */
 		onMove?: (from: string, to: string, san: string, newFen: string) => void;
+		/**
+		 * Programmatic arrows/dots to draw on the board (e.g. repertoire move arrows
+		 * in explorer mode). Uses Chessground's autoShapes — these are distinct from
+		 * user-drawn right-click arrows. Defaults to an empty array (no shapes).
+		 */
+		autoShapes?: DrawShape[];
 	}
 
 	const STARTING_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
@@ -48,7 +55,8 @@
 		orientation = 'white',
 		interactive = true,
 		lastMove = undefined,
-		onMove = undefined
+		onMove = undefined,
+		autoShapes = []
 	}: Props = $props();
 
 	// ---------------------------------------------------------------------------
@@ -219,7 +227,10 @@
 				color: interactive ? toColor(chess) : undefined,
 				dests: interactive ? buildDests(chess) : new Map()
 			},
-			lastMove: lastMove as [Key, Key] | undefined
+			lastMove: lastMove as [Key, Key] | undefined,
+			drawable: {
+				autoShapes
+			}
 		});
 	});
 </script>

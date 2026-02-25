@@ -13,7 +13,7 @@ import { db } from '$lib/db';
 import { userMove } from '$lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 
-export const load: PageServerLoad = async ({ locals, parent }) => {
+export const load: PageServerLoad = async ({ locals, parent, url }) => {
 	// parent() gives us the layout data: user, repertoires, activeRepertoireId.
 	// We call it here instead of re-querying the DB so the repertoire list is
 	// always consistent with what the nav bar is showing.
@@ -41,8 +41,14 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 		.where(and(eq(userMove.userId, locals.user!.id), eq(userMove.repertoireId, activeRepertoireId)))
 		.all();
 
+	// Optional: a comma-separated SAN list passed from the Explorer "Build from here"
+	// link. The client-side page replays these moves on first mount to jump straight
+	// to that position instead of starting at the opening.
+	const jumpLine = url.searchParams.get('line');
+
 	return {
 		repertoire: activeRep,
-		moves
+		moves,
+		jumpLine
 	};
 };

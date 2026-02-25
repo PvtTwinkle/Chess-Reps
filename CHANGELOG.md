@@ -46,10 +46,23 @@ Docker images are tagged per version. To stay on stable releases, pin your
   - `POST /api/eco` — authenticated endpoint accepting up to 50 FENs, returns
     `{ code, name }` or `null`
   - `OpeningName` component displays the result as `"B90 · Sicilian Defence, Najdorf
-    Variation"` with the ECO code highlighted in gold; renders nothing if no match
+Variation"` with the ECO code highlighted in gold; renders nothing if no match
 - **Opening book seed** (`drizzle/migrations/0002_seed_book_moves.sql`) — Alapin
   Sicilian mainline (1.e4 c5 2.c3 d5) as a minimal test dataset; FEN strings
   generated from Chess.js to match runtime FEN output exactly
+
+- **Explorer mode** (`src/routes/explorer/`) — read-only repertoire tree browser:
+  - Board arrows show all prepared moves at the current position (green = your moves,
+    blue = opponent responses) using Chessground `autoShapes`
+  - Gap indicators (`!` badge) on opponent moves that lead to positions with no
+    prepared user response
+  - Current line breadcrumb with clickable moves for fast position jumping
+  - Back / Reset navigation controls; no board interaction — fully read-only
+  - "Build from here" button links to Build mode at the exact current position by
+    encoding the nav history as a `?line=e4,e5,Nf3` query param; Build mode replays
+    the line on first mount so the board jumps straight to that position
+  - `autoShapes` prop added to `ChessBoard` component for programmatic arrow/dot
+    overlay (available for Drill mode and other future features too)
 
 - **Move annotations** — free-text notes on any saved move in Build mode:
   - ✎ button on each move row in the sidebar opens an edit modal pre-filled with

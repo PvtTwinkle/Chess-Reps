@@ -116,6 +116,12 @@
 	// Error message specific to annotation saving (distinct from the main errorMsg).
 	let annotationError = $state<string | null>(null);
 
+	// One-time flag: have we already replayed the jump line from the URL param?
+	// Plain (non-reactive) variable so Svelte does not track it as a dependency.
+	// Prevents the jump from re-firing on every repertoire switch (which also
+	// triggers this $effect via invalidateAll()).
+	let didJumpToLine = false;
+
 	// Sync all local state from the server-provided page data.
 	// Runs on initial mount AND whenever `data` is refreshed — which happens
 	// when the user switches to a different repertoire via the nav bar
@@ -127,12 +133,50 @@
 		lastMove = undefined;
 		conflictSan = null;
 		errorMsg = null;
+
+		// If opened from Explorer "Build from here", replay the line once so the
+		// board jumps straight to that position instead of starting at move 1.
+		if (!didJumpToLine && data.jumpLine) {
+			didJumpToLine = true;
+			replayLine(data.jumpLine.split(',').filter(Boolean));
+		}
 	});
+
+	// Replay a sequence of SAN moves from the starting position, setting navHistory,
+	// currentFen, and lastMove to match. Stops at the last valid move if any SAN
+	// in the list is illegal (shouldn't happen in practice, but guard defensively).
+	function replayLine(sans: string[]) {
+		let fen = STARTING_FEN;
+		const history: NavEntry[] = [];
+		for (const san of sans) {
+			try {
+				const chess = new Chess(fen);
+				const result = chess.move(san);
+				if (!result) break;
+				history.push({
+					fromFen: fen,
+					toFen: chess.fen(),
+					san: result.san,
+					from: result.from,
+					to: result.to
+				});
+				fen = chess.fen();
+			} catch {
+				break;
+			}
+		}
+		if (history.length > 0) {
+			navHistory = history;
+			currentFen = fen;
+			lastMove = [history[history.length - 1].from, history[history.length - 1].to];
+		}
+	}
 
 	// Reset the transposition dismissed flag whenever the user navigates to a new position.
 	// This ensures the banner reappears at every new transposition position.
 	$effect(() => {
-		currentFen; // tracked — changing this FEN re-runs the effect
+		// eslint-disable-next-line @typescript-eslint/no-unused-expressions
+		currentFen; // tracked — changing this FEN re-runs the $effect
 		transpositionDismissed = false;
 	});
 
@@ -582,8 +626,8 @@
 		<!-- Transposition notice -->
 		{#if transpositionExists && !transpositionDismissed}
 			<div class="banner banner--info">
-				<strong>Transposition</strong> — this position is already in your repertoire via a
-				different move order. Your existing preparation applies here.
+				<strong>Transposition</strong> — this position is already in your repertoire via a different
+				move order. Your existing preparation applies here.
 				<button class="banner-dismiss" onclick={() => (transpositionDismissed = true)}>✕</button>
 			</div>
 		{/if}
@@ -648,7 +692,9 @@
 								</button>
 							</div>
 							{#if m.notes}
-								<p class="move-notes">{m.notes.length > 80 ? m.notes.slice(0, 80) + '…' : m.notes}</p>
+								<p class="move-notes">
+									{m.notes.length > 80 ? m.notes.slice(0, 80) + '…' : m.notes}
+								</p>
 							{/if}
 						</div>
 					{/each}
