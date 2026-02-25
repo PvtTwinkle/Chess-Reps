@@ -29,6 +29,20 @@
 			"when": 1771973166214,
 			"tag": "0003_seed_eco_codes",
 			"breakpoints": true
+		},
+		{
+			"idx": 4,
+			"version": "6",
+			"when": 1740514200000,
+			"tag": "0004_learning_steps",
+			"breakpoints": true
+		},
+		{
+			"idx": 5,
+			"version": "6",
+			"when": 1772059800000,
+			"tag": "0005_remove_types",
+			"breakpoints": true
 		}
 	]
 }

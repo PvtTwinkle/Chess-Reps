@@ -78,7 +78,6 @@ export const userSettings = sqliteTable('user_settings', {
 		.notNull()
 		.references(() => user.id),
 	stockfishDepth: integer('stockfish_depth').notNull().default(15), // higher = stronger but slower
-	defaultDrillMode: text('default_drill_mode').notNull().default('MAIN'), // "MAIN", "PUNISHMENT", or "MIXED"
 	boardTheme: text('board_theme').notNull().default('blue'), // e.g. "blue", "green", "brown"
 	pieceSet: text('piece_set').notNull().default('cburnett'), // e.g. "cburnett", "merida", "alpha"
 	soundEnabled: integer('sound_enabled', { mode: 'boolean' }).notNull().default(true),
@@ -110,7 +109,6 @@ export const userMove = sqliteTable('user_move', {
 	fromFen: text('from_fen').notNull(), // position before the move
 	toFen: text('to_fen').notNull(), // position after the move
 	san: text('san').notNull(), // move in Standard Algebraic Notation
-	type: text('type').notNull(), // "MAIN" (standard prep) or "PUNISHMENT" (response to a blunder)
 	source: text('source').notNull(), // "BOOK" (from shared book), "PERSONAL", or "STOCKFISH"
 	notes: text('notes'), // optional user annotation on this move
 	createdAt: integer('created_at', { mode: 'timestamp' }).notNull()
@@ -130,7 +128,6 @@ export const userRepertoireMove = sqliteTable('user_repertoire_move', {
 		.references(() => repertoire.id),
 	fromFen: text('from_fen').notNull(), // the position the user must respond to
 	san: text('san').notNull(), // the correct move
-	type: text('type').notNull(), // "MAIN" or "PUNISHMENT"
 
 	// FSRS spaced repetition fields — managed by the ts-fsrs library, not manually.
 	// These determine when this card is next due and how well it has been learned.
@@ -142,7 +139,8 @@ export const userRepertoireMove = sqliteTable('user_repertoire_move', {
 	reps: integer('reps'), // total number of successful reviews
 	lapses: integer('lapses'), // number of times the user forgot this card
 	state: integer('state'), // 0=New, 1=Learning, 2=Review, 3=Relearning
-	lastReview: integer('last_review', { mode: 'timestamp' }) // when it was last reviewed
+	lastReview: integer('last_review', { mode: 'timestamp' }), // when it was last reviewed
+	learningSteps: integer('learning_steps').notNull().default(0) // ts-fsrs v5: which step within learning/relearning phase
 });
 
 // A game the user has imported and reviewed for deviations from their repertoire.
@@ -172,7 +170,6 @@ export const drillSession = sqliteTable('drill_session', {
 	repertoireId: integer('repertoire_id')
 		.notNull()
 		.references(() => repertoire.id),
-	mode: text('mode').notNull(), // "MAIN", "PUNISHMENT", or "MIXED"
 	cardsReviewed: integer('cards_reviewed').notNull().default(0),
 	cardsCorrect: integer('cards_correct').notNull().default(0),
 	startedAt: integer('started_at', { mode: 'timestamp' }).notNull(),

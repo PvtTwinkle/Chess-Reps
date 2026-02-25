@@ -49,7 +49,6 @@
 		fromFen: string;
 		toFen: string;
 		san: string;
-		type: string;
 		source: string;
 		notes: string | null;
 		createdAt: Date | string | number;

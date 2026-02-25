@@ -15,6 +15,40 @@ Docker images are tagged per version. To stay on stable releases, pin your
 
 ### Added
 
+- **Drill mode** (`src/routes/drill/`) — spaced repetition practice:
+  - Auto-plays the full move sequence from move 1 to the due position at 500 ms per move
+  - Board becomes interactive at the due position — user must play the correct move
+  - Correct: green flash → Again / Good / Easy FSRS grading buttons
+  - Incorrect: red flash → reveals correct move → auto-grades Again after 2 s
+  - Progress bar showing current card and total due
+  - Session complete screen with cards reviewed and accuracy percentage
+  - "All caught up!" screen when no cards are due
+  - `POST /api/drill/grade` — applies a rating to an SR card via the FSRS algorithm
+  - `src/lib/fsrs.ts` — wraps `ts-fsrs` with DB ↔ FSRS type conversions; exposes
+    `gradeCard()` and `nextIntervalLabel()` helpers
+  - `drizzle/migrations/0004_learning_steps.sql` — adds `learning_steps` column for
+    ts-fsrs v5 compatibility
+
+### Changed
+
+- Removed MAIN / PUNISHMENT move-type distinction — all repertoire moves are now
+  treated equally; game review (upcoming) will add off-book moves without tagging
+  - `drizzle/migrations/0005_remove_types.sql` drops `type` from `user_move` and
+    `user_repertoire_move`, `default_drill_mode` from `user_settings`, and `mode`
+    from `drill_session`
+  - Sub-mode selector (Main / Punishment / Mixed) removed from drill UI
+
+### Fixed
+
+- Drill page infinite reactive loop on load — `startNextCard()` was reading
+  `filteredCards` (a `$derived`) inside the data-sync `$effect` after writing its
+  dependencies, causing Svelte 5 to reschedule the effect endlessly; fixed with
+  `untrack()`
+- "Drill again" button did nothing after session complete — now calls `invalidateAll()`
+  so fresh due dates are fetched from the server before restarting
+
+### Added
+
 - **Build mode** (`src/routes/build/`) — interactive repertoire builder:
   - Two-panel layout: 520 px board on the left, move tree sidebar on the right
   - Auto-saves every move immediately; no manual save button needed

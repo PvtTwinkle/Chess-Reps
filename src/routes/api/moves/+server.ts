@@ -60,7 +60,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	// by applying the move to fromFen. Accepting it from the client would allow
 	// a crafted request to store an arbitrary FEN as the destination position,
 	// corrupting the move tree.
-	const { repertoireId, fromFen, san, type = 'MAIN' } = body;
+	const { repertoireId, fromFen, san } = body;
 
 	// Input validation
 	if (!repertoireId || typeof repertoireId !== 'number') {
@@ -68,9 +68,6 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	}
 	if (!fromFen || typeof fromFen !== 'string') throw error(400, 'fromFen is required');
 	if (!san || typeof san !== 'string') throw error(400, 'san is required');
-	if (type !== 'MAIN' && type !== 'PUNISHMENT') {
-		throw error(400, 'type must be "MAIN" or "PUNISHMENT"');
-	}
 
 	// Verify the repertoire exists and belongs to this user.
 	const rep = db
@@ -148,7 +145,6 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			fromFen,
 			toFen,
 			san,
-			type: type as 'MAIN' | 'PUNISHMENT',
 			source: 'PERSONAL',
 			notes: null,
 			createdAt: new Date()
@@ -168,7 +164,6 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 				repertoireId,
 				fromFen,
 				san,
-				type: type as 'MAIN' | 'PUNISHMENT',
 				due: new Date(), // immediately due
 				state: 0, // 0 = New in the FSRS state machine
 				reps: 0,
