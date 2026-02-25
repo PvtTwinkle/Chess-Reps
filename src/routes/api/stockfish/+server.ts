@@ -23,7 +23,7 @@ import { eq } from 'drizzle-orm';
 import { Chess } from 'chess.js';
 
 // How many Stockfish candidates to show when there are no book moves.
-const DEFAULT_ENGINE_MOVES = 5;
+const DEFAULT_ENGINE_MOVES = 3;
 // Search depth. Will eventually be driven by the user's settings page.
 const DEFAULT_DEPTH = 15;
 

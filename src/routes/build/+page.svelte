@@ -93,6 +93,10 @@
 	// Set when a network or server error occurs.
 	let errorMsg = $state<string | null>(null);
 
+	// True when the user has dismissed the transposition notice at the current position.
+	// Reset automatically whenever currentFen changes so it reappears at each new transposition.
+	let transpositionDismissed = $state(false);
+
 	// Incrementing this key forces ChessBoard to remount, which resets the visual
 	// board state to `currentFen`. We use this to snap a piece back after a
 	// rejected move (conflict or error).
@@ -111,18 +115,29 @@
 		errorMsg = null;
 	});
 
+	// Reset the transposition dismissed flag whenever the user navigates to a new position.
+	// This ensures the banner reappears at every new transposition position.
+	$effect(() => {
+		currentFen; // tracked — changing this FEN re-runs the effect
+		transpositionDismissed = false;
+	});
+
 	// ── Derived values ───────────────────────────────────────────────────────────
 
-	// Quick lookup: FEN → moves that start from that position.
-	// Rebuilt automatically whenever `moves` changes.
+	// Quick lookup: normalised FEN key → moves that start from that position.
+	// Keys use only the first 4 FEN fields (position + side + castling + en-passant),
+	// stripping the half-move clock and full-move counter. This means two paths that
+	// reach the same board position will map to the same bucket even if their
+	// half-move clocks differ — which is exactly what we want for transpositions.
 	const movesFromFen = $derived.by(() => {
 		const map = new SvelteMap<string, RepertoireMove[]>();
 		for (const m of moves) {
-			const arr = map.get(m.fromFen);
+			const key = fenKey(m.fromFen);
+			const arr = map.get(key);
 			if (arr) {
 				arr.push(m);
 			} else {
-				map.set(m.fromFen, [m]);
+				map.set(key, [m]);
 			}
 		}
 		return map;
@@ -149,7 +164,9 @@
 	});
 
 	// All saved moves from the current position, shown in the sidebar.
-	const movesFromCurrentPosition = $derived(movesFromFen.get(currentFen) ?? []);
+	// Uses the normalised key so transposition positions show the same continuation
+	// moves regardless of which path the user took to arrive here.
+	const movesFromCurrentPosition = $derived(movesFromFen.get(fenKey(currentFen)) ?? []);
 
 	// The FENs from the navigation history, ordered newest-to-oldest.
 	// Passed to OpeningName so it can walk backwards to find the deepest
@@ -168,6 +185,29 @@
 		return pairs;
 	});
 
+	// Strip the half-move clock and full-move counter from a FEN string.
+	// Two positions that differ only in these fields are the same board position
+	// for repertoire purposes. Without this, transpositions reached via different
+	// move orders produce different half-move clock values and the string comparison
+	// would miss them (e.g. "... - 0 3" vs "... - 2 3").
+	function fenKey(fen: string): string {
+		return fen.split(' ').slice(0, 4).join(' ');
+	}
+
+	// True when the current position can also be reached via a different move order
+	// than the one in navHistory. We detect this by checking whether any saved move
+	// leads to currentFen from a different fromFen than the one we arrived from.
+	// FENs are compared by position only (first 4 fields) to handle the half-move
+	// clock mismatch that transpositions naturally produce.
+	const transpositionExists = $derived.by(() => {
+		if (navHistory.length === 0) return false;
+		const lastEntry = navHistory[navHistory.length - 1];
+		const currentKey = fenKey(currentFen);
+		return moves.some(
+			(m) => fenKey(m.toFen) === currentKey && fenKey(m.fromFen) !== fenKey(lastEntry.fromFen)
+		);
+	});
+
 	// ── Helpers ──────────────────────────────────────────────────────────────────
 
 	// Given a FEN and a SAN move, use Chess.js to resolve the from/to squares.
@@ -183,17 +223,19 @@
 		}
 	}
 
-	// Collect all FENs reachable from a given position in the local move tree.
-	// Used after a deletion to figure out which local state entries to remove.
-	// The visited set prevents infinite loops on transpositions.
+	// Collect all normalised FEN keys reachable from a given position in the local
+	// move tree. Used after a deletion to figure out which local state entries to
+	// remove. The visited set stores normalised keys to prevent infinite loops and
+	// to correctly match moves stored with different half-move clock values.
 	function collectSubtreeFens(startFen: string): SvelteSet<string> {
 		const visited = new SvelteSet<string>();
 		const queue = [startFen];
 		while (queue.length > 0) {
 			const fen = queue.shift()!;
-			if (visited.has(fen)) continue;
-			visited.add(fen);
-			for (const child of movesFromFen.get(fen) ?? []) {
+			const key = fenKey(fen);
+			if (visited.has(key)) continue;
+			visited.add(key);
+			for (const child of movesFromFen.get(key) ?? []) {
 				queue.push(child.toFen);
 			}
 		}
@@ -207,7 +249,9 @@
 		errorMsg = null;
 
 		// If this exact move is already in the repertoire, just navigate — no API call.
-		const existing = movesFromFen.get(currentFen)?.find((m) => m.san === san);
+		// Normalised key lookup so a transposition position finds moves saved via
+		// the other path rather than trying to save a duplicate.
+		const existing = movesFromFen.get(fenKey(currentFen))?.find((m) => m.san === san);
 		if (existing) {
 			navHistory = [...navHistory, { fromFen: currentFen, toFen: newFen, san, from, to }];
 			currentFen = newFen;
@@ -366,15 +410,17 @@
 			const deletedFens = collectSubtreeFens(move.toFen);
 
 			// Remove the deleted move and its subtree from local state.
+			// Compare using normalised keys to catch moves stored with different
+			// half-move clocks (e.g. the same position reached via a transposition).
 			moves = moves.filter((m) => {
 				if (m.id === move.id) return false;
-				if (deletedFens.has(m.fromFen)) return false;
+				if (deletedFens.has(fenKey(m.fromFen))) return false;
 				return true;
 			});
 
 			// If the user is currently at a position inside the deleted subtree,
 			// navigate back to where the deleted move started.
-			if (currentFen === move.toFen || deletedFens.has(currentFen)) {
+			if (fenKey(currentFen) === fenKey(move.toFen) || deletedFens.has(fenKey(currentFen))) {
 				const entryIdx = navHistory.findIndex((e) => e.toFen === move.toFen);
 				if (entryIdx >= 0) {
 					navHistory = navHistory.slice(0, entryIdx);
@@ -454,6 +500,15 @@
 			<div class="banner banner--error">
 				{errorMsg}
 				<button class="banner-dismiss" onclick={() => (errorMsg = null)}>✕</button>
+			</div>
+		{/if}
+
+		<!-- Transposition notice -->
+		{#if transpositionExists && !transpositionDismissed}
+			<div class="banner banner--info">
+				<strong>Transposition</strong> — this position is already in your repertoire via a
+				different move order. Your existing preparation applies here.
+				<button class="banner-dismiss" onclick={() => (transpositionDismissed = true)}>✕</button>
 			</div>
 		{/if}
 
@@ -679,6 +734,12 @@
 		background: rgba(160, 40, 40, 0.15);
 		border: 1px solid rgba(160, 40, 40, 0.35);
 		color: #e06060;
+	}
+
+	.banner--info {
+		background: rgba(40, 100, 160, 0.15);
+		border: 1px solid rgba(40, 100, 160, 0.35);
+		color: #60a0d0;
 	}
 
 	.banner-dismiss {
