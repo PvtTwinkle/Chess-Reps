@@ -51,10 +51,20 @@ Docker images are tagged per version. To stay on stable releases, pin your
   Sicilian mainline (1.e4 c5 2.c3 d5) as a minimal test dataset; FEN strings
   generated from Chess.js to match runtime FEN output exactly
 
+- **Move annotations** — free-text notes on any saved move in Build mode:
+  - ✎ button on each move row in the sidebar opens an edit modal pre-filled with
+    any existing note
+  - ✎ button in the nav controls annotates the move that led to the current position
+    without having to step back first
+  - Notes are displayed in italic below the move SAN (truncated to 80 chars)
+  - `PATCH /api/moves/[id]` — updates `notes` with auth and ownership checks;
+    empty string coerced to `null`; max 500 characters
+
 - **Moves API** (`src/routes/api/moves/`):
   - `GET /api/moves?repertoireId=X` — load all saved moves for a repertoire
   - `POST /api/moves` — save a move; enforces turn rules and creates SR cards
   - `DELETE /api/moves/[id]` — delete a move and cascade-delete its subtree
+  - `PATCH /api/moves/[id]` — update the notes annotation on a move
 
 - **ChessBoard component** (`src/lib/components/ChessBoard.svelte`) — interactive
   board powered by Chessground with props for FEN, orientation, movable squares,

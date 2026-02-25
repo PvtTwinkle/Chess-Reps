@@ -94,3 +94,47 @@ export const DELETE: RequestHandler = ({ locals, params }) => {
 
 	return json({ deleted: subtreeCount + 1 });
 };
+
+// ── PATCH ──────────────────────────────────────────────────────────────────────
+// Updates the notes annotation on a single move.
+// Expects JSON body: { notes: string | null }
+// An empty string is coerced to null — we do not store empty annotations.
+
+export const PATCH: RequestHandler = async ({ locals, request, params }) => {
+	if (!locals.user) throw error(401, 'Not authenticated');
+
+	const id = parseInt(params.id);
+	if (isNaN(id)) throw error(400, 'Invalid move ID');
+
+	// Ownership check — one query, fails for wrong user or missing row.
+	const move = db
+		.select()
+		.from(userMove)
+		.where(and(eq(userMove.id, id), eq(userMove.userId, locals.user.id)))
+		.get();
+
+	if (!move) throw error(404, 'Move not found');
+
+	const body = await request.json();
+	let { notes } = body;
+
+	if (notes !== null && typeof notes !== 'string') {
+		throw error(400, 'notes must be a string or null');
+	}
+	if (typeof notes === 'string') {
+		notes = notes.trim();
+		if (notes.length === 0) notes = null;
+		if (notes !== null && notes.length > 500) {
+			throw error(400, 'notes must be 500 characters or fewer');
+		}
+	}
+
+	const updated = db
+		.update(userMove)
+		.set({ notes })
+		.where(eq(userMove.id, id))
+		.returning()
+		.get();
+
+	return json(updated);
+};

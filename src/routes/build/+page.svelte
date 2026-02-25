@@ -102,6 +102,20 @@
 	// rejected move (conflict or error).
 	let boardKey = $state(0);
 
+	// ── Annotation editing ────────────────────────────────────────────────────────
+
+	// The move currently being annotated. null means the modal is closed.
+	let annotatingMove = $state<RepertoireMove | null>(null);
+
+	// The current value of the textarea while the modal is open.
+	let annotationDraft = $state('');
+
+	// True while a PATCH request for notes is in-flight.
+	let savingAnnotation = $state(false);
+
+	// Error message specific to annotation saving (distinct from the main errorMsg).
+	let annotationError = $state<string | null>(null);
+
 	// Sync all local state from the server-provided page data.
 	// Runs on initial mount AND whenever `data` is refreshed — which happens
 	// when the user switches to a different repertoire via the nav bar
@@ -437,6 +451,68 @@
 			saving = false;
 		}
 	}
+
+	// ── Annotation helpers ────────────────────────────────────────────────────────
+
+	// Open the annotation modal for a specific move.
+	function openAnnotation(move: RepertoireMove) {
+		annotatingMove = move;
+		annotationDraft = move.notes ?? '';
+		annotationError = null;
+	}
+
+	// Close the modal and discard any unsaved changes.
+	function closeAnnotation() {
+		annotatingMove = null;
+		annotationDraft = '';
+		annotationError = null;
+	}
+
+	// Open the annotation modal for the move that led to the current position.
+	// Used by the "✎" button in the nav controls so the user can annotate the
+	// last move without having to step back first.
+	function annotateLastMove() {
+		if (navHistory.length === 0) return;
+		const last = navHistory[navHistory.length - 1];
+		const move = moves.find(
+			(m) => fenKey(m.fromFen) === fenKey(last.fromFen) && m.san === last.san
+		);
+		if (move) openAnnotation(move);
+	}
+
+	// Save the current draft to the server and update local state.
+	async function saveAnnotation() {
+		if (!annotatingMove) return;
+		savingAnnotation = true;
+		annotationError = null;
+
+		const notes = annotationDraft.trim() === '' ? null : annotationDraft.trim();
+
+		try {
+			const res = await fetch(`/api/moves/${annotatingMove.id}`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ notes })
+			});
+
+			if (!res.ok) {
+				const body = await res.json().catch(() => ({}));
+				annotationError = body.message ?? 'Failed to save annotation.';
+				return;
+			}
+
+			const updated: RepertoireMove = await res.json();
+
+			// Replace the updated move in local state so the notes display refreshes.
+			moves = moves.map((m) => (m.id === updated.id ? updated : m));
+
+			closeAnnotation();
+		} catch {
+			annotationError = 'Network error. Please try again.';
+		} finally {
+			savingAnnotation = false;
+		}
+	}
 </script>
 
 <div class="page">
@@ -549,18 +625,31 @@
 			{#if movesFromCurrentPosition.length > 0}
 				<div class="position-moves">
 					{#each movesFromCurrentPosition as m (m.id)}
-						<div class="position-move-row">
-							<button class="move-nav-btn" onclick={() => navigateTo(m)}>
-								{m.san}
-							</button>
-							<button
-								class="move-delete-btn"
-								onclick={() => deleteMove(m)}
-								disabled={saving}
-								title="Remove this move and all moves after it"
-							>
-								✕
-							</button>
+						<div class="position-move-item">
+							<div class="position-move-row">
+								<button class="move-nav-btn" onclick={() => navigateTo(m)}>
+									{m.san}
+								</button>
+								<button
+									class="move-annotate-btn"
+									onclick={() => openAnnotation(m)}
+									title="Add or edit annotation"
+									aria-label="Edit annotation for {m.san}"
+								>
+									✎
+								</button>
+								<button
+									class="move-delete-btn"
+									onclick={() => deleteMove(m)}
+									disabled={saving}
+									title="Remove this move and all moves after it"
+								>
+									✕
+								</button>
+							</div>
+							{#if m.notes}
+								<p class="move-notes">{m.notes.length > 80 ? m.notes.slice(0, 80) + '…' : m.notes}</p>
+							{/if}
 						</div>
 					{/each}
 				</div>
@@ -596,6 +685,14 @@
 			>
 				← Undo
 			</button>
+			<button
+				class="nav-btn nav-btn--annotate"
+				onclick={annotateLastMove}
+				disabled={navHistory.length === 0 || saving}
+				title="Annotate the last move"
+			>
+				✎
+			</button>
 		</div>
 
 		<!-- Saving indicator -->
@@ -603,6 +700,58 @@
 			<div class="saving-indicator">Saving…</div>
 		{/if}
 	</div>
+
+	<!-- ── Annotation modal ──────────────────────────────────────────────────────────────────────── -->
+	{#if annotatingMove}
+		<div
+			class="modal-backdrop"
+			role="dialog"
+			aria-modal="true"
+			tabindex="-1"
+			onclick={closeAnnotation}
+			onkeydown={(e) => e.key === 'Escape' && closeAnnotation()}
+		>
+			<div
+				class="modal"
+				role="presentation"
+				onclick={(e) => e.stopPropagation()}
+				onkeydown={(e) => e.stopPropagation()}
+			>
+				<div class="modal-header">
+					<span class="modal-title">Annotation — <strong>{annotatingMove.san}</strong></span>
+					<button class="modal-close" onclick={closeAnnotation} aria-label="Close">✕</button>
+				</div>
+				<textarea
+					class="annotation-textarea"
+					bind:value={annotationDraft}
+					placeholder="Add a note about this move…"
+					maxlength="500"
+					rows="4"
+					disabled={savingAnnotation}
+				></textarea>
+				<div class="annotation-char-count">{annotationDraft.length}/500</div>
+				{#if annotationError}
+					<p class="annotation-error">{annotationError}</p>
+				{/if}
+				<div class="modal-actions">
+					<button
+						class="modal-btn modal-btn--cancel"
+						onclick={closeAnnotation}
+						disabled={savingAnnotation}
+					>
+						Cancel
+					</button>
+					<button
+						class="modal-btn modal-btn--save"
+						onclick={saveAnnotation}
+						disabled={savingAnnotation}
+					>
+						{savingAnnotation ? 'Saving…' : 'Save'}
+					</button>
+				</div>
+			</div>
+		</div>
+	{/if}
 </div>
 
 <style>
@@ -934,6 +1083,10 @@
 		flex: 1;
 	}
 
+	.nav-btn--annotate {
+		flex-shrink: 0;
+	}
+
 	/* ── Saving indicator ────────────────────────────────────────────────────── */
 
 	.saving-indicator {
@@ -941,5 +1094,177 @@
 		color: #505060;
 		font-style: italic;
 		text-align: center;
+	}
+
+	/* ── Annotation UI ───────────────────────────────────────────────────────── */
+
+	.position-move-item {
+		display: flex;
+		flex-direction: column;
+		gap: 0.2rem;
+	}
+
+	.move-notes {
+		font-size: 0.75rem;
+		color: #6878a0;
+		font-style: italic;
+		margin: 0 0 0 0.25rem;
+		line-height: 1.35;
+		word-break: break-word;
+	}
+
+	.move-annotate-btn {
+		flex-shrink: 0;
+		width: 26px;
+		height: 26px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background: none;
+		border: 1px solid #1a3a5c;
+		border-radius: 4px;
+		color: #505060;
+		font-size: 0.75rem;
+		cursor: pointer;
+		padding: 0;
+		transition:
+			border-color 0.12s,
+			color 0.12s;
+	}
+
+	.move-annotate-btn:hover {
+		border-color: #4a6a9a;
+		color: #a0b0d0;
+	}
+
+	/* ── Annotation modal ────────────────────────────────────────────────────── */
+
+	.modal-backdrop {
+		position: fixed;
+		inset: 0;
+		background: rgba(0, 0, 0, 0.6);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		z-index: 100;
+	}
+
+	.modal {
+		background: #111827;
+		border: 1px solid #1a3a5c;
+		border-radius: 8px;
+		padding: 1.25rem;
+		width: 360px;
+		max-width: calc(100vw - 2rem);
+		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
+	}
+
+	.modal-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+	}
+
+	.modal-title {
+		font-size: 0.875rem;
+		color: #c0c0d0;
+	}
+
+	.modal-close {
+		background: none;
+		border: none;
+		color: #505060;
+		font-size: 0.8rem;
+		cursor: pointer;
+		padding: 0.1rem 0.2rem;
+		line-height: 1;
+	}
+
+	.modal-close:hover {
+		color: #a0a0b0;
+	}
+
+	.annotation-textarea {
+		width: 100%;
+		background: #0d1520;
+		border: 1px solid #1a3a5c;
+		border-radius: 4px;
+		color: #c0c0d0;
+		font-family: inherit;
+		font-size: 0.875rem;
+		line-height: 1.5;
+		padding: 0.5rem 0.65rem;
+		resize: vertical;
+		box-sizing: border-box;
+	}
+
+	.annotation-textarea:focus {
+		outline: none;
+		border-color: #4a6a9a;
+	}
+
+	.annotation-textarea:disabled {
+		opacity: 0.5;
+	}
+
+	.annotation-char-count {
+		font-size: 0.72rem;
+		color: #404050;
+		text-align: right;
+		margin-top: -0.4rem;
+	}
+
+	.annotation-error {
+		font-size: 0.8rem;
+		color: #e06060;
+		margin: 0;
+	}
+
+	.modal-actions {
+		display: flex;
+		gap: 0.5rem;
+		justify-content: flex-end;
+	}
+
+	.modal-btn {
+		padding: 0.4rem 1rem;
+		border-radius: 4px;
+		font-size: 0.875rem;
+		font-family: inherit;
+		cursor: pointer;
+		transition:
+			border-color 0.12s,
+			background 0.12s,
+			color 0.12s;
+	}
+
+	.modal-btn:disabled {
+		opacity: 0.5;
+		cursor: default;
+	}
+
+	.modal-btn--cancel {
+		background: none;
+		border: 1px solid #1a3a5c;
+		color: #a0a0b0;
+	}
+
+	.modal-btn--cancel:hover:not(:disabled) {
+		border-color: #4a6a9a;
+		color: #d0d0e0;
+	}
+
+	.modal-btn--save {
+		background: #0f3460;
+		border: 1px solid #1a5090;
+		color: #c8d8f0;
+	}
+
+	.modal-btn--save:hover:not(:disabled) {
+		background: #1a4a7a;
+		border-color: #2a6aaa;
+		color: #e0eeff;
 	}
 </style>
