@@ -34,10 +34,16 @@
 	import ChessBoard from '$lib/components/ChessBoard.svelte';
 	import OpeningName from '$lib/components/OpeningName.svelte';
 	import { SvelteMap } from 'svelte/reactivity';
+	import { onMount } from 'svelte';
 	import { Chess } from 'chess.js';
 	import type { PageData } from './$types';
 	import type { DrawShape } from '@lichess-org/chessground/draw';
 	import type { Key } from '@lichess-org/chessground/types';
+	import { initSounds, playMove, playCapture } from '$lib/sounds';
+
+	onMount(() => {
+		initSounds();
+	});
 
 	const STARTING_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
@@ -200,6 +206,9 @@
 		];
 		currentFen = move.toFen;
 		lastMove = squares;
+		// SAN always contains 'x' for captures (e.g. "Nxe4", "exd5").
+		if (move.san.includes('x')) playCapture();
+		else playMove();
 	}
 
 	// Jump to a specific index in the current line by clicking the breadcrumb.

@@ -27,9 +27,18 @@
 	import OpeningName from '$lib/components/OpeningName.svelte';
 	import { SvelteMap } from 'svelte/reactivity';
 	import { untrack } from 'svelte';
+	import { onMount } from 'svelte';
 	import { invalidateAll } from '$app/navigation';
 	import { Chess } from 'chess.js';
 	import type { PageData } from './$types';
+	import {
+		initSounds,
+		setSoundEnabled,
+		playMove,
+		playCapture,
+		playCorrect,
+		playIncorrect
+	} from '$lib/sounds';
 
 	const STARTING_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
@@ -113,6 +122,43 @@
 	// Timer handle for the incorrect-reveal delay.
 	let incorrectTimer: ReturnType<typeof setTimeout> | undefined;
 
+	// Whether sound effects are enabled. Initialised from server settings,
+	// can be toggled in-session via the mute button (persisted to the DB).
+	let soundEnabled = $state(true);
+
+	// Preload audio files once on mount so sounds play without latency.
+	onMount(() => {
+		initSounds();
+	});
+
+	// ── Keyboard shortcuts ─────────────────────────────────────────────────────
+
+	// Register a keydown listener for the grading shortcuts.
+	// The $effect cleanup function removes the listener when the component unmounts.
+	$effect(() => {
+		function handleKey(e: KeyboardEvent) {
+			// Only fire shortcuts when the grading buttons are visible and no
+			// modifier keys are held (avoids conflicts with browser shortcuts).
+			if (phase !== 'correct' || e.ctrlKey || e.altKey || e.metaKey) return;
+			// Ignore keypresses inside input fields.
+			if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+			if (e.key === '1') {
+				e.preventDefault();
+				gradeAndAdvance(1);
+			} else if (e.key === '2') {
+				e.preventDefault();
+				gradeAndAdvance(3);
+			} else if (e.key === '3') {
+				e.preventDefault();
+				gradeAndAdvance(4);
+			}
+		}
+
+		window.addEventListener('keydown', handleKey);
+		return () => window.removeEventListener('keydown', handleKey);
+	});
+
 	// ── Sync from server data ──────────────────────────────────────────────────
 
 	// Runs on mount and again whenever the server data changes (e.g. invalidateAll).
@@ -121,9 +167,15 @@
 	// of this effect. Without untrack, writing allDueCards/drillMode above invalidates
 	// filteredCards, and then reading filteredCards inside startNextCard() makes it a
 	// dependency — causing this effect to re-run infinitely.
+	// Keep the sounds module in sync with soundEnabled state.
+	$effect(() => {
+		setSoundEnabled(soundEnabled);
+	});
+
 	$effect(() => {
 		allMoves = data.moves as RepertoireMove[];
 		allDueCards = data.dueCards as DueCard[];
+		soundEnabled = data.settings?.soundEnabled ?? true;
 
 		// Reset session.
 		totalReviewed = 0;
@@ -275,6 +327,10 @@
 				navHistory = history;
 				currentFen = fen;
 				lastMove = [result.from, result.to];
+
+				// Play the appropriate sound for this auto-played move.
+				if (result.captured) playCapture();
+				else playMove();
 			} catch {
 				phase = 'waiting';
 				return;
@@ -291,22 +347,26 @@
 	// ── User move handling ─────────────────────────────────────────────────────
 
 	// Called by ChessBoard when the user drags a piece.
-	function handleMove(from: string, to: string, san: string, newFen: string) {
+	function handleMove(from: string, to: string, san: string, newFen: string, isCapture: boolean) {
 		if (phase !== 'waiting' || !currentCard) return;
 
 		if (san === currentCard.san) {
-			// Correct! Update board state, then show grading buttons.
+			// Correct! Play piece sound first, then the "correct" notification.
 			navHistory = [...navHistory, { fromFen: currentFen, toFen: newFen, san, from, to }];
 			currentFen = newFen;
 			lastMove = [from, to];
 			phase = 'correct';
 			flashColor = 'green';
 			setTimeout(() => (flashColor = null), 600);
+			if (isCapture) playCapture();
+			else playMove();
+			playCorrect();
 		} else {
 			// Wrong move — snap the board back and show the correct move.
 			boardKey++;
 			phase = 'incorrect';
 			flashColor = 'red';
+			playIncorrect();
 			revealedSan = currentCard.san;
 			setTimeout(() => (flashColor = null), 600);
 
@@ -361,6 +421,20 @@
 		phase = 'idle'; // hide the complete screen immediately while data loads
 		invalidateAll();
 	}
+
+	// Toggle sound on/off and persist the preference to the database.
+	async function toggleSound() {
+		soundEnabled = !soundEnabled;
+		try {
+			await fetch('/api/settings', {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ soundEnabled })
+			});
+		} catch {
+			// Non-critical — the in-session toggle still works even if the save fails.
+		}
+	}
 </script>
 
 <div class="page">
@@ -406,6 +480,15 @@
 			>
 				{data.repertoire.color === 'WHITE' ? 'White' : 'Black'}
 			</span>
+			<button
+				class="mute-btn"
+				class:muted={!soundEnabled}
+				onclick={toggleSound}
+				title={soundEnabled ? 'Mute sounds' : 'Unmute sounds'}
+				aria-label={soundEnabled ? 'Mute sounds' : 'Unmute sounds'}
+			>
+				{soundEnabled ? '🔊' : '🔇'}
+			</button>
 		</div>
 
 		<!-- ECO opening name -->
@@ -546,6 +629,11 @@
 						Easy
 					</button>
 				</div>
+				<div class="shortcut-hints">
+					<span class="shortcut"><kbd>1</kbd> Again</span>
+					<span class="shortcut"><kbd>2</kbd> Good</span>
+					<span class="shortcut"><kbd>3</kbd> Easy</span>
+				</div>
 			</div>
 		{:else if phase === 'incorrect'}
 			<!-- Wrong move — reveal the correct answer and auto-advance. -->
@@ -679,6 +767,57 @@
 		background: #181818;
 		color: #707070;
 		border: 1px solid #2a2a2a;
+	}
+
+	/* ── Mute toggle button ───────────────────────────────────────────────────── */
+
+	.mute-btn {
+		background: none;
+		border: none;
+		cursor: pointer;
+		font-size: 1rem;
+		line-height: 1;
+		padding: 0.1rem 0.2rem;
+		border-radius: 3px;
+		opacity: 0.6;
+		transition: opacity 0.15s;
+		flex-shrink: 0;
+	}
+
+	.mute-btn:hover {
+		opacity: 1;
+	}
+
+	.mute-btn.muted {
+		opacity: 0.35;
+	}
+
+	/* ── Keyboard shortcut hints ──────────────────────────────────────────────── */
+
+	.shortcut-hints {
+		display: flex;
+		gap: 1rem;
+		margin-top: 0.4rem;
+	}
+
+	.shortcut {
+		display: flex;
+		align-items: center;
+		gap: 0.3rem;
+		font-size: 0.7rem;
+		color: #555;
+	}
+
+	kbd {
+		display: inline-block;
+		padding: 0.05rem 0.3rem;
+		border: 1px solid #333;
+		border-radius: 3px;
+		background: #1a1a2e;
+		color: #777;
+		font-size: 0.65rem;
+		font-family: inherit;
+		line-height: 1.4;
 	}
 
 	/* ── Progress bar ─────────────────────────────────────────────────────────── */

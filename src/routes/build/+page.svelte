@@ -34,8 +34,14 @@
 	import CandidateMoves from '$lib/components/CandidateMoves.svelte';
 	import OpeningName from '$lib/components/OpeningName.svelte';
 	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
+	import { onMount } from 'svelte';
 	import { Chess } from 'chess.js';
 	import type { PageData } from './$types';
+	import { initSounds, playMove, playCapture } from '$lib/sounds';
+
+	onMount(() => {
+		initSounds();
+	});
 
 	const STARTING_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
@@ -301,7 +307,13 @@
 
 	// ── Move handler (called by ChessBoard after the user moves a piece) ─────────
 
-	async function handleMove(from: string, to: string, san: string, newFen: string) {
+	async function handleMove(
+		from: string,
+		to: string,
+		san: string,
+		newFen: string,
+		isCapture = false
+	) {
 		conflictSan = null;
 		errorMsg = null;
 
@@ -313,6 +325,8 @@
 			navHistory = [...navHistory, { fromFen: currentFen, toFen: newFen, san, from, to }];
 			currentFen = newFen;
 			lastMove = [from, to];
+			if (isCapture) playCapture();
+			else playMove();
 			return;
 		}
 
@@ -333,7 +347,7 @@
 				body: JSON.stringify({
 					repertoireId: data.repertoire.id,
 					fromFen: currentFen,
-					san,
+					san
 				})
 			});
 
@@ -356,6 +370,8 @@
 			navHistory = [...navHistory, { fromFen: currentFen, toFen: newFen, san, from, to }];
 			currentFen = newFen;
 			lastMove = [from, to];
+			if (isCapture) playCapture();
+			else playMove();
 		} catch {
 			errorMsg = 'Network error. Please try again.';
 			boardKey += 1;
@@ -410,6 +426,8 @@
 		lastMove = squares;
 		conflictSan = null;
 		errorMsg = null;
+		if (move.san.includes('x')) playCapture();
+		else playMove();
 	}
 
 	// Navigate to a specific index in the current line by clicking a move in the
@@ -436,7 +454,7 @@
 			const chess = new Chess(currentFen);
 			const result = chess.move(san);
 			if (result) {
-				await handleMove(result.from, result.to, result.san, chess.fen());
+				await handleMove(result.from, result.to, result.san, chess.fen(), !!result.captured);
 			}
 		} catch {
 			// Chess.js throws if the move is somehow invalid — shouldn't happen

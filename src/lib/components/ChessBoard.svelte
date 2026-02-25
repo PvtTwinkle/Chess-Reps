@@ -37,9 +37,9 @@
 		/**
 		 * Called after the user makes a legal move.
 		 * Receives the origin square, destination square, the SAN notation (e.g. "Nf3"),
-		 * and the new FEN after the move.
+		 * the new FEN after the move, and whether a piece was captured (for sound selection).
 		 */
-		onMove?: (from: string, to: string, san: string, newFen: string) => void;
+		onMove?: (from: string, to: string, san: string, newFen: string, isCapture: boolean) => void;
 		/**
 		 * Programmatic arrows/dots to draw on the board (e.g. repertoire move arrows
 		 * in explorer mode). Uses Chessground's autoShapes — these are distinct from
@@ -158,8 +158,9 @@
 			}
 		});
 
-		// Tell the parent what happened.
-		onMove?.(orig, dest, result.san, chess.fen());
+		// Tell the parent what happened. `result.captured` is set when a piece
+		// was taken — pass it as a boolean so the parent can pick the right sound.
+		onMove?.(orig, dest, result.san, chess.fen(), !!result.captured);
 	}
 
 	// ---------------------------------------------------------------------------

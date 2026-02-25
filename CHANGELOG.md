@@ -15,6 +15,26 @@ Docker images are tagged per version. To stay on stable releases, pin your
 
 ### Added
 
+- **Keyboard shortcuts in drill mode** — press `1`, `2`, or `3` to grade a card
+  (Again / Good / Easy) without reaching for the mouse; keys only fire when the
+  grading buttons are visible and are ignored inside input fields
+- **Sound feedback** — distinct audio cues for every chess interaction:
+  - Piece movement and capture sounds on all interactive board moves (drag-and-drop
+    and sidebar clicks) in Build mode, Explorer mode, and Drill mode
+  - Auto-played moves in Drill mode also produce sounds as each position is replayed
+  - "Correct" notification sound after a right answer in Drill mode
+  - "Incorrect" error sound on a wrong answer in Drill mode
+  - All four sounds use Lichess's open-source assets (`static/sounds/`)
+  - `src/lib/sounds.ts` — centralised sound manager: single `AudioContext`,
+    preloaded `AudioBuffer`s for zero-latency playback, module-level enable flag
+- **Mute toggle** — 🔊/🔇 button in the Drill mode sidebar silences all sounds for
+  the session and persists the preference to the database
+- **`PATCH /api/settings`** — new endpoint to update user settings fields; currently
+  handles `soundEnabled` and is designed to accept additional fields as the Settings
+  page is built in a later step
+
+### Added
+
 - **Drill mode** (`src/routes/drill/`) — spaced repetition practice:
   - Auto-plays the full move sequence from move 1 to the due position at 500 ms per move
   - Board becomes interactive at the due position — user must play the correct move
