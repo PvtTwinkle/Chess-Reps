@@ -31,6 +31,8 @@
 	import { invalidateAll } from '$app/navigation';
 	import { Chess } from 'chess.js';
 	import type { PageData } from './$types';
+	import type { DrawShape } from '@lichess-org/chessground/draw';
+	import type { Key } from '@lichess-org/chessground/types';
 	import {
 		initSounds,
 		setSoundEnabled,
@@ -107,6 +109,11 @@
 
 	// True while a grade fetch is in-flight — prevents double-grading.
 	let grading = $state(false);
+
+	// Hint state: whether the user asked for a hint this card, and which
+	// square to highlight (the "from" square of the correct move).
+	let hintUsed = $state(false);
+	let hintSquare = $state<string | null>(null);
 
 	// Session stats (accumulated across all cards in this session).
 	let totalReviewed = $state(0);
@@ -204,7 +211,31 @@
 	// Progress fraction (0–1) for the progress bar.
 	const progress = $derived(allDueCards.length === 0 ? 1 : currentCardIdx / allDueCards.length);
 
+	// Yellow circle on the piece's square when a hint is active.
+	// A shape with only `orig` (no `dest`) draws a circle dot on that square.
+	const hintShapes = $derived<DrawShape[]>(
+		hintSquare ? [{ orig: hintSquare as Key, brush: 'yellow' }] : []
+	);
+
 	// ── Utility functions ──────────────────────────────────────────────────────
+
+	// ── Hint ───────────────────────────────────────────────────────────────────
+
+	// Use Chess.js to find which square the correct piece moves FROM.
+	// Returns null if the SAN can't be found in the current position (shouldn't happen).
+	function getHintSquare(fen: string, san: string): string | null {
+		const chess = new Chess(fen);
+		const move = chess.moves({ verbose: true }).find((m) => m.san === san);
+		return move?.from ?? null;
+	}
+
+	// Show the hint: highlight the source square of the correct move.
+	// Guard against calling more than once per card or outside the waiting phase.
+	function showHint() {
+		if (hintUsed || !currentCard || phase !== 'waiting') return;
+		hintSquare = getHintSquare(currentFen, currentCard.san);
+		hintUsed = true;
+	}
 
 	// Strip the half-move clock and full-move counter from a FEN so that
 	// positions reached via different move orders compare equal.
@@ -247,6 +278,8 @@
 		lastMove = undefined;
 		flashColor = null;
 		revealedSan = null;
+		hintUsed = false;
+		hintSquare = null;
 		boardKey++;
 	}
 
@@ -351,16 +384,26 @@
 		if (phase !== 'waiting' || !currentCard) return;
 
 		if (san === currentCard.san) {
-			// Correct! Play piece sound first, then the "correct" notification.
+			// Correct move played. Update the board position regardless.
 			navHistory = [...navHistory, { fromFen: currentFen, toFen: newFen, san, from, to }];
 			currentFen = newFen;
 			lastMove = [from, to];
-			phase = 'correct';
 			flashColor = 'green';
 			setTimeout(() => (flashColor = null), 600);
 			if (isCapture) playCapture();
 			else playMove();
-			playCorrect();
+
+			if (hintUsed) {
+				// Hint was used — auto-grade as Again (no grade buttons).
+				// Green flash shows they played the right move; the penalty is in the grade.
+				phase = 'correct'; // template checks hintUsed to show the penalty message
+				incorrectTimer = setTimeout(() => {
+					gradeAndAdvance(1); // Rating.Again
+				}, 2000);
+			} else {
+				phase = 'correct';
+				playCorrect();
+			}
 		} else {
 			// Wrong move — snap the board back and show the correct move.
 			boardKey++;
@@ -447,6 +490,7 @@
 					{orientation}
 					interactive={phase === 'waiting'}
 					{lastMove}
+					autoShapes={hintShapes}
 					onMove={handleMove}
 				/>
 			{/key}
@@ -570,6 +614,16 @@
 				YOUR TURN <span class="turn-hint">— play your move</span>
 			</div>
 
+			<!-- Hint button / hint-active indicator -->
+			{#if !hintUsed}
+				<button class="hint-btn" onclick={showHint}>💡 Hint</button>
+			{:else}
+				<div class="hint-active">
+					<span>💡 Hint active — piece highlighted</span>
+					<span class="hint-penalty">Move will be graded Again</span>
+				</div>
+			{/if}
+
 			<!-- Current line display (clickable) -->
 			{#if navHistory.length > 0}
 				<div class="section">
@@ -585,9 +639,10 @@
 				</div>
 			{/if}
 		{:else if phase === 'correct'}
-			<!-- Correct! Show grading buttons. -->
+			<!-- Correct! Show grading buttons, or auto-advance if a hint was used. -->
 			<div class="feedback feedback--correct">
-				<span class="feedback-icon">✓</span> Correct!
+				<span class="feedback-icon">✓</span>
+				{hintUsed ? 'Correct! (hint used)' : 'Correct!'}
 			</div>
 
 			{#if navHistory.length > 0}
@@ -604,37 +659,42 @@
 				</div>
 			{/if}
 
-			<div class="section">
-				<div class="section-label">HOW WELL DID YOU KNOW IT?</div>
-				<div class="grade-buttons">
-					<button
-						class="grade-btn grade-btn--again"
-						onclick={() => gradeAndAdvance(1)}
-						disabled={grading}
-					>
-						Again
-					</button>
-					<button
-						class="grade-btn grade-btn--good"
-						onclick={() => gradeAndAdvance(3)}
-						disabled={grading}
-					>
-						Good
-					</button>
-					<button
-						class="grade-btn grade-btn--easy"
-						onclick={() => gradeAndAdvance(4)}
-						disabled={grading}
-					>
-						Easy
-					</button>
+			{#if hintUsed}
+				<!-- Hint was used — auto-graded Again, no grade buttons shown. -->
+				<p class="auto-advance-hint">Graded as Again — advancing…</p>
+			{:else}
+				<div class="section">
+					<div class="section-label">HOW WELL DID YOU KNOW IT?</div>
+					<div class="grade-buttons">
+						<button
+							class="grade-btn grade-btn--again"
+							onclick={() => gradeAndAdvance(1)}
+							disabled={grading}
+						>
+							Again
+						</button>
+						<button
+							class="grade-btn grade-btn--good"
+							onclick={() => gradeAndAdvance(3)}
+							disabled={grading}
+						>
+							Good
+						</button>
+						<button
+							class="grade-btn grade-btn--easy"
+							onclick={() => gradeAndAdvance(4)}
+							disabled={grading}
+						>
+							Easy
+						</button>
+					</div>
+					<div class="shortcut-hints">
+						<span class="shortcut"><kbd>1</kbd> Again</span>
+						<span class="shortcut"><kbd>2</kbd> Good</span>
+						<span class="shortcut"><kbd>3</kbd> Easy</span>
+					</div>
 				</div>
-				<div class="shortcut-hints">
-					<span class="shortcut"><kbd>1</kbd> Again</span>
-					<span class="shortcut"><kbd>2</kbd> Good</span>
-					<span class="shortcut"><kbd>3</kbd> Easy</span>
-				</div>
-			</div>
+			{/if}
 		{:else if phase === 'incorrect'}
 			<!-- Wrong move — reveal the correct answer and auto-advance. -->
 			<div class="feedback feedback--incorrect">
@@ -790,6 +850,42 @@
 
 	.mute-btn.muted {
 		opacity: 0.35;
+	}
+
+	/* ── Hint button ──────────────────────────────────────────────────────────── */
+
+	.hint-btn {
+		width: 100%;
+		padding: 0.45rem;
+		border-radius: 5px;
+		border: 1px solid rgba(226, 183, 20, 0.35);
+		background: rgba(226, 183, 20, 0.08);
+		color: #e2b714;
+		font-size: 0.8rem;
+		cursor: pointer;
+		transition: filter 0.15s;
+	}
+
+	.hint-btn:hover {
+		filter: brightness(1.2);
+	}
+
+	.hint-active {
+		display: flex;
+		flex-direction: column;
+		gap: 0.2rem;
+		padding: 0.4rem 0.65rem;
+		border-radius: 5px;
+		border: 1px solid rgba(226, 183, 20, 0.25);
+		background: rgba(226, 183, 20, 0.06);
+		font-size: 0.78rem;
+		color: #c8a010;
+	}
+
+	.hint-penalty {
+		font-size: 0.7rem;
+		color: #888;
+		font-style: italic;
 	}
 
 	/* ── Keyboard shortcut hints ──────────────────────────────────────────────── */

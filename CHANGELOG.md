@@ -15,6 +15,16 @@ Docker images are tagged per version. To stay on stable releases, pin your
 
 ### Added
 
+- **Hint button in drill mode** — 💡 Hint button appears in the sidebar on your turn:
+  - Highlights the source square of the correct piece with a yellow Chessground circle
+    (reveals *which* piece to move, not where it goes)
+  - After clicking, the button is replaced by a "hint active" notice warning that
+    the move will be graded Again
+  - If you then play the correct move: green flash, "Correct! (hint used)" banner,
+    auto-graded as Again and auto-advanced after 2 s — no grade buttons appear
+  - If you play the wrong move after a hint: same auto-Again flow as always
+  - Hint state is fully cleared between cards
+
 - **Keyboard shortcuts in drill mode** — press `1`, `2`, or `3` to grade a card
   (Again / Good / Easy) without reaching for the mouse; keys only fire when the
   grading buttons are visible and are ignored inside input fields

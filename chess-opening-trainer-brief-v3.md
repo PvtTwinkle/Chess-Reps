@@ -573,7 +573,7 @@ Required before any cloud-hosted version is possible.
 23. Keyboard shortcuts and sound feedback in drill mode
 24. Hint button in drill mode
 25. Drill session stats and end screen
-26. Game review — manual PGN paste, deviation detection, punishment line creation
+26. Game review — manual PGN paste, deviation detection
 27. Lichess game import
 28. Gap finder logic and dashboard widget
 29. Progress dashboard with stats, chart, and streak
