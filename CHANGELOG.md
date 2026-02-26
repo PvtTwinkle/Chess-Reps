@@ -15,6 +15,28 @@ Docker images are tagged per version. To stay on stable releases, pin your
 
 ### Added
 
+- **Game review mode** (`src/routes/review/`) — analyse a played game against your repertoire:
+  - Paste any PGN; auto-detects deviations, gaps, and opponent surprises
+  - Board auto-plays moves from the opening at 500 ms/move with sound, stopping at the first issue
+  - Arrow keys and ◀/▶ buttons for manual navigation (cancels auto-play); move sounds on forward steps
+  - **DEVIATION** — you played a different move than your repertoire:
+    - Red arrow on the wrong move, green arrow on the correct alternative
+    - Stockfish evals fetched in the background for both moves (e.g. `(−0.3)` vs `(+0.5)`)
+    - "Fail card" drops the FSRS card back to review; "Update repertoire" replaces the move and fails the card
+  - **BEYOND_REPERTOIRE** — you played from a position not in your repertoire:
+    - "Add my move" saves it; "Engine suggestion" fetches the top engine/book candidate
+  - **OPPONENT_SURPRISE** — opponent played a move you haven't prepared for:
+    - Phase 1: add the opponent's move to your repertoire
+    - Phase 2: add your actual response or an engine-suggested alternative (up to 3 candidates)
+  - All issues can be individually resolved or skipped; resolved cards are dimmed
+  - Notes field and "Save Review" persists the game to `reviewed_game` with deviation FEN
+  - Recent review history shown on the input screen
+  - `src/routes/review/+page.server.ts` — load + `analyzeGame` form action
+  - `src/lib/pgn/index.ts` — pure `parsePgn` and `analyzeGame` helpers (no DB access)
+  - `POST /api/review/fail-card` — marks an FSRS card as Again
+  - `POST /api/review/add-move` — adds a move to the repertoire (with optional force-replace)
+  - `POST /api/review/save` — saves the reviewed game record
+
 - **Drill session persistence and next-session estimate** — sessions are now saved
   to the `drill_session` table and the end screen shows when the next cards will
   be due:
@@ -28,7 +50,7 @@ Docker images are tagged per version. To stay on stable releases, pin your
 
 - **Hint button in drill mode** — 💡 Hint button appears in the sidebar on your turn:
   - Highlights the source square of the correct piece with a yellow Chessground circle
-    (reveals *which* piece to move, not where it goes)
+    (reveals _which_ piece to move, not where it goes)
   - After clicking, the button is replaced by a "hint active" notice warning that
     the move will be graded Again
   - If you then play the correct move: green flash, "Correct! (hint used)" banner,

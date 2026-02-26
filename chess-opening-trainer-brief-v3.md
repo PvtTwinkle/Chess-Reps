@@ -574,12 +574,13 @@ Required before any cloud-hosted version is possible.
 24. Hint button in drill mode
 25. Drill session stats and end screen
 26. Game review — manual PGN paste, deviation detection
-27. Lichess game import
-28. Gap finder logic and dashboard widget
-29. Progress dashboard with stats, chart, and streak
-30. Settings page (board theme, piece set, Stockfish depth, sound, Lichess username)
-31. Full ECO dataset import — expand from ~90 hand-picked positions to the full ~3,000 named positions using a generation script that replays Lichess's open-source ECO PGNs through Chess.js to produce correctly normalized FENs, then emits a replacement migration SQL file
-32. PGN import for repertoire seeding
+27. Lichess game import/sync
+28. Chess.com game import/sync
+29. Gap finder logic and dashboard widget
+30. Progress dashboard with stats, chart, and streak
+31. Settings page (board theme, piece set, Stockfish depth, sound, Lichess username)
+32. Full ECO dataset import — expand from ~90 hand-picked positions to the full ~3,000 named positions using a generation script that replays Lichess's open-source ECO PGNs through Chess.js to produce correctly normalized FENs, then emits a replacement migration SQL file
+33. PGN import for repertoire seeding
 
 ---
 
