@@ -2,10 +2,11 @@
 	CandidateMoves — sidebar panel for Build Mode.
 
 	Shows suggested moves at the current board position, drawn from two sources:
-	  • The shared opening book (shown with a BOOK badge and curator annotation)
+	  • The shared opening book (shown with the ECO opening name if known)
 	  • Stockfish engine analysis (shown with an evaluation score only)
 
-	Two checkboxes let the user independently toggle each source on or off.
+	Two tabs switch between Book moves and Engine suggestions. Book tab is shown
+	first; if there are no book moves the Engine tab is activated automatically.
 
 	When the user clicks a candidate, onSelectMove is called with the SAN of
 	that move. The parent (build page) handles playing it on the board through
@@ -27,6 +28,7 @@
 		evalMate: number | null;
 		isBook: boolean;
 		annotation: string | null;
+		openingName: string | null;
 	}
 
 	interface Props {
@@ -42,12 +44,12 @@
 	let engineAvailable = $state(true);
 	let fetchError = $state(false);
 
-	// Filter toggles — independently show/hide book and engine candidates.
-	let showBook = $state(true);
-	let showEngine = $state(true);
+	// Active tab — switches between book and engine move lists.
+	let activeTab = $state<'book' | 'engine'>('book');
 
-	// The visible subset of candidates based on the current toggle state.
-	const visibleCandidates = $derived(candidates.filter((c) => (c.isBook ? showBook : showEngine)));
+	// Split the flat candidate list into the two source buckets.
+	const bookCandidates = $derived(candidates.filter((c) => c.isBook));
+	const engineCandidates = $derived(candidates.filter((c) => !c.isBook));
 
 	// Fetch candidates whenever the current position changes.
 	// The AbortController ensures that if the position changes before the
@@ -59,6 +61,9 @@
 		loading = true;
 		fetchError = false;
 		candidates = [];
+		// Reset to book tab on each new position; we'll switch to engine below
+		// if there turn out to be no book moves.
+		activeTab = 'book';
 
 		fetch('/api/stockfish', {
 			method: 'POST',
@@ -73,6 +78,10 @@
 			.then((data) => {
 				candidates = data.candidates;
 				engineAvailable = data.engineAvailable;
+				// Auto-switch to the engine tab when this position has no book moves
+				// so the user immediately sees useful content.
+				const hasBook = (data.candidates as Candidate[]).some((c) => c.isBook);
+				if (!hasBook) activeTab = 'engine';
 			})
 			.catch((err) => {
 				// AbortError is expected when the position changes — not a real error.
@@ -115,72 +124,102 @@
 		if (cp < -60) return 'eval-black';
 		return 'eval-equal';
 	}
+
+	// The subtitle shown below a book move — opening name takes priority over
+	// the curator annotation; show whichever is available.
+	function bookSubtitle(c: Candidate): string | null {
+		return c.openingName ?? c.annotation ?? null;
+	}
 </script>
 
 <div class="section">
-	<!-- Label row with filter toggles -->
-	<div class="section-header">
-		<span class="section-label">SUGGESTED MOVES</span>
-		<div class="filters">
-			<label class="filter-toggle" title="Show opening book moves">
-				<input type="checkbox" bind:checked={showBook} />
-				<span class="filter-label">Book</span>
-			</label>
-			<label class="filter-toggle" title="Show Stockfish engine suggestions">
-				<input type="checkbox" bind:checked={showEngine} disabled={!engineAvailable} />
-				<span class="filter-label" class:unavailable={!engineAvailable}>Engine</span>
-			</label>
-		</div>
+	<!-- Tab bar -->
+	<div class="tab-bar">
+		<button
+			class="tab"
+			class:active={activeTab === 'book'}
+			onclick={() => (activeTab = 'book')}
+			type="button"
+		>
+			Book{#if !loading && bookCandidates.length > 0}&nbsp;({bookCandidates.length}){/if}
+		</button>
+		<button
+			class="tab"
+			class:active={activeTab === 'engine'}
+			onclick={() => (activeTab = 'engine')}
+			disabled={!engineAvailable}
+			type="button"
+			title={engineAvailable ? undefined : 'Stockfish engine is not available'}
+		>
+			Engine{#if !loading && engineCandidates.length > 0}&nbsp;({engineCandidates.length}){/if}
+		</button>
 	</div>
 
+	<!-- Content area -->
 	{#if loading}
 		<div class="loading">Analysing…</div>
 	{:else if fetchError}
 		<p class="empty-hint">Could not load suggestions.</p>
-	{:else if visibleCandidates.length === 0}
-		<p class="empty-hint">
-			{#if !showBook && !showEngine}
-				Both sources are hidden — enable Book or Engine above.
-			{:else if candidates.length === 0}
-				No suggestions available.
-			{:else}
-				No {showBook ? 'book' : 'engine'} moves at this position.
-			{/if}
-		</p>
+	{:else if activeTab === 'book'}
+		{#if bookCandidates.length === 0}
+			<p class="empty-hint">No book moves at this position.</p>
+		{:else}
+			<div class="candidate-list">
+				{#each bookCandidates as c (c.uci)}
+					<button
+						class="candidate-row"
+						onclick={() => onSelectMove(c.san)}
+						{disabled}
+					>
+						<div class="candidate-main">
+							<!-- Move name -->
+							<span class="candidate-san">{c.san}</span>
+
+							<!-- Spacer pushes the eval to the right -->
+							<span class="spacer"></span>
+
+							<!-- Evaluation score -->
+							{#if c.evalMate !== null || c.evalCp !== null}
+								<span class="eval {evalColorClass(c.evalCp, c.evalMate)}">
+									{formatEval(c.evalCp, c.evalMate)}
+								</span>
+							{/if}
+						</div>
+
+						<!-- Opening name or annotation — shown below the move name -->
+						{#if bookSubtitle(c)}
+							<div class="opening-name">{bookSubtitle(c)}</div>
+						{/if}
+					</button>
+				{/each}
+			</div>
+		{/if}
 	{:else}
-		<div class="candidate-list">
-			{#each visibleCandidates as c (c.uci)}
-				<button
-					class="candidate-row"
-					onclick={() => onSelectMove(c.san)}
-					{disabled}
-					title={c.annotation ?? undefined}
-				>
-					<!-- Move name -->
-					<span class="candidate-san">{c.san}</span>
-
-					<!-- Book badge -->
-					{#if c.isBook}
-						<span class="book-badge" title={c.annotation ?? 'Opening book move'}>BOOK</span>
-					{/if}
-
-					<!-- Spacer pushes the eval to the right -->
-					<span class="spacer"></span>
-
-					<!-- Evaluation score -->
-					{#if c.evalMate !== null || c.evalCp !== null}
-						<span class="eval {evalColorClass(c.evalCp, c.evalMate)}">
-							{formatEval(c.evalCp, c.evalMate)}
-						</span>
-					{/if}
-				</button>
-
-				<!-- Curator annotation (shown below the row if present) -->
-				{#if c.annotation}
-					<p class="annotation">{c.annotation}</p>
-				{/if}
-			{/each}
-		</div>
+		{#if engineCandidates.length === 0}
+			<p class="empty-hint">
+				{engineAvailable ? 'No engine suggestions available.' : 'Stockfish engine is not available.'}
+			</p>
+		{:else}
+			<div class="candidate-list">
+				{#each engineCandidates as c (c.uci)}
+					<button
+						class="candidate-row"
+						onclick={() => onSelectMove(c.san)}
+						{disabled}
+					>
+						<div class="candidate-main">
+							<span class="candidate-san">{c.san}</span>
+							<span class="spacer"></span>
+							{#if c.evalMate !== null || c.evalCp !== null}
+								<span class="eval {evalColorClass(c.evalCp, c.evalMate)}">
+									{formatEval(c.evalCp, c.evalMate)}
+								</span>
+							{/if}
+						</div>
+					</button>
+				{/each}
+			</div>
+		{/if}
 	{/if}
 </div>
 
@@ -193,57 +232,44 @@
 		gap: 0.5rem;
 	}
 
-	/* Label + toggles on the same line */
-	.section-header {
+	/* ── Tab bar ─────────────────────────────────────────────────────────────── */
+
+	.tab-bar {
 		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 0.5rem;
+		gap: 0;
+		border-bottom: 1px solid #1a2a3a;
 	}
 
-	.section-label {
+	.tab {
+		flex: 1;
+		padding: 0.3rem 0.5rem;
+		background: none;
+		border: none;
+		border-bottom: 2px solid transparent;
+		color: #505060;
 		font-size: 0.7rem;
 		font-weight: 700;
 		letter-spacing: 0.08em;
 		text-transform: uppercase;
-		color: #505060;
-	}
-
-	/* ── Filter toggles ──────────────────────────────────────────────────────── */
-
-	.filters {
-		display: flex;
-		gap: 0.6rem;
-		align-items: center;
-	}
-
-	.filter-toggle {
-		display: flex;
-		align-items: center;
-		gap: 0.25rem;
 		cursor: pointer;
+		transition:
+			color 0.12s,
+			border-color 0.12s;
+		margin-bottom: -1px; /* overlap the tab-bar border-bottom */
 	}
 
-	.filter-toggle input[type='checkbox'] {
-		width: 11px;
-		height: 11px;
-		accent-color: #4a6a9a;
-		cursor: pointer;
-		flex-shrink: 0;
+	.tab:hover:not(:disabled) {
+		color: #8090a0;
 	}
 
-	.filter-label {
-		font-size: 0.68rem;
-		font-weight: 600;
-		letter-spacing: 0.04em;
-		text-transform: uppercase;
-		color: #5a6a8a;
-		user-select: none;
+	.tab.active {
+		color: #7090c0;
+		border-bottom-color: #7090c0;
 	}
 
-	/* Dim the Engine label when the sidecar is not running */
-	.filter-label.unavailable {
-		color: #35404a;
+	.tab:disabled {
+		color: #2a3040;
+		cursor: default;
 	}
 
 	/* ── Loading / empty states ──────────────────────────────────────────────── */
@@ -269,11 +295,11 @@
 		gap: 0.15rem;
 	}
 
-	/* Each candidate is a full-width button laid out as a row */
+	/* Each candidate is a full-width button laid out as a column */
 	.candidate-row {
 		display: flex;
-		align-items: center;
-		gap: 0.4rem;
+		flex-direction: column;
+		gap: 0.15rem;
 		width: 100%;
 		padding: 0.3rem 0.55rem;
 		background: #0a1828;
@@ -299,22 +325,18 @@
 		cursor: default;
 	}
 
+	/* The top line of a candidate: SAN on the left, eval on the right */
+	.candidate-main {
+		display: flex;
+		align-items: center;
+		gap: 0.4rem;
+		width: 100%;
+	}
+
 	/* Move name — slightly bold so it reads well */
 	.candidate-san {
 		font-weight: 600;
 		min-width: 2.5rem;
-	}
-
-	/* BOOK badge */
-	.book-badge {
-		font-size: 0.6rem;
-		font-weight: 700;
-		letter-spacing: 0.06em;
-		color: #7090c0;
-		border: 1px solid #2a4060;
-		border-radius: 3px;
-		padding: 0.1rem 0.3rem;
-		flex-shrink: 0;
 	}
 
 	/* Pushes the eval score to the right edge of the row */
@@ -342,11 +364,14 @@
 		color: #707080; /* grey — roughly equal */
 	}
 
-	/* Curator annotation — shown below the row in small italic text */
-	.annotation {
-		font-size: 0.75rem;
-		color: #404858;
+	/* Opening name or curator annotation — shown below the move in small italic text */
+	.opening-name {
+		font-size: 0.72rem;
+		color: #4a6080;
 		font-style: italic;
-		margin: -0.05rem 0 0.1rem 0.55rem;
+		line-height: 1.2;
+		/* Allow long opening names (e.g. "Sicilian Defense, Najdorf Variation,
+		   English Attack") to wrap rather than overflow the button */
+		white-space: normal;
 	}
 </style>

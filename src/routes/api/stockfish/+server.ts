@@ -18,8 +18,8 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getTopMoves } from '$lib/stockfish';
 import { db } from '$lib/db';
-import { bookMove } from '$lib/db/schema';
-import { eq } from 'drizzle-orm';
+import { bookMove, ecoOpening } from '$lib/db/schema';
+import { eq, inArray } from 'drizzle-orm';
 import { Chess } from 'chess.js';
 
 // How many Stockfish candidates to show when there are no book moves.
@@ -41,6 +41,7 @@ export interface Candidate {
 	evalMate: number | null; // moves to mate from white's perspective (null = not a mating line)
 	isBook: boolean; // true if this move appears in the shared opening book
 	annotation: string | null; // curator note for book moves, e.g. "main line"
+	openingName: string | null; // ECO opening name for the position this move leads to
 }
 
 export const POST: RequestHandler = async ({ request, locals }) => {
@@ -81,7 +82,17 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	// Quick lookup: UCI move string → engine result for that move.
 	const uciToEngine = new Map(engineResults.map((r) => [r.uci, r]));
 
-	// ── 3. Merge into a single candidate list ─────────────────────────────────
+	// ── 3. Look up ECO opening names for positions reached by book moves ──────
+	// Each book move has a toFen — the position after the move is played. We batch
+	// query eco_opening to find a name for each resulting position in one round-trip.
+	const toFens = bookMoves.map((bm) => bm.toFen).filter(Boolean) as string[];
+	const openingRows =
+		toFens.length > 0
+			? db.select().from(ecoOpening).where(inArray(ecoOpening.fen, toFens)).all()
+			: [];
+	const fenToOpeningName = new Map(openingRows.map((r) => [r.fen, r.name]));
+
+	// ── 4. Merge into a single candidate list ─────────────────────────────────
 	const candidates: Candidate[] = [];
 	const seenUci = new Set<string>();
 
@@ -103,7 +114,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			evalCp: eng?.scoreCp != null ? eng.scoreCp * whiteMultiplier : null,
 			evalMate: eng?.scoreMate != null ? eng.scoreMate * whiteMultiplier : null,
 			isBook: true,
-			annotation: bm.annotation ?? null
+			annotation: bm.annotation ?? null,
+			openingName: bm.toFen ? (fenToOpeningName.get(bm.toFen) ?? null) : null
 		});
 	}
 
@@ -126,9 +138,28 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			evalCp: eng.scoreCp != null ? eng.scoreCp * whiteMultiplier : null,
 			evalMate: eng.scoreMate != null ? eng.scoreMate * whiteMultiplier : null,
 			isBook: false,
-			annotation: null
+			annotation: null,
+			openingName: null
 		});
 	}
+
+	// ── 5. Sort candidates strongest-first for the side to move ──────────────
+	// evalCp and evalMate are already in white's perspective. Multiplying by
+	// whiteMultiplier converts them to the side-to-move's perspective so we can
+	// rank all candidates on the same scale regardless of whose turn it is.
+	function scoreForSide(c: Candidate): number {
+		if (c.evalMate !== null) {
+			const mateFromSide = c.evalMate * whiteMultiplier;
+			// Positive = we mate them; fewer moves to mate = better.
+			if (mateFromSide > 0) return 1_000_000 - mateFromSide;
+			// Negative = they mate us; more moves away = slightly less bad.
+			return -1_000_000 - mateFromSide;
+		}
+		if (c.evalCp !== null) return c.evalCp * whiteMultiplier;
+		// No eval available (engine offline) — sort to the bottom.
+		return -Infinity;
+	}
+	candidates.sort((a, b) => scoreForSide(b) - scoreForSide(a));
 
 	return json({ candidates, engineAvailable });
 };
