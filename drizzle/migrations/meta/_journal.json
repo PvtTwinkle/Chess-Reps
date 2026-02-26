@@ -43,6 +43,13 @@
 			"when": 1772059800000,
 			"tag": "0005_remove_types",
 			"breakpoints": true
+		},
+		{
+			"idx": 6,
+			"version": "6",
+			"when": 1772107200000,
+			"tag": "0006_full_eco_dataset",
+			"breakpoints": true
 		}
 	]
 }

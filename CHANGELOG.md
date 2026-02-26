@@ -15,6 +15,21 @@ Docker images are tagged per version. To stay on stable releases, pin your
 
 ### Added
 
+- **Full ECO opening dataset** — expanded from ~90 hand-picked positions to the
+  complete 3,641-position Lichess ECO dataset, covering all named openings and
+  sub-variations across sections A–E:
+  - `eco_opening` table now stores one row per unique named position (FEN as
+    primary key) rather than one row per ECO code — B90 alone now has 10+
+    entries for the Najdorf, English Attack, Adams Attack, etc.
+  - `book_move` table populated with 7,833 unique moves covering all ECO lines;
+    `UNIQUE(from_fen, san)` added to prevent duplicates from shared early moves
+  - `drizzle/migrations/0006_full_eco_dataset.sql` — migration that rebuilds both
+    tables and seeds the full dataset
+  - `scripts/generate-eco-seed.mjs` — one-time generation script; fetches 5 TSV
+    files from the Lichess chess-openings repo, replays each line through Chess.js
+    to produce correctly-normalised FENs, and writes the migration SQL; use
+    `--count N` to test a subset before the full run
+
 - **Game review mode** (`src/routes/review/`) — analyse a played game against your repertoire:
   - Paste any PGN; auto-detects deviations, gaps, and opponent surprises
   - Board auto-plays moves from the opening at 500 ms/move with sound, stopping at the first issue

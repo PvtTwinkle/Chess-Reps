@@ -8,7 +8,7 @@
 //   1. Shared book tables  — opening theory bundled with the app (read-only at runtime)
 //   2. User tables         — personal repertoires, SR state, settings (never shared)
 
-import { integer, real, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { integer, real, sqliteTable, text, unique } from 'drizzle-orm/sqlite-core';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SHARED BOOK TABLES
@@ -25,22 +25,34 @@ export const bookPosition = sqliteTable('book_position', {
 
 // Individual moves within the shared opening book.
 // Each row is one move: "from this position, this move leads to that position."
-export const bookMove = sqliteTable('book_move', {
-	id: integer('id').primaryKey({ autoIncrement: true }),
-	fromFen: text('from_fen').notNull(), // position before the move
-	toFen: text('to_fen').notNull(), // position after the move
-	san: text('san').notNull(), // move in Standard Algebraic Notation, e.g. "e4", "Nf3"
-	annotation: text('annotation'), // curator notes, e.g. "main line", "aggressive"
-	contributor: text('contributor') // name of the person who contributed this move
-});
+// UNIQUE(from_fen, san) ensures a single (position, move) pair is stored only once,
+// even though hundreds of ECO lines share early moves like 1.e4 or 1.d4.
+export const bookMove = sqliteTable(
+	'book_move',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		fromFen: text('from_fen').notNull(), // position before the move
+		toFen: text('to_fen').notNull(), // position after the move
+		san: text('san').notNull(), // move in Standard Algebraic Notation, e.g. "e4", "Nf3"
+		annotation: text('annotation'), // curator notes, e.g. "main line", "aggressive"
+		contributor: text('contributor') // name of the person who contributed this move
+	},
+	(table) => ({
+		uniqueFromSan: unique().on(table.fromFen, table.san)
+	})
+);
 
 // ECO (Encyclopaedia of Chess Openings) codes — the naming system for openings.
 // Bundled statically so the app can show "B90 · Sicilian Defense, Najdorf Variation"
 // without any network request.
+//
+// fen is the primary key because lookup is always by position, never by code.
+// The same ECO code can cover many distinct named positions (e.g. "B90" covers
+// the Najdorf plus a dozen sub-variations, each at a different FEN).
 export const ecoOpening = sqliteTable('eco_opening', {
-	code: text('code').primaryKey(), // e.g. "B90"
-	name: text('name').notNull(), // e.g. "Sicilian Defense, Najdorf Variation"
-	fen: text('fen').notNull() // the FEN of the position this name applies to
+	fen: text('fen').primaryKey(), // the FEN of the position this name applies to
+	code: text('code').notNull(), // e.g. "B90"
+	name: text('name').notNull() // e.g. "Sicilian Defense, Najdorf Variation"
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
