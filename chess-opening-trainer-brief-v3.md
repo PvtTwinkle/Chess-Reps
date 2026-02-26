@@ -416,7 +416,7 @@ running. Users can monitor this with Uptime Kuma or any other monitoring tool.
 
 ### Game Review
 
-1. User can either paste a PGN manually or import from Lichess by username + game ID
+1. User pastes a PGN manually
 2. App parses the PGN and plays through it move by move
 3. Each move checked against user's chosen repertoire
 4. First deviation highlighted — "You played Bc4 but your repertoire has Nf3 here"
@@ -428,15 +428,6 @@ running. Users can monitor this with Uptime Kuma or any other monitoring tool.
 9. Punishment line saved immediately and available in drill mode
 10. Reviewed games saved to history with deviation point noted
 11. User can add notes to a reviewed game
-
-### Lichess Game Import
-
-- User enters their Lichess username
-- App fetches recent games via the Lichess API (no auth required for public games)
-- Games displayed in a list — user selects which ones to review
-- Selected games loaded into game review one at a time
-- Lichess game ID saved with the reviewed_game record to prevent duplicate imports
-- This is the only external API call the app makes — everything else is offline
 
 ### Gap Finder (Dashboard Widget)
 
@@ -523,11 +514,6 @@ in under 5 minutes. First impressions of a self-hosted project depend on setup e
 
 These are noted so the architecture does not accidentally prevent them:
 
-**Community book contribution tool** — a UI that lets users export a line from their
-repertoire as a formatted SQL migration file, ready to submit as a GitHub PR to the
-shared book. Reduces the barrier for contributing opening theory to the project.
-The `contributor` field in `book_move` already supports this.
-
 **Position search** — enter a FEN or play out moves to find that position in your
 repertoire. Useful for jumping to a specific position without navigating the tree.
 
@@ -543,6 +529,14 @@ be reviewed and optimized for mobile screen sizes once the desktop version is so
 **Multi-user support** — the `user_id` foreign key on all user tables is already in
 place. Adding a user management screen and multi-user auth is the remaining work.
 Required before any cloud-hosted version is possible.
+
+**Lichess game import** — user enters their Lichess username, app fetches recent games
+via the Lichess API (no auth required for public games), games are displayed in a list
+and loaded into game review one at a time. Lichess game ID saved to prevent duplicate
+imports. This is the only external API call the app would make.
+
+**Chess.com game import** — similar to Lichess import; requires researching the
+Chess.com API before scoping.
 
 ---
 
@@ -574,13 +568,11 @@ Required before any cloud-hosted version is possible.
 24. Hint button in drill mode
 25. Drill session stats and end screen
 26. Game review — manual PGN paste, deviation detection
-27. Lichess game import/sync
-28. Chess.com game import/sync
+27. Full ECO dataset import — expand from ~90 hand-picked positions to the full ~3,000 named positions using a generation script that replays Lichess's open-source ECO PGNs through Chess.js to produce correctly normalized FENs; the same source data also populates book_moves, making the gap finder meaningful
+28. PGN import for repertoire seeding — paste or upload a PGN with variations to bootstrap a repertoire without clicking every move manually
 29. Gap finder logic and dashboard widget
 30. Progress dashboard with stats, chart, and streak
-31. Settings page (board theme, piece set, Stockfish depth, sound, Lichess username)
-32. Full ECO dataset import — expand from ~90 hand-picked positions to the full ~3,000 named positions using a generation script that replays Lichess's open-source ECO PGNs through Chess.js to produce correctly normalized FENs, then emits a replacement migration SQL file
-33. PGN import for repertoire seeding
+31. Settings page (board theme, piece set, Stockfish depth, sound)
 
 ---
 
@@ -592,8 +584,7 @@ Required before any cloud-hosted version is possible.
 - Keep components small and focused — one job per file
 - Add comments explaining what each section does
 - Prefer explicit, readable code over clever abstractions
-- The app must work fully offline after the Docker image is pulled — the only
-  permitted external call is the optional Lichess game import API
+- The app must work fully offline after the Docker image is pulled
 - ECO codes and opening book ship as static seed data in migrations
 - Stockfish runs as a sidecar container on the internal Docker network
 - All user data tables include user_id from the start even though only one user
