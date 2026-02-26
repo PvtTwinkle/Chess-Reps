@@ -15,6 +15,17 @@ Docker images are tagged per version. To stay on stable releases, pin your
 
 ### Added
 
+- **Drill session persistence and next-session estimate** — sessions are now saved
+  to the `drill_session` table and the end screen shows when the next cards will
+  be due:
+  - `POST /api/drill/session` — creates a session row on the first card graded
+  - `PATCH /api/drill/session/[id]` — finalises the session on completion;
+    queries the minimum future `due` timestamp to return as `nextDueAt`
+  - End screen now shows a "Next session" stat: "Today at 2:30 PM",
+    "Tomorrow at 9:00 AM", "In 3 days", or "—" if no future cards are scheduled
+  - Abandoned sessions (navigating away mid-drill) are preserved with
+    `completed_at = null` for future dashboard use
+
 - **Hint button in drill mode** — 💡 Hint button appears in the sidebar on your turn:
   - Highlights the source square of the correct piece with a yellow Chessground circle
     (reveals *which* piece to move, not where it goes)

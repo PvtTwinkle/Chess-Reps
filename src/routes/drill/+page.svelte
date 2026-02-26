@@ -119,6 +119,14 @@
 	let totalReviewed = $state(0);
 	let correctCount = $state(0);
 
+	// ID of the drill_session row created when the user grades the first card.
+	// Null until the first grade, then set for the rest of the session.
+	let sessionId = $state<number | null>(null);
+
+	// ISO timestamp of the next due card after this session completes.
+	// Set by the finalize PATCH — displayed on the end screen.
+	let nextDueAt = $state<string | null>(null);
+
 	// Incrementing this forces ChessBoard to remount, snapping pieces back.
 	let boardKey = $state(0);
 
@@ -188,6 +196,8 @@
 		totalReviewed = 0;
 		correctCount = 0;
 		currentCardIdx = 0;
+		sessionId = null;
+		nextDueAt = null;
 
 		untrack(() => {
 			resetBoard();
@@ -218,6 +228,24 @@
 	);
 
 	// ── Utility functions ──────────────────────────────────────────────────────
+
+	// Formats the next-due timestamp into a human-readable string for the end screen.
+	// e.g. "Today at 2:30 PM", "Tomorrow at 9:00 AM", "In 3 days".
+	function formatNextSession(isoStr: string): string {
+		const due = new Date(isoStr);
+		const now = new Date();
+
+		// Strip time components to compare calendar days only.
+		const dueDay = new Date(due.getFullYear(), due.getMonth(), due.getDate());
+		const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+		const diffDays = Math.round((dueDay.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+		const timeStr = due.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+
+		if (diffDays === 0) return `Today at ${timeStr}`;
+		if (diffDays === 1) return `Tomorrow at ${timeStr}`;
+		return `In ${diffDays} days`;
+	}
 
 	// ── Hint ───────────────────────────────────────────────────────────────────
 
@@ -429,6 +457,24 @@
 
 		const wasCorrect = phase === 'correct';
 
+		// Create the session record the first time a card is graded.
+		// Non-critical: if this fails we still let the user continue drilling.
+		if (sessionId === null) {
+			try {
+				const sessRes = await fetch('/api/drill/session', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ repertoireId: data.repertoire.id })
+				});
+				if (sessRes.ok) {
+					const sessData = await sessRes.json();
+					sessionId = sessData.sessionId;
+				}
+			} catch {
+				// Non-critical — session tracking is best-effort.
+			}
+		}
+
 		try {
 			const res = await fetch('/api/drill/grade', {
 				method: 'POST',
@@ -448,6 +494,24 @@
 		currentCardIdx++;
 		resetBoard();
 
+		// If this was the last card, finalize the session record and retrieve
+		// the next-due timestamp to show on the end screen.
+		if (currentCardIdx >= allDueCards.length && sessionId !== null) {
+			try {
+				const finalRes = await fetch(`/api/drill/session/${sessionId}`, {
+					method: 'PATCH',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ cardsReviewed: totalReviewed, cardsCorrect: correctCount })
+				});
+				if (finalRes.ok) {
+					const finalData = await finalRes.json();
+					nextDueAt = finalData.nextDueAt;
+				}
+			} catch {
+				// Non-critical.
+			}
+		}
+
 		// Small pause between cards so the transition feels deliberate.
 		setTimeout(() => {
 			startNextCard();
@@ -462,6 +526,8 @@
 	// repertoire change that happened while this page was open.
 	function restartSession() {
 		phase = 'idle'; // hide the complete screen immediately while data loads
+		sessionId = null;
+		nextDueAt = null;
 		invalidateAll();
 	}
 
@@ -579,6 +645,16 @@
 							{correctCount}
 							{#if totalReviewed > 0}
 								<span class="stat-pct">({Math.round((correctCount / totalReviewed) * 100)}%)</span>
+							{/if}
+						</span>
+					</div>
+					<div class="stat-row">
+						<span class="stat-label">Next session</span>
+						<span class="stat-value">
+							{#if nextDueAt}
+								{formatNextSession(nextDueAt)}
+							{:else}
+								—
 							{/if}
 						</span>
 					</div>
