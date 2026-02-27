@@ -708,6 +708,42 @@
 		}
 	}
 
+	// For each book candidate in mergedList that has evalCp: null, evaluate the
+	// position resulting from that move and patch stockfishSuggestions in-place.
+	// Called fire-and-forget after the main engine fetch completes.
+	async function enrichBookCandidateEvals(
+		issuePly: number,
+		fen: string,
+		mergedList: { san: string; evalCp: number | null; isBook: boolean; openingName: string | null }[]
+	) {
+		const bookCandidates = mergedList.filter((c) => c.isBook && c.evalCp === null);
+		for (const candidate of bookCandidates) {
+			try {
+				const chess = new Chess(fen);
+				chess.move(candidate.san);
+				const toFen = chess.fen();
+				const res = await fetch('/api/stockfish', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ fen: toFen, depth: 15, numMoves: 1 })
+				});
+				if (res.ok) {
+					const result = (await res.json()) as { candidates?: { evalCp: number | null }[] };
+					const evalCp = result.candidates?.[0]?.evalCp ?? null;
+					const current = stockfishSuggestions.get(issuePly);
+					if (current) {
+						stockfishSuggestions.set(
+							issuePly,
+							current.map((c) => (c.san === candidate.san ? { ...c, evalCp } : c))
+						);
+					}
+				}
+			} catch {
+				// Stockfish unreachable — leave evalCp as null, no score shown.
+			}
+		}
+	}
+
 	// ── Chain extension handlers ─────────────────────────────────────────────────
 	// These run when the user is working through a chain leg (phase 3+) rather
 	// than the original issue phases. All are keyed by the original issue.ply.
