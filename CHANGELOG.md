@@ -13,6 +13,20 @@ Docker images are tagged per version. To stay on stable releases, pin your
 
 ## [Unreleased]
 
+### Added
+
+- **Database indexes** (`drizzle/migrations/0007_add_indexes.sql`) — 9 indexes added
+  to eliminate full table scans on the most frequently queried columns:
+  - `user_move(repertoire_id)`, `user_move(from_fen)`
+  - `user_repertoire_move(repertoire_id)`, `user_repertoire_move(from_fen)`,
+    `user_repertoire_move(due)` — `due` is the primary sort key for FSRS scheduling
+  - `reviewed_game(repertoire_id)`
+  - `book_move(from_fen)` — covers the 7,833-row book table on every position lookup
+  - `session(user_id)` — hit on every authenticated request
+  - `drill_session(repertoire_id)`
+  - Indexes also declared in `schema.ts` via Drizzle's `index()` helper so schema and
+    migrations stay in sync
+
 ### Changed
 
 - **Stockfish API restructured** — book moves and engine moves are now fully

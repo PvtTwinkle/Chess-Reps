@@ -8,7 +8,7 @@
 //   1. Shared book tables  — opening theory bundled with the app (read-only at runtime)
 //   2. User tables         — personal repertoires, SR state, settings (never shared)
 
-import { integer, real, sqliteTable, text, unique } from 'drizzle-orm/sqlite-core';
+import { index, integer, real, sqliteTable, text, unique } from 'drizzle-orm/sqlite-core';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SHARED BOOK TABLES
@@ -38,7 +38,11 @@ export const bookMove = sqliteTable(
 		contributor: text('contributor') // name of the person who contributed this move
 	},
 	(table) => ({
-		uniqueFromSan: unique().on(table.fromFen, table.san)
+		uniqueFromSan: unique().on(table.fromFen, table.san),
+		// Dedicated single-column index for "all moves from this position" lookups.
+		// The composite UNIQUE above covers (from_fen, san) but SQLite can use it for
+		// from_fen-only scans too; this explicit index makes that intent clear to Drizzle.
+		fromFenIdx: index('idx_book_move_from_fen').on(table.fromFen)
 	})
 );
 
@@ -75,13 +79,20 @@ export const user = sqliteTable('user', {
 // On every request, the server reads the cookie, looks it up here,
 // and retrieves the associated user_id to identify who is logged in.
 // Sessions expire after 30 days. Logging out deletes the row immediately.
-export const session = sqliteTable('session', {
-	id: text('id').primaryKey(), // random UUID — this is what goes in the cookie
-	userId: integer('user_id')
-		.notNull()
-		.references(() => user.id),
-	expiresAt: integer('expires_at', { mode: 'timestamp' }).notNull() // 30 days from login
-});
+export const session = sqliteTable(
+	'session',
+	{
+		id: text('id').primaryKey(), // random UUID — this is what goes in the cookie
+		userId: integer('user_id')
+			.notNull()
+			.references(() => user.id),
+		expiresAt: integer('expires_at', { mode: 'timestamp' }).notNull() // 30 days from login
+	},
+	(table) => ({
+		// Looked up on every authenticated request to fetch the session owner.
+		userIdIdx: index('idx_session_user_id').on(table.userId)
+	})
+);
 
 // Per-user configuration. One row per user.
 export const userSettings = sqliteTable('user_settings', {
@@ -110,80 +121,108 @@ export const repertoire = sqliteTable('repertoire', {
 // Every move the user has added to a repertoire.
 // This is the raw move record — what move was played and how it was sourced.
 // The spaced repetition state lives separately in user_repertoire_move.
-export const userMove = sqliteTable('user_move', {
-	id: integer('id').primaryKey({ autoIncrement: true }),
-	userId: integer('user_id')
-		.notNull()
-		.references(() => user.id),
-	repertoireId: integer('repertoire_id')
-		.notNull()
-		.references(() => repertoire.id),
-	fromFen: text('from_fen').notNull(), // position before the move
-	toFen: text('to_fen').notNull(), // position after the move
-	san: text('san').notNull(), // move in Standard Algebraic Notation
-	source: text('source').notNull(), // "BOOK" (from shared book), "PERSONAL", or "STOCKFISH"
-	notes: text('notes'), // optional user annotation on this move
-	createdAt: integer('created_at', { mode: 'timestamp' }).notNull()
-});
+export const userMove = sqliteTable(
+	'user_move',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		userId: integer('user_id')
+			.notNull()
+			.references(() => user.id),
+		repertoireId: integer('repertoire_id')
+			.notNull()
+			.references(() => repertoire.id),
+		fromFen: text('from_fen').notNull(), // position before the move
+		toFen: text('to_fen').notNull(), // position after the move
+		san: text('san').notNull(), // move in Standard Algebraic Notation
+		source: text('source').notNull(), // "BOOK" (from shared book), "PERSONAL", or "STOCKFISH"
+		notes: text('notes'), // optional user annotation on this move
+		createdAt: integer('created_at', { mode: 'timestamp' }).notNull()
+	},
+	(table) => ({
+		repertoireIdIdx: index('idx_user_move_repertoire_id').on(table.repertoireId),
+		fromFenIdx: index('idx_user_move_from_fen').on(table.fromFen)
+	})
+);
 
 // Spaced repetition state for each user-owned move that needs drilling.
 // One row per drillable move. The FSRS algorithm uses these fields to decide
 // when to show each position again. Only the user's own moves are drilled
 // (not opponent moves — you don't need to memorise what your opponent plays).
-export const userRepertoireMove = sqliteTable('user_repertoire_move', {
-	id: integer('id').primaryKey({ autoIncrement: true }),
-	userId: integer('user_id')
-		.notNull()
-		.references(() => user.id),
-	repertoireId: integer('repertoire_id')
-		.notNull()
-		.references(() => repertoire.id),
-	fromFen: text('from_fen').notNull(), // the position the user must respond to
-	san: text('san').notNull(), // the correct move
+export const userRepertoireMove = sqliteTable(
+	'user_repertoire_move',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		userId: integer('user_id')
+			.notNull()
+			.references(() => user.id),
+		repertoireId: integer('repertoire_id')
+			.notNull()
+			.references(() => repertoire.id),
+		fromFen: text('from_fen').notNull(), // the position the user must respond to
+		san: text('san').notNull(), // the correct move
 
-	// FSRS spaced repetition fields — managed by the ts-fsrs library, not manually.
-	// These determine when this card is next due and how well it has been learned.
-	due: integer('due', { mode: 'timestamp' }), // when this card should next be reviewed
-	stability: real('stability'), // how well the memory has consolidated (higher = longer interval)
-	difficulty: real('difficulty'), // how hard the card is for this user (1–10)
-	elapsedDays: integer('elapsed_days'), // days since last review
-	scheduledDays: integer('scheduled_days'), // days until next review was scheduled
-	reps: integer('reps'), // total number of successful reviews
-	lapses: integer('lapses'), // number of times the user forgot this card
-	state: integer('state'), // 0=New, 1=Learning, 2=Review, 3=Relearning
-	lastReview: integer('last_review', { mode: 'timestamp' }), // when it was last reviewed
-	learningSteps: integer('learning_steps').notNull().default(0) // ts-fsrs v5: which step within learning/relearning phase
-});
+		// FSRS spaced repetition fields — managed by the ts-fsrs library, not manually.
+		// These determine when this card is next due and how well it has been learned.
+		due: integer('due', { mode: 'timestamp' }), // when this card should next be reviewed
+		stability: real('stability'), // how well the memory has consolidated (higher = longer interval)
+		difficulty: real('difficulty'), // how hard the card is for this user (1–10)
+		elapsedDays: integer('elapsed_days'), // days since last review
+		scheduledDays: integer('scheduled_days'), // days until next review was scheduled
+		reps: integer('reps'), // total number of successful reviews
+		lapses: integer('lapses'), // number of times the user forgot this card
+		state: integer('state'), // 0=New, 1=Learning, 2=Review, 3=Relearning
+		lastReview: integer('last_review', { mode: 'timestamp' }), // when it was last reviewed
+		learningSteps: integer('learning_steps').notNull().default(0) // ts-fsrs v5: which step within learning/relearning phase
+	},
+	(table) => ({
+		repertoireIdIdx: index('idx_user_repertoire_move_repertoire_id').on(table.repertoireId),
+		fromFenIdx: index('idx_user_repertoire_move_from_fen').on(table.fromFen),
+		// due is the primary sort key when the FSRS scheduler fetches cards due for review.
+		dueIdx: index('idx_user_repertoire_move_due').on(table.due)
+	})
+);
 
 // A game the user has imported and reviewed for deviations from their repertoire.
-export const reviewedGame = sqliteTable('reviewed_game', {
-	id: integer('id').primaryKey({ autoIncrement: true }),
-	userId: integer('user_id')
-		.notNull()
-		.references(() => user.id),
-	repertoireId: integer('repertoire_id')
-		.notNull()
-		.references(() => repertoire.id),
-	pgn: text('pgn').notNull(), // full PGN of the reviewed game
-	source: text('source').notNull(), // "MANUAL" (pasted) or "LICHESS" (imported)
-	lichessGameId: text('lichess_game_id'), // Lichess game ID, used to prevent duplicate imports
-	deviationFen: text('deviation_fen'), // the position where the user went off-book
-	playedAt: integer('played_at', { mode: 'timestamp' }), // when the original game was played
-	reviewedAt: integer('reviewed_at', { mode: 'timestamp' }).notNull(), // when the user reviewed it here
-	notes: text('notes')
-});
+export const reviewedGame = sqliteTable(
+	'reviewed_game',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		userId: integer('user_id')
+			.notNull()
+			.references(() => user.id),
+		repertoireId: integer('repertoire_id')
+			.notNull()
+			.references(() => repertoire.id),
+		pgn: text('pgn').notNull(), // full PGN of the reviewed game
+		source: text('source').notNull(), // "MANUAL" (pasted) or "LICHESS" (imported)
+		lichessGameId: text('lichess_game_id'), // Lichess game ID, used to prevent duplicate imports
+		deviationFen: text('deviation_fen'), // the position where the user went off-book
+		playedAt: integer('played_at', { mode: 'timestamp' }), // when the original game was played
+		reviewedAt: integer('reviewed_at', { mode: 'timestamp' }).notNull(), // when the user reviewed it here
+		notes: text('notes')
+	},
+	(table) => ({
+		repertoireIdIdx: index('idx_reviewed_game_repertoire_id').on(table.repertoireId)
+	})
+);
 
 // A completed drill session — used to power the dashboard stats and review history chart.
-export const drillSession = sqliteTable('drill_session', {
-	id: integer('id').primaryKey({ autoIncrement: true }),
-	userId: integer('user_id')
-		.notNull()
-		.references(() => user.id),
-	repertoireId: integer('repertoire_id')
-		.notNull()
-		.references(() => repertoire.id),
-	cardsReviewed: integer('cards_reviewed').notNull().default(0),
-	cardsCorrect: integer('cards_correct').notNull().default(0),
-	startedAt: integer('started_at', { mode: 'timestamp' }).notNull(),
-	completedAt: integer('completed_at', { mode: 'timestamp' }) // null if session was abandoned
-});
+export const drillSession = sqliteTable(
+	'drill_session',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		userId: integer('user_id')
+			.notNull()
+			.references(() => user.id),
+		repertoireId: integer('repertoire_id')
+			.notNull()
+			.references(() => repertoire.id),
+		cardsReviewed: integer('cards_reviewed').notNull().default(0),
+		cardsCorrect: integer('cards_correct').notNull().default(0),
+		startedAt: integer('started_at', { mode: 'timestamp' }).notNull(),
+		completedAt: integer('completed_at', { mode: 'timestamp' }) // null if session was abandoned
+	},
+	(table) => ({
+		repertoireIdIdx: index('idx_drill_session_repertoire_id').on(table.repertoireId)
+	})
+);
