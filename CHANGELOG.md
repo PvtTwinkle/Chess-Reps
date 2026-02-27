@@ -15,6 +15,14 @@ Docker images are tagged per version. To stay on stable releases, pin your
 
 ### Changed
 
+- **Refactored RepertoireSelector** — split the 770-line component into two
+  single-purpose files with no behavior or UI changes:
+  - `src/lib/components/ManageRepertoireModal.svelte` — the full-screen modal
+    for creating, renaming, and deleting repertoires (all modal state, markup,
+    styles, and API calls)
+  - `RepertoireSelector.svelte` reduced from ~770 to ~273 lines (selector
+    button, dropdown, and repertoire switching only)
+
 - **Refactored Build Mode page** — split the 1,337-line `build/+page.svelte` into
   three focused modules with no behavior or UI changes:
   - `src/lib/components/build/buildState.svelte.ts` — Svelte 5 runes module

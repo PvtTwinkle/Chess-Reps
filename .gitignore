@@ -27,3 +27,6 @@ vite.config.ts.timestamp-*
 
 # Claude Code local instructions — personal, not for version control
 CLAUDE.md
+
+# PGN example file
+Jobava London Rare 3rd Moves.pgn
