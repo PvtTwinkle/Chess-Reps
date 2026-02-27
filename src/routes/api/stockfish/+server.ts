@@ -45,9 +45,7 @@ export interface Candidate {
 }
 
 export const POST: RequestHandler = async ({ request, locals }) => {
-	if (!locals.user) {
-		return json({ error: 'Unauthorized' }, { status: 401 });
-	}
+	if (!locals.user) throw error(401, 'Not authenticated');
 
 	let body: { fen?: string; depth?: number; numMoves?: number };
 	try {
@@ -63,9 +61,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	const depth = Math.max(MIN_DEPTH, Math.min(rawDepth, MAX_DEPTH));
 	const numMoves = Math.min(rawNumMoves, MAX_CANDIDATES);
 
-	if (!fen || typeof fen !== 'string') {
-		return json({ error: 'fen is required' }, { status: 400 });
-	}
+	if (!fen || typeof fen !== 'string') throw error(400, 'fen is required');
 
 	// ── 1. Book lookup ────────────────────────────────────────────────────────
 	// Find all known opening moves from this exact position.

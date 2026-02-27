@@ -13,6 +13,26 @@ Docker images are tagged per version. To stay on stable releases, pin your
 
 ## [Unreleased]
 
+### Fixed
+
+- **`learningSteps: 0` now explicit in all SR card inserts** — `POST /api/moves`
+  was relying on the column's `DEFAULT 0` while the two other card-creating routes
+  (`review/add-move`, `review/fail-card`) set it explicitly; all three are now
+  consistent
+- **Stockfish route uses `throw error()` consistently** — `POST /api/stockfish`
+  was returning `json({ error: '...' }, { status: ... })` for auth and input
+  failures instead of `throw error()` like every other route; standardised
+- **Session cookie `secure` flag is now environment-driven** — was hardcoded
+  `false`; now reads `SECURE_COOKIES=true` env var so production deployments
+  behind HTTPS can opt in without a code change; `docker-compose.yml` documents
+  the opt-in as a commented example and `CLAUDE.md` env table updated
+
+### Changed
+
+- **Explicit return type annotations on helper functions** — `drill/+page.svelte`
+  and `review/+page.svelte` helper functions (34 total) now have `: void` or
+  `: Promise<void>` return types; type-check and lint pass clean
+
 ### Added
 
 - **Database indexes** (`drizzle/migrations/0007_add_indexes.sql`) — 9 indexes added

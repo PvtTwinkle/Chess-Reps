@@ -259,7 +259,7 @@
 
 	// Show the hint: highlight the source square of the correct move.
 	// Guard against calling more than once per card or outside the waiting phase.
-	function showHint() {
+	function showHint(): void {
 		if (hintUsed || !currentCard || phase !== 'waiting') return;
 		hintSquare = getHintSquare(currentFen, currentCard.san);
 		hintUsed = true;
@@ -298,7 +298,7 @@
 	}
 
 	// Reset board state to the starting position.
-	function resetBoard() {
+	function resetBoard(): void {
 		stopAutoPlay();
 		stopIncorrectTimer();
 		navHistory = [];
@@ -312,14 +312,14 @@
 	}
 
 	// Stop any running auto-play timer.
-	function stopAutoPlay() {
+	function stopAutoPlay(): void {
 		if (autoPlayTimer !== undefined) {
 			clearTimeout(autoPlayTimer);
 			autoPlayTimer = undefined;
 		}
 	}
 
-	function stopIncorrectTimer() {
+	function stopIncorrectTimer(): void {
 		if (incorrectTimer !== undefined) {
 			clearTimeout(incorrectTimer);
 			incorrectTimer = undefined;
@@ -329,7 +329,7 @@
 	// ── Card loading and auto-play ─────────────────────────────────────────────
 
 	// Load the card at allDueCards[currentCardIdx] and start playing through from move 1.
-	function startNextCard() {
+	function startNextCard(): void {
 		if (allDueCards.length === 0 || currentCardIdx >= allDueCards.length) {
 			phase = 'complete';
 			return;
@@ -345,7 +345,7 @@
 
 	// Auto-play moves from `pathMoves` one at a time with a 500ms delay.
 	// When all moves are played, transitions to 'waiting' so the user can move.
-	function startAutoPlay(pathMoves: string[]) {
+	function startAutoPlay(pathMoves: string[]): void {
 		// If the position is already at the starting FEN (no path), go to waiting
 		// immediately — this card is about the very first move of the game.
 		if (pathMoves.length === 0) {
@@ -408,7 +408,13 @@
 	// ── User move handling ─────────────────────────────────────────────────────
 
 	// Called by ChessBoard when the user drags a piece.
-	function handleMove(from: string, to: string, san: string, newFen: string, isCapture: boolean) {
+	function handleMove(
+		from: string,
+		to: string,
+		san: string,
+		newFen: string,
+		isCapture: boolean
+	): void {
 		if (phase !== 'waiting' || !currentCard) return;
 
 		if (san === currentCard.san) {
@@ -451,7 +457,7 @@
 	// ── Grading ────────────────────────────────────────────────────────────────
 
 	// Called when the user clicks Again / Good / Easy, or auto-called on wrong answer.
-	async function gradeAndAdvance(rating: number) {
+	async function gradeAndAdvance(rating: number): Promise<void> {
 		if (grading || !currentCard) return;
 		grading = true;
 
@@ -524,7 +530,7 @@
 	// reset and startNextCard(). This ensures we don't re-drill cards that were
 	// just graded (their due dates are now in the future), and picks up any
 	// repertoire change that happened while this page was open.
-	function restartSession() {
+	function restartSession(): void {
 		phase = 'idle'; // hide the complete screen immediately while data loads
 		sessionId = null;
 		nextDueAt = null;
@@ -532,7 +538,7 @@
 	}
 
 	// Toggle sound on/off and persist the preference to the database.
-	async function toggleSound() {
+	async function toggleSound(): Promise<void> {
 		soundEnabled = !soundEnabled;
 		try {
 			await fetch('/api/settings', {

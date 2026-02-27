@@ -61,6 +61,11 @@ services:
       # Increase if you plan to upload large PGN files (default is 512kb).
       # Example: - BODY_SIZE_LIMIT=5242880  # 5 MB
 
+      # Set to true when the app is accessed over HTTPS (e.g. behind a reverse
+      # proxy with TLS). Ensures the session cookie is only sent over secure
+      # connections. Leave commented out (defaults to false) for HTTP-only setups.
+      # - SECURE_COOKIES=true
+
     volumes:
       # Mount the host ./data directory to /app/data inside the container.
       # This is where the SQLite database file lives.

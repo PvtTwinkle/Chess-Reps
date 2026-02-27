@@ -179,7 +179,8 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 					difficulty: null,
 					elapsedDays: null,
 					scheduledDays: null,
-					lastReview: null
+					lastReview: null,
+					learningSteps: 0
 				})
 				.run();
 		}

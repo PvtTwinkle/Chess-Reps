@@ -48,14 +48,17 @@ export const actions: Actions = {
 		// sameSite: 'lax' — Cookie is not sent with cross-site requests.
 		//                   Protects against CSRF attacks from other websites.
 		// path: '/'       — Cookie applies to all routes, not just /login.
-		// secure: false   — Allows the cookie over HTTP (needed when Nginx handles
-		//                   HTTPS termination and the app receives plain HTTP).
+		// secure           — Controlled by SECURE_COOKIES env var. Set to true in
+		//                   production when accessed over HTTPS. Leave false (default)
+		//                   when Nginx handles HTTPS termination and the app receives
+		//                   plain HTTP internally.
 		// maxAge: 30 days — How long the cookie lives in the browser.
+		const secureCookies = process.env.SECURE_COOKIES === 'true';
 		cookies.set(SESSION_COOKIE_NAME, token, {
 			path: '/',
 			httpOnly: true,
 			sameSite: 'lax',
-			secure: false,
+			secure: secureCookies,
 			maxAge: 60 * 60 * 24 * 30 // 30 days in seconds
 		});
 

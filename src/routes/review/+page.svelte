@@ -202,26 +202,26 @@
 
 	// ── Auto-play ────────────────────────────────────────────────────────────────
 
-	function stopAutoPlay() {
+	function stopAutoPlay(): void {
 		autoPlayTarget = null;
 		isAutoPlaying = false;
 	}
 
-	function startAutoPlay(targetPly: number) {
+	function startAutoPlay(targetPly: number): void {
 		if (currentPlyIdx >= targetPly) return;
 		autoPlayTarget = targetPly;
 		isAutoPlaying = true;
 	}
 
 	// Play the correct sound when advancing forward to `ply`.
-	function playMoveSound(ply: number) {
+	function playMoveSound(ply: number): void {
 		const san = analysis?.sanHistory[ply - 1] ?? '';
 		if (san.includes('x')) playCapture();
 		else playMove();
 	}
 
 	// Move forward one ply — cancels auto-play, plays sound.
-	function goForward() {
+	function goForward(): void {
 		stopAutoPlay();
 		if (!analysis) return;
 		const next = Math.min(analysis.fenHistory.length - 1, currentPlyIdx + 1);
@@ -232,7 +232,7 @@
 	}
 
 	// Move backward one ply — cancels auto-play, no sound.
-	function goBack() {
+	function goBack(): void {
 		stopAutoPlay();
 		currentPlyIdx = Math.max(0, currentPlyIdx - 1);
 	}
@@ -288,7 +288,7 @@
 	// ── Helpers ─────────────────────────────────────────────────────────────────
 
 	// Jump the board to the position after the issue move.
-	function jumpToIssue(issue: GameIssue) {
+	function jumpToIssue(issue: GameIssue): void {
 		currentPlyIdx = issue.ply;
 	}
 
@@ -407,7 +407,7 @@
 	// Fetch Stockfish evals for a DEVIATION issue (wrong move and correct alternative).
 	// Both positions are evaluated in parallel and results stored in deviationEvals.
 	// evalCp is always from White's perspective (positive = White better).
-	async function fetchDeviationEvals(issue: GameIssue) {
+	async function fetchDeviationEvals(issue: GameIssue): Promise<void> {
 		if (deviationFetching.has(issue.ply)) return;
 		deviationFetching.add(issue.ply);
 		try {
@@ -467,7 +467,7 @@
 	}
 
 	// Resolve an issue without any action (skip).
-	function resolveIssue(ply: number) {
+	function resolveIssue(ply: number): void {
 		resolvedIssues.add(ply);
 	}
 
@@ -506,7 +506,7 @@
 	}
 
 	// Case 1 — DEVIATION: mark FSRS card as failed.
-	async function handleFailCard(issue: GameIssue) {
+	async function handleFailCard(issue: GameIssue): Promise<void> {
 		actionLoading.set(issue.ply, true);
 		try {
 			await callApi('/api/review/fail-card', {
@@ -521,7 +521,7 @@
 
 	// Case 1 — DEVIATION: update repertoire to the move the user actually played,
 	// and also fail the SR card.
-	async function handleUpdateRepertoire(issue: GameIssue) {
+	async function handleUpdateRepertoire(issue: GameIssue): Promise<void> {
 		actionLoading.set(issue.ply, true);
 		try {
 			// Fail the card first (it's a deviation regardless of what we do with the repertoire).
@@ -545,7 +545,7 @@
 	// Case 2 — BEYOND_REPERTOIRE: add the move the user actually played.
 	// After adding, check if there's a next opponent move in the game — if so,
 	// start a chain extension rather than resolving immediately.
-	async function handleAddMyMove(issue: GameIssue) {
+	async function handleAddMyMove(issue: GameIssue): Promise<void> {
 		actionLoading.set(issue.ply, true);
 		try {
 			await callApi('/api/review/add-move', {
@@ -570,7 +570,7 @@
 	// Moves the card to phase 2 where the user picks their response, and
 	// immediately kicks off an engine fetch so candidates are ready without
 	// requiring the user to click "Engine suggestion" manually.
-	async function handleAddOpponentMove(issue: GameIssue) {
+	async function handleAddOpponentMove(issue: GameIssue): Promise<void> {
 		actionLoading.set(issue.ply, true);
 		try {
 			await callApi('/api/review/add-move', {
@@ -591,7 +591,7 @@
 	// Case 3 — OPPONENT_SURPRISE, phase 2: add the user's actual in-game response.
 	// After adding, check if there's a next opponent move in the game — if so,
 	// start a chain extension rather than resolving immediately.
-	async function handleAddUserResponse(issue: GameIssue) {
+	async function handleAddUserResponse(issue: GameIssue): Promise<void> {
 		if (!issue.userResponseSan) return;
 		actionLoading.set(issue.ply, true);
 		try {
@@ -639,7 +639,11 @@
 	// Core engine fetch — accepts a FEN and key directly so it can be used for both
 	// original issues and chain-extension legs (which don't have a GameIssue object).
 	// Clears any stale suggestions for the key before fetching.
-	async function fetchEngineSuggestionForFen(issuePly: number, fen: string, numMoves: number) {
+	async function fetchEngineSuggestionForFen(
+		issuePly: number,
+		fen: string,
+		numMoves: number
+	): Promise<void> {
 		stockfishSuggestions.delete(issuePly);
 		stockfishLoading.set(issuePly, true);
 		try {
@@ -694,7 +698,7 @@
 	// For Case 3 (OPPONENT_SURPRISE) the relevant FEN is toFen (position after opponent's
 	// surprise move, where the user needs to respond). Fetches 3 candidates for
 	// OPPONENT_SURPRISE so the user has multiple response options to choose from.
-	async function fetchEngineSuggestion(issue: GameIssue) {
+	async function fetchEngineSuggestion(issue: GameIssue): Promise<void> {
 		const fen = issue.type === 'OPPONENT_SURPRISE' ? issue.toFen : issue.fromFen;
 		const numMoves = issue.type === 'OPPONENT_SURPRISE' ? 3 : 1;
 		await fetchEngineSuggestionForFen(issue.ply, fen, numMoves);
@@ -704,7 +708,11 @@
 	// that results after playing `san` from `fromFen`). Stored in userMoveEvals so the
 	// "Add: [move] (your move)" button can display it alongside engine candidate evals.
 	// Clears any stale value first so the UI doesn't flicker with the wrong number.
-	async function fetchUserMoveEval(issuePly: number, fromFen: string, san: string | null) {
+	async function fetchUserMoveEval(
+		issuePly: number,
+		fromFen: string,
+		san: string | null
+	): Promise<void> {
 		if (!san) return;
 		userMoveEvals.delete(issuePly); // clear stale entry while loading
 		try {
@@ -737,7 +745,7 @@
 			isBook: boolean;
 			openingName: string | null;
 		}[]
-	) {
+	): Promise<void> {
 		const bookCandidates = mergedList.filter((c) => c.isBook && c.evalCp === null);
 		for (const candidate of bookCandidates) {
 			try {
@@ -773,7 +781,7 @@
 	// Chain phase A — add the opponent's move for the current chain leg.
 	// Transitions to chain phase B (pick a user response). Fires engine fetch
 	// immediately so candidates are ready when the user gets there.
-	async function handleChainAddOpponent(issuePly: number) {
+	async function handleChainAddOpponent(issuePly: number): Promise<void> {
 		const leg = chainExtensions.get(issuePly);
 		if (!leg) return;
 		actionLoading.set(issuePly, true);
@@ -799,7 +807,7 @@
 	// Chain phase B — add the user's actual game response and try to advance.
 	// If there's yet another opponent move later in the game, creates the next leg.
 	// Otherwise resolves the issue (chain complete).
-	async function handleChainAddUserResponse(issuePly: number) {
+	async function handleChainAddUserResponse(issuePly: number): Promise<void> {
 		const leg = chainExtensions.get(issuePly);
 		if (!leg || !leg.userFen || !leg.userSan) return;
 		actionLoading.set(issuePly, true);
@@ -829,7 +837,7 @@
 	// Chain phase B — user picks an engine/book candidate.
 	// If the chosen SAN matches the game move, advance the chain (same as picking
 	// the game move button). Otherwise the user diverged, so end the chain.
-	async function handleChainAddEngineSuggestion(issuePly: number, san: string) {
+	async function handleChainAddEngineSuggestion(issuePly: number, san: string): Promise<void> {
 		const leg = chainExtensions.get(issuePly);
 		if (!leg || !leg.userFen) return;
 		actionLoading.set(issuePly, true);
@@ -861,7 +869,7 @@
 	}
 
 	// User clicks "Done" anywhere in the chain — stop extending, mark resolved.
-	function skipChain(issuePly: number) {
+	function skipChain(issuePly: number): void {
 		chainExtensions.delete(issuePly);
 		resolveIssue(issuePly);
 	}
@@ -871,7 +879,7 @@
 	// For OPPONENT_SURPRISE the opponent's move is already added in phase 1.
 	// If the chosen SAN matches the user's actual game response, treat it the same
 	// as "Add: [game move]" and advance the chain rather than ending it.
-	async function handleAddEngineSuggestion(issue: GameIssue, san: string) {
+	async function handleAddEngineSuggestion(issue: GameIssue, san: string): Promise<void> {
 		const fromFen = issue.type === 'OPPONENT_SURPRISE' ? issue.toFen : issue.fromFen;
 		actionLoading.set(issue.ply, true);
 		try {
@@ -900,7 +908,7 @@
 	}
 
 	// Save the reviewed game record to the database.
-	async function saveReview() {
+	async function saveReview(): Promise<void> {
 		if (!parsedPgn || !analysis || saving) return;
 		saving = true;
 		try {
@@ -924,7 +932,7 @@
 	}
 
 	// Go back to the input state to review another game.
-	function reviewAnother() {
+	function reviewAnother(): void {
 		analysis = null;
 		parsedPgn = null;
 		savedId = null;
