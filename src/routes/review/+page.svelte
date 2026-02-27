@@ -63,6 +63,29 @@
 	let opponentMoveAdded = new SvelteSet<number>(); // OPPONENT_SURPRISE issues where phase 1 is done
 	let notes = $state('');
 
+	// ── Chain extension state ────────────────────────────────────────────────────
+	// After a user adds their game response (OPPONENT_SURPRISE phase 2) or their
+	// own move (BEYOND_REPERTOIRE phase 1), if there are more game moves we offer
+	// to keep building the repertoire. Each "leg" of the chain represents one
+	// pending opponent-move → user-response pair still waiting to be added.
+
+	interface ChainLeg {
+		opponentFen: string; // FEN where the opponent needs to move (user just added a move here)
+		opponentSan: string; // what the opponent played in the actual game
+		opponentAdded: boolean; // true once the opponent's move has been saved to the repertoire
+		userFen: string | null; // FEN after the opponent's move (where user must respond), or null if game ended
+		userSan: string | null; // user's actual in-game response, or null if game ended
+		plyInGame: number; // 1-indexed ply of the opponent's move (used to advance the chain)
+	}
+
+	// Keyed by issue.ply — only one active chain leg per issue at a time.
+	let chainExtensions = new SvelteMap<number, ChainLeg>();
+
+	// Eval (centipawns, White's perspective) for the user's actual game move at each phase,
+	// so it can be shown alongside engine candidates for comparison. Keyed by issue.ply.
+	// undefined = not yet fetched; null = fetched but Stockfish unavailable.
+	let userMoveEvals = new SvelteMap<number, number | null>();
+
 	// Per-issue Stockfish state (keyed by issue.ply).
 	let stockfishLoading = new SvelteMap<number, boolean>();
 	// Evals for DEVIATION issues: evalCp from White's perspective after each move.
@@ -109,6 +132,8 @@
 			currentPlyIdx = 0;
 			resolvedIssues.clear();
 			opponentMoveAdded.clear();
+			chainExtensions.clear();
+			userMoveEvals.clear();
 			notes = '';
 			savedId = null;
 			analysisError = null;
@@ -282,27 +307,93 @@
 		}
 	}
 
-	// Overlay arrows on the board when viewing a DEVIATION issue position.
-	// Red = the wrong move the user played; green = the correct repertoire move.
+	// Build response arrows for a position where the user is choosing a move to add.
+	// Blue = the user's actual game move (primary button colour).
+	// Yellow = engine candidate (engine button colour).
+	// Green = book candidate (book button colour).
+	// Skips any candidate whose SAN duplicates the game move (already shown in blue).
+	function buildResponseArrows(
+		fromFen: string,
+		gameSan: string | null,
+		candidates: { san: string; isBook: boolean }[]
+	): DrawShape[] {
+		const shapes: DrawShape[] = [];
+		const shown = new Set<string>();
+
+		if (gameSan) {
+			const sq = getMoveSquares(fromFen, gameSan);
+			if (sq) {
+				shapes.push({ orig: sq.from as Key, dest: sq.to as Key, brush: 'blue' });
+				shown.add(gameSan);
+			}
+		}
+
+		for (const c of candidates) {
+			if (shown.has(c.san)) continue;
+			const sq = getMoveSquares(fromFen, c.san);
+			if (sq) {
+				shapes.push({ orig: sq.from as Key, dest: sq.to as Key, brush: c.isBook ? 'green' : 'yellow' });
+				shown.add(c.san);
+			}
+		}
+
+		return shapes;
+	}
+
+	// Overlay arrows on the board when the current position matches an active issue phase.
+	//
+	// DEVIATION             — red = wrong move; green = correct repertoire move.
+	// OPPONENT_SURPRISE ph2 — blue = game response; yellow/green = engine/book candidates.
+	// Chain phase A         — red = opponent's proposed move.
+	// Chain phase B         — blue = game response; yellow/green = engine/book candidates.
 	const boardShapes = $derived.by((): DrawShape[] => {
 		if (!analysis) return [];
+
+		// DEVIATION: red for the wrong move, green for the correct one.
 		const dev = analysis.issues.find(
 			(iss) => iss.type === 'DEVIATION' && currentPlyIdx === iss.ply
 		);
-		if (!dev || !dev.repertoireSan) return [];
+		if (dev && dev.repertoireSan) {
+			const shapes: DrawShape[] = [];
+			const wFrom = analysis.fromSquares[dev.ply - 1];
+			const wTo = analysis.toSquares[dev.ply - 1];
+			if (wFrom && wTo) shapes.push({ orig: wFrom as Key, dest: wTo as Key, brush: 'red' });
+			const correct = getMoveSquares(dev.fromFen, dev.repertoireSan);
+			if (correct) shapes.push({ orig: correct.from as Key, dest: correct.to as Key, brush: 'green' });
+			return shapes;
+		}
 
-		const shapes: DrawShape[] = [];
+		// All other issue types — find the first one whose active phase matches the board.
+		for (const issue of analysis.issues) {
+			if (resolvedIssues.has(issue.ply)) continue;
+			const chainLeg = chainExtensions.get(issue.ply) ?? null;
+			const candidates = stockfishSuggestions.get(issue.ply) ?? [];
 
-		// Wrong move (red arrow).
-		const wFrom = analysis.fromSquares[dev.ply - 1];
-		const wTo = analysis.toSquares[dev.ply - 1];
-		if (wFrom && wTo) shapes.push({ orig: wFrom as Key, dest: wTo as Key, brush: 'red' });
+			// Chain phase A: board is one ply before the chain opponent's move — show it as red.
+			if (chainLeg && !chainLeg.opponentAdded && currentPlyIdx === chainLeg.plyInGame - 1) {
+				const sq = getMoveSquares(chainLeg.opponentFen, chainLeg.opponentSan);
+				return sq ? [{ orig: sq.from as Key, dest: sq.to as Key, brush: 'red' }] : [];
+			}
 
-		// Correct move (green arrow).
-		const correct = getMoveSquares(dev.fromFen, dev.repertoireSan);
-		if (correct) shapes.push({ orig: correct.from as Key, dest: correct.to as Key, brush: 'green' });
+			// Chain phase B: board is at the position after the chain opponent's move —
+			// show the user's available response choices.
+			if (chainLeg && chainLeg.opponentAdded && chainLeg.userFen && currentPlyIdx === chainLeg.plyInGame) {
+				return buildResponseArrows(chainLeg.userFen, chainLeg.userSan, candidates);
+			}
 
-		return shapes;
+			// OPPONENT_SURPRISE phase 2: board is at issue.toFen (after opponent's surprise move) —
+			// show the user's available response choices.
+			if (
+				issue.type === 'OPPONENT_SURPRISE' &&
+				opponentMoveAdded.has(issue.ply) &&
+				!chainLeg &&
+				currentPlyIdx === issue.ply
+			) {
+				return buildResponseArrows(issue.toFen, issue.userResponseSan, candidates);
+			}
+		}
+
+		return [];
 	});
 
 	// Fetch Stockfish evals for a DEVIATION issue (wrong move and correct alternative).
@@ -442,6 +533,8 @@
 	}
 
 	// Case 2 — BEYOND_REPERTOIRE: add the move the user actually played.
+	// After adding, check if there's a next opponent move in the game — if so,
+	// start a chain extension rather than resolving immediately.
 	async function handleAddMyMove(issue: GameIssue) {
 		actionLoading.set(issue.ply, true);
 		try {
@@ -450,7 +543,14 @@
 				fromFen: issue.fromFen,
 				san: issue.playedSan
 			});
-			resolveIssue(issue.ply);
+			// The next move after the user's ply is the opponent's — start a chain if it exists.
+			const leg = buildChainLeg(issue.ply + 1);
+			if (leg) {
+				currentPlyIdx = issue.ply; // advance board to position after user's move
+				chainExtensions.set(issue.ply, leg);
+			} else {
+				resolveIssue(issue.ply);
+			}
 		} finally {
 			actionLoading.set(issue.ply, false);
 		}
@@ -469,15 +569,18 @@
 				san: issue.playedSan
 			});
 			opponentMoveAdded.add(issue.ply);
-			// Fire the engine fetch in the background — don't await so the
-			// action spinner clears immediately while candidates load separately.
+			// Fire both fetches in the background so the spinner clears immediately.
+			// Engine candidates and the user's game move eval load in parallel.
 			fetchEngineSuggestion(issue);
+			fetchUserMoveEval(issue.ply, issue.toFen, issue.userResponseSan);
 		} finally {
 			actionLoading.set(issue.ply, false);
 		}
 	}
 
 	// Case 3 — OPPONENT_SURPRISE, phase 2: add the user's actual in-game response.
+	// After adding, check if there's a next opponent move in the game — if so,
+	// start a chain extension rather than resolving immediately.
 	async function handleAddUserResponse(issue: GameIssue) {
 		if (!issue.userResponseSan) return;
 		actionLoading.set(issue.ply, true);
@@ -487,21 +590,41 @@
 				fromFen: issue.toFen,
 				san: issue.userResponseSan
 			});
-			resolveIssue(issue.ply);
+			// issue.ply is the opponent's ply; +1 is the user's response; +2 is the next opponent move.
+			const leg = buildChainLeg(issue.ply + 2);
+			if (leg) {
+				currentPlyIdx = issue.ply + 1; // advance board to position after user's response
+				userMoveEvals.delete(issue.ply); // clear stale eval from the original phase 2
+				chainExtensions.set(issue.ply, leg);
+			} else {
+				resolveIssue(issue.ply);
+			}
 		} finally {
 			actionLoading.set(issue.ply, false);
 		}
 	}
 
-	// Fetch engine/book suggestions for an issue position.
-	// For Case 2 (BEYOND_REPERTOIRE) the relevant FEN is fromFen (user's move position).
-	// For Case 3 (OPPONENT_SURPRISE) the relevant FEN is toFen (position after opponent's
-	// surprise move, where the user needs to respond). Fetches 3 candidates for
-	// OPPONENT_SURPRISE so the user has multiple response options to choose from.
-	async function fetchEngineSuggestion(issue: GameIssue) {
-		const fen = issue.type === 'OPPONENT_SURPRISE' ? issue.toFen : issue.fromFen;
-		const numMoves = issue.type === 'OPPONENT_SURPRISE' ? 3 : 1;
-		stockfishLoading.set(issue.ply, true);
+	// Build a chain leg for a given opponent ply in the game.
+	// Returns null if there are no more game moves at that ply (game ended).
+	function buildChainLeg(opponentPlyInGame: number): ChainLeg | null {
+		if (!analysis) return null;
+		const sanIdx = opponentPlyInGame - 1; // convert 1-indexed ply to 0-indexed array position
+		if (sanIdx >= analysis.sanHistory.length) return null; // no such ply in the game
+
+		const opponentSan = analysis.sanHistory[sanIdx];
+		const opponentFen = analysis.fenHistory[sanIdx]; // FEN before the opponent's move
+		const userFen = analysis.fenHistory[opponentPlyInGame] ?? null; // FEN after opponent's move
+		const userSan = analysis.sanHistory[opponentPlyInGame] ?? null; // user's game response (may not exist)
+
+		return { opponentFen, opponentSan, opponentAdded: false, userFen, userSan, plyInGame: opponentPlyInGame };
+	}
+
+	// Core engine fetch — accepts a FEN and key directly so it can be used for both
+	// original issues and chain-extension legs (which don't have a GameIssue object).
+	// Clears any stale suggestions for the key before fetching.
+	async function fetchEngineSuggestionForFen(issuePly: number, fen: string, numMoves: number) {
+		stockfishSuggestions.delete(issuePly);
+		stockfishLoading.set(issuePly, true);
 		try {
 			const res = await fetch('/api/stockfish', {
 				method: 'POST',
@@ -532,24 +655,164 @@
 						if (!existing) {
 							seen.set(c.san, c);
 						} else if (!c.isBook && existing.isBook) {
-							// Engine version has an eval — merge it into the book entry so the
-							// move keeps its book identity (styling, openingName) while also
-							// showing an evaluation score.
 							seen.set(c.san, { ...existing, evalCp: c.evalCp });
 						}
-						// All other cases (duplicate book, engine-then-book): first entry wins.
 					}
-					stockfishSuggestions.set(issue.ply, [...seen.values()]);
+					const mergedList = [...seen.values()];
+					stockfishSuggestions.set(issuePly, mergedList);
+					// Book candidates always have evalCp: null from the API (by design).
+					// Evaluate their resulting positions in the background so the buttons
+					// show a score once Stockfish responds. Fire-and-forget — the loading
+					// spinner has already cleared; evals appear as results come in.
+					enrichBookCandidateEvals(issuePly, fen, mergedList);
 				}
 			}
 		} finally {
-			stockfishLoading.set(issue.ply, false);
+			stockfishLoading.set(issuePly, false);
 		}
+	}
+
+	// Convenience wrapper — picks the right FEN and move count based on issue type.
+	// For Case 2 (BEYOND_REPERTOIRE) the relevant FEN is fromFen (user's move position).
+	// For Case 3 (OPPONENT_SURPRISE) the relevant FEN is toFen (position after opponent's
+	// surprise move, where the user needs to respond). Fetches 3 candidates for
+	// OPPONENT_SURPRISE so the user has multiple response options to choose from.
+	async function fetchEngineSuggestion(issue: GameIssue) {
+		const fen = issue.type === 'OPPONENT_SURPRISE' ? issue.toFen : issue.fromFen;
+		const numMoves = issue.type === 'OPPONENT_SURPRISE' ? 3 : 1;
+		await fetchEngineSuggestionForFen(issue.ply, fen, numMoves);
+	}
+
+	// Fetch and store the Stockfish eval for the user's actual game move (the position
+	// that results after playing `san` from `fromFen`). Stored in userMoveEvals so the
+	// "Add: [move] (your move)" button can display it alongside engine candidate evals.
+	// Clears any stale value first so the UI doesn't flicker with the wrong number.
+	async function fetchUserMoveEval(issuePly: number, fromFen: string, san: string | null) {
+		if (!san) return;
+		userMoveEvals.delete(issuePly); // clear stale entry while loading
+		try {
+			const chess = new Chess(fromFen);
+			chess.move(san);
+			const toFen = chess.fen();
+			const res = await fetch('/api/stockfish', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ fen: toFen, depth: 15, numMoves: 1 })
+			});
+			if (res.ok) {
+				const result = (await res.json()) as { candidates?: { evalCp: number | null }[] };
+				userMoveEvals.set(issuePly, result.candidates?.[0]?.evalCp ?? null);
+			}
+		} catch {
+			// Stockfish unreachable — leave the entry absent so no eval is shown.
+		}
+	}
+
+	// ── Chain extension handlers ─────────────────────────────────────────────────
+	// These run when the user is working through a chain leg (phase 3+) rather
+	// than the original issue phases. All are keyed by the original issue.ply.
+
+	// Chain phase A — add the opponent's move for the current chain leg.
+	// Transitions to chain phase B (pick a user response). Fires engine fetch
+	// immediately so candidates are ready when the user gets there.
+	async function handleChainAddOpponent(issuePly: number) {
+		const leg = chainExtensions.get(issuePly);
+		if (!leg) return;
+		actionLoading.set(issuePly, true);
+		try {
+			await callApi('/api/review/add-move', {
+				repertoireId: data.repertoire.id,
+				fromFen: leg.opponentFen,
+				san: leg.opponentSan
+			});
+			chainExtensions.set(issuePly, { ...leg, opponentAdded: true });
+			currentPlyIdx = leg.plyInGame; // advance board to position after opponent's move
+			// Kick off engine candidates and user-move eval in parallel in the background.
+			// userMoveEvals.delete ensures no stale eval flickers in before the new one arrives.
+			if (leg.userFen) {
+				fetchEngineSuggestionForFen(issuePly, leg.userFen, 3);
+				fetchUserMoveEval(issuePly, leg.userFen, leg.userSan);
+			}
+		} finally {
+			actionLoading.set(issuePly, false);
+		}
+	}
+
+	// Chain phase B — add the user's actual game response and try to advance.
+	// If there's yet another opponent move later in the game, creates the next leg.
+	// Otherwise resolves the issue (chain complete).
+	async function handleChainAddUserResponse(issuePly: number) {
+		const leg = chainExtensions.get(issuePly);
+		if (!leg || !leg.userFen || !leg.userSan) return;
+		actionLoading.set(issuePly, true);
+		try {
+			await callApi('/api/review/add-move', {
+				repertoireId: data.repertoire.id,
+				fromFen: leg.userFen,
+				san: leg.userSan
+			});
+			// Advance: the next chain opponent ply is two past the current opponent ply
+			// (opponent at leg.plyInGame → user at leg.plyInGame+1 → next opponent at leg.plyInGame+2).
+			const nextLeg = buildChainLeg(leg.plyInGame + 2);
+			if (nextLeg) {
+				stockfishSuggestions.delete(issuePly); // clear stale candidates from this leg
+				userMoveEvals.delete(issuePly);        // clear stale eval from this leg
+				currentPlyIdx = leg.plyInGame + 1; // advance board to position after user's response
+				chainExtensions.set(issuePly, nextLeg);
+			} else {
+				chainExtensions.delete(issuePly);
+				resolveIssue(issuePly);
+			}
+		} finally {
+			actionLoading.set(issuePly, false);
+		}
+	}
+
+	// Chain phase B — user picks an engine/book candidate.
+	// If the chosen SAN matches the game move, advance the chain (same as picking
+	// the game move button). Otherwise the user diverged, so end the chain.
+	async function handleChainAddEngineSuggestion(issuePly: number, san: string) {
+		const leg = chainExtensions.get(issuePly);
+		if (!leg || !leg.userFen) return;
+		actionLoading.set(issuePly, true);
+		try {
+			await callApi('/api/review/add-move', {
+				repertoireId: data.repertoire.id,
+				fromFen: leg.userFen,
+				san
+			});
+			if (san === leg.userSan) {
+				// Same move as the game — advance the chain exactly like handleChainAddUserResponse.
+				const nextLeg = buildChainLeg(leg.plyInGame + 2);
+				if (nextLeg) {
+					stockfishSuggestions.delete(issuePly);
+					userMoveEvals.delete(issuePly); // clear stale eval from this leg
+					currentPlyIdx = leg.plyInGame + 1;
+					chainExtensions.set(issuePly, nextLeg);
+				} else {
+					chainExtensions.delete(issuePly);
+					resolveIssue(issuePly);
+				}
+			} else {
+				chainExtensions.delete(issuePly);
+				resolveIssue(issuePly);
+			}
+		} finally {
+			actionLoading.set(issuePly, false);
+		}
+	}
+
+	// User clicks "Done" anywhere in the chain — stop extending, mark resolved.
+	function skipChain(issuePly: number) {
+		chainExtensions.delete(issuePly);
+		resolveIssue(issuePly);
 	}
 
 	// Add a specific engine/book candidate to the repertoire (Case 2 or Case 3 phase 2).
 	// The caller passes the SAN directly from the candidate button.
 	// For OPPONENT_SURPRISE the opponent's move is already added in phase 1.
+	// If the chosen SAN matches the user's actual game response, treat it the same
+	// as "Add: [game move]" and advance the chain rather than ending it.
 	async function handleAddEngineSuggestion(issue: GameIssue, san: string) {
 		const fromFen = issue.type === 'OPPONENT_SURPRISE' ? issue.toFen : issue.fromFen;
 		actionLoading.set(issue.ply, true);
@@ -559,7 +822,20 @@
 				fromFen,
 				san
 			});
-			resolveIssue(issue.ply);
+			// For OPPONENT_SURPRISE: if the chosen move is the same as the game move,
+			// advance the chain (same logic as handleAddUserResponse). Otherwise end here.
+			if (issue.type === 'OPPONENT_SURPRISE' && san === issue.userResponseSan) {
+				const leg = buildChainLeg(issue.ply + 2);
+				if (leg) {
+					currentPlyIdx = issue.ply + 1;
+					userMoveEvals.delete(issue.ply); // clear stale eval before chain starts
+					chainExtensions.set(issue.ply, leg);
+				} else {
+					resolveIssue(issue.ply);
+				}
+			} else {
+				resolveIssue(issue.ply);
+			}
 		} finally {
 			actionLoading.set(issue.ply, false);
 		}
@@ -801,6 +1077,8 @@
 						{@const sfLoading = stockfishLoading.get(issue.ply) ?? false}
 						{@const sfCandidates = stockfishSuggestions.get(issue.ply) ?? null}
 						{@const isActive = currentPlyIdx === issue.ply}
+						{@const chainLeg = chainExtensions.get(issue.ply) ?? null}
+						{@const userMoveEvalCp = userMoveEvals.get(issue.ply) ?? null}
 
 						<div
 							class="issue-card"
@@ -824,107 +1102,42 @@
 
 							<!-- Details + actions (only if not resolved) -->
 							{#if !isResolved}
-								<div class="issue-details">
-									{#if issue.type === 'DEVIATION'}
-										{@const ev = deviationEvals.get(issue.ply)}
-										<span
-											>You played <strong>{issue.playedSan}</strong>{#if ev?.played != null}&nbsp;<span class="move-eval">{formatEval(ev.played)}</span>{/if}, repertoire has
-											<strong>{issue.repertoireSan}</strong>{#if ev?.correct != null}&nbsp;<span class="move-eval">{formatEval(ev.correct)}</span>{/if}</span
-										>
-									{:else if issue.type === 'BEYOND_REPERTOIRE'}
-										<span
-											>You played <strong>{issue.playedSan}</strong> — no repertoire move here</span
-										>
-									{:else if issue.type === 'OPPONENT_SURPRISE'}
-										<span
-											>Opponent played <strong>{issue.playedSan}</strong> (not in your repertoire)</span
-										>
-									{/if}
-								</div>
-
-								<div class="issue-actions">
-									{#if issue.type === 'DEVIATION'}
-										<button
-											class="act-btn act-btn--warn"
-											onclick={() => handleFailCard(issue)}
-											disabled={isLoading}
-										>
-											Fail card
-										</button>
-										<button
-											class="act-btn act-btn--primary"
-											onclick={() => handleUpdateRepertoire(issue)}
-											disabled={isLoading}
-										>
-											Update repertoire
-										</button>
-										<button
-											class="act-btn act-btn--ghost"
-											onclick={() => resolveIssue(issue.ply)}
-											disabled={isLoading}
-										>
-											Skip
-										</button>
-									{:else if issue.type === 'BEYOND_REPERTOIRE'}
-										<button
-											class="act-btn act-btn--primary"
-											onclick={() => handleAddMyMove(issue)}
-											disabled={isLoading || sfLoading}
-										>
-											Add my move
-										</button>
-										{#if sfCandidates && sfCandidates.length > 0}
-											{@const top = sfCandidates[0]}
-											<button
-												class="act-btn act-btn--engine"
-												onclick={() => handleAddEngineSuggestion(issue, top.san)}
-												disabled={isLoading}
-											>
-												Add: {top.san}{formatCandidateEval(top.evalCp)}{top.isBook ? ` · ${top.openingName ?? 'book'}` : ''}
-											</button>
-										{:else}
-											<button
-												class="act-btn act-btn--ghost"
-												onclick={() => fetchEngineSuggestion(issue)}
-												disabled={sfLoading || isLoading}
-											>
-												{sfLoading ? 'Loading…' : 'Engine suggestion'}
-											</button>
-										{/if}
-										<button
-											class="act-btn act-btn--ghost"
-											onclick={() => resolveIssue(issue.ply)}
-											disabled={isLoading}
-										>
-											Skip
-										</button>
-									{:else if issue.type === 'OPPONENT_SURPRISE'}
-										{#if !opponentMoveAdded.has(issue.ply)}
-											<!-- Phase 1: decide whether to add the opponent's move -->
+								{#if chainLeg}
+									<!-- ── Chain extension phases ─────────────────────────────────── -->
+									<!-- Phase A: ask whether to add the next opponent move.         -->
+									<!-- Phase B: opponent added — pick a response.                  -->
+									{#if !chainLeg.opponentAdded}
+										<div class="issue-details">
+											<span>Keep building? Opponent would play <strong>{chainLeg.opponentSan}</strong></span>
+										</div>
+										<div class="issue-actions">
 											<button
 												class="act-btn act-btn--primary"
-												onclick={() => handleAddOpponentMove(issue)}
+												onclick={() => handleChainAddOpponent(issue.ply)}
 												disabled={isLoading}
 											>
-												Add to repertoire
+												Add opponent's {chainLeg.opponentSan}
 											</button>
 											<button
 												class="act-btn act-btn--ghost"
-												onclick={() => resolveIssue(issue.ply)}
+												onclick={() => skipChain(issue.ply)}
 												disabled={isLoading}
 											>
-												Skip
+												Done
 											</button>
-										{:else}
-											<!-- Phase 2: opponent's move added — now pick a response -->
-											<p class="phase-label">Added. How will you respond?</p>
-											{#if issue.userResponseSan}
+										</div>
+									{:else}
+										<div class="issue-details">
+											<span><strong>{chainLeg.opponentSan}</strong> added. How will you respond?</span>
+										</div>
+										<div class="issue-actions">
+											{#if chainLeg.userSan}
 												<button
 													class="act-btn act-btn--primary"
-													onclick={() => handleAddUserResponse(issue)}
+													onclick={() => handleChainAddUserResponse(issue.ply)}
 													disabled={isLoading}
 												>
-													Add: {issue.userResponseSan} (your move)
+													Add: {chainLeg.userSan} (your move){userMoveEvalCp !== null ? formatCandidateEval(userMoveEvalCp) : ''}
 												</button>
 											{/if}
 											{#if sfLoading}
@@ -935,12 +1148,98 @@
 														class="act-btn"
 														class:act-btn--engine={!candidate.isBook}
 														class:act-btn--book={candidate.isBook}
-														onclick={() => handleAddEngineSuggestion(issue, candidate.san)}
+														onclick={() => handleChainAddEngineSuggestion(issue.ply, candidate.san)}
 														disabled={isLoading}
 													>
 														Add: {candidate.san}{formatCandidateEval(candidate.evalCp)}{candidate.isBook ? ` · ${candidate.openingName ?? 'book'}` : ''}
 													</button>
 												{/each}
+											{:else if chainLeg.userFen}
+												<button
+													class="act-btn act-btn--ghost"
+													onclick={() => fetchEngineSuggestionForFen(issue.ply, chainLeg.userFen!, 3)}
+													disabled={sfLoading || isLoading}
+												>
+													Engine suggestion
+												</button>
+											{/if}
+											<button
+												class="act-btn act-btn--ghost"
+												onclick={() => skipChain(issue.ply)}
+												disabled={isLoading}
+											>
+												Done
+											</button>
+										</div>
+									{/if}
+								{:else}
+									<!-- ── Original issue phases ──────────────────────────────────── -->
+									<div class="issue-details">
+										{#if issue.type === 'DEVIATION'}
+											{@const ev = deviationEvals.get(issue.ply)}
+											<span
+												>You played <strong>{issue.playedSan}</strong>{#if ev?.played != null}&nbsp;<span class="move-eval">{formatEval(ev.played)}</span>{/if}, repertoire has
+												<strong>{issue.repertoireSan}</strong>{#if ev?.correct != null}&nbsp;<span class="move-eval">{formatEval(ev.correct)}</span>{/if}</span
+											>
+										{:else if issue.type === 'BEYOND_REPERTOIRE'}
+											<span
+												>You played <strong>{issue.playedSan}</strong> — no repertoire move here</span
+											>
+										{:else if issue.type === 'OPPONENT_SURPRISE'}
+											<span
+												>Opponent played <strong>{issue.playedSan}</strong> (not in your repertoire)</span
+											>
+										{/if}
+									</div>
+
+									<div class="issue-actions">
+										{#if issue.type === 'DEVIATION'}
+											<button
+												class="act-btn act-btn--warn"
+												onclick={() => handleFailCard(issue)}
+												disabled={isLoading}
+											>
+												Fail card
+											</button>
+											<button
+												class="act-btn act-btn--primary"
+												onclick={() => handleUpdateRepertoire(issue)}
+												disabled={isLoading}
+											>
+												Update repertoire
+											</button>
+											<button
+												class="act-btn act-btn--ghost"
+												onclick={() => resolveIssue(issue.ply)}
+												disabled={isLoading}
+											>
+												Skip
+											</button>
+										{:else if issue.type === 'BEYOND_REPERTOIRE'}
+											<button
+												class="act-btn act-btn--primary"
+												onclick={() => handleAddMyMove(issue)}
+												disabled={isLoading || sfLoading}
+											>
+												Add my move
+											</button>
+											{#if sfCandidates && sfCandidates.length > 0}
+												{@const top = sfCandidates[0]}
+												<button
+													class="act-btn act-btn--engine"
+													onclick={() => handleAddEngineSuggestion(issue, top.san)}
+													disabled={isLoading}
+												>
+													Add: {top.san}{formatCandidateEval(top.evalCp)}{top.isBook ? ` · ${top.openingName ?? 'book'}` : ''}
+												</button>
+											{:else}
+												<button
+													class="act-btn act-btn--ghost"
+													onclick={() => fetchEngineSuggestion(issue)}
+													disabled={sfLoading || isLoading}
+												>
+													{sfLoading ? 'Loading…' : 'Engine suggestion'}
+												</button>
 											{/if}
 											<button
 												class="act-btn act-btn--ghost"
@@ -949,9 +1248,61 @@
 											>
 												Skip
 											</button>
+										{:else if issue.type === 'OPPONENT_SURPRISE'}
+											{#if !opponentMoveAdded.has(issue.ply)}
+												<!-- Phase 1: decide whether to add the opponent's move -->
+												<button
+													class="act-btn act-btn--primary"
+													onclick={() => handleAddOpponentMove(issue)}
+													disabled={isLoading}
+												>
+													Add to repertoire
+												</button>
+												<button
+													class="act-btn act-btn--ghost"
+													onclick={() => resolveIssue(issue.ply)}
+													disabled={isLoading}
+												>
+													Skip
+												</button>
+											{:else}
+												<!-- Phase 2: opponent's move added — now pick a response -->
+												<p class="phase-label">Added. How will you respond?</p>
+												{#if issue.userResponseSan}
+													<button
+														class="act-btn act-btn--primary"
+														onclick={() => handleAddUserResponse(issue)}
+														disabled={isLoading}
+													>
+														Add: {issue.userResponseSan} (your move){userMoveEvalCp !== null ? formatCandidateEval(userMoveEvalCp) : ''}
+													</button>
+												{/if}
+												{#if sfLoading}
+													<button class="act-btn act-btn--ghost" disabled>Loading candidates…</button>
+												{:else if sfCandidates && sfCandidates.length > 0}
+													{#each sfCandidates as candidate (candidate.san)}
+														<button
+															class="act-btn"
+															class:act-btn--engine={!candidate.isBook}
+															class:act-btn--book={candidate.isBook}
+															onclick={() => handleAddEngineSuggestion(issue, candidate.san)}
+															disabled={isLoading}
+														>
+															Add: {candidate.san}{formatCandidateEval(candidate.evalCp)}{candidate.isBook ? ` · ${candidate.openingName ?? 'book'}` : ''}
+														</button>
+													{/each}
+												{/if}
+												<button
+													class="act-btn act-btn--ghost"
+													onclick={() => resolveIssue(issue.ply)}
+													disabled={isLoading}
+												>
+													Skip
+												</button>
+											{/if}
 										{/if}
-									{/if}
-								</div>
+									</div>
+								{/if}
 							{/if}
 						</div>
 					{/each}
