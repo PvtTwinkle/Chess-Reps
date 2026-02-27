@@ -727,7 +727,12 @@
 		</div>
 
 		<!-- Candidate moves (book + Stockfish suggestions) -->
-		<CandidateMoves {currentFen} onSelectMove={handleCandidateSelect} disabled={saving} playerColor={data.repertoire.color as 'WHITE' | 'BLACK'} />
+		<CandidateMoves
+			{currentFen}
+			onSelectMove={handleCandidateSelect}
+			disabled={saving}
+			playerColor={data.repertoire.color as 'WHITE' | 'BLACK'}
+		/>
 
 		<!-- Navigation controls -->
 		<div class="nav-controls">

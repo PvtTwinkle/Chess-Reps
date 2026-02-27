@@ -22,6 +22,7 @@ import { eq, and } from 'drizzle-orm';
 
 export const POST: RequestHandler = async ({ locals, request }) => {
 	if (!locals.user) throw error(401, 'Not authenticated');
+	const user = locals.user;
 
 	let body;
 	try {
@@ -39,7 +40,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	const rep = db
 		.select()
 		.from(repertoire)
-		.where(and(eq(repertoire.id, repertoireId), eq(repertoire.userId, locals.user.id)))
+		.where(and(eq(repertoire.id, repertoireId), eq(repertoire.userId, user.id)))
 		.get();
 	if (!rep) throw error(404, 'Repertoire not found');
 
@@ -83,22 +84,25 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			// forceReplace: update the existing move to the new san and toFen.
 			// The old toFen's subtree is orphaned but not deleted — the user can
 			// clean it up in Build mode if needed.
-			db.update(userMove)
-				.set({ san, toFen, source: 'PERSONAL' })
-				.where(eq(userMove.id, existing.id))
-				.run();
+			// Both writes are in a transaction so they succeed or roll back together.
+			db.transaction((tx) => {
+				tx.update(userMove)
+					.set({ san, toFen, source: 'PERSONAL' })
+					.where(eq(userMove.id, existing.id))
+					.run();
 
-			// Update the SR card's SAN to match the new move.
-			db.update(userRepertoireMove)
-				.set({ san })
-				.where(
-					and(
-						eq(userRepertoireMove.userId, locals.user.id),
-						eq(userRepertoireMove.repertoireId, repertoireId),
-						eq(userRepertoireMove.fromFen, fromFen)
+				// Update the SR card's SAN to match the new move.
+				tx.update(userRepertoireMove)
+					.set({ san })
+					.where(
+						and(
+							eq(userRepertoireMove.userId, user.id),
+							eq(userRepertoireMove.repertoireId, repertoireId),
+							eq(userRepertoireMove.fromFen, fromFen)
+						)
 					)
-				)
-				.run();
+					.run();
+			});
 
 			const updated = db.select().from(userMove).where(eq(userMove.id, existing.id)).get()!;
 			return json(updated);
@@ -122,44 +126,48 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		}
 	}
 
-	// Insert the new move.
-	const savedMove = db
-		.insert(userMove)
-		.values({
-			userId: locals.user.id,
-			repertoireId,
-			fromFen,
-			toFen,
-			san,
-			source: 'PERSONAL',
-			notes: null,
-			createdAt: new Date()
-		})
-		.returning()
-		.get();
-
-	// Create a spaced repetition card for user's own moves only.
+	// Insert the new move and (for user's own moves) its SR card in a single
+	// transaction so both writes either succeed or roll back together.
 	// Opponent moves are not drilled.
-	if (isUserTurn) {
-		db.insert(userRepertoireMove)
+	const savedMove = db.transaction((tx) => {
+		const move = tx
+			.insert(userMove)
 			.values({
-				userId: locals.user.id,
+				userId: user.id,
 				repertoireId,
 				fromFen,
+				toFen,
 				san,
-				due: new Date(),
-				state: 0, // New
-				reps: 0,
-				lapses: 0,
-				stability: null,
-				difficulty: null,
-				elapsedDays: null,
-				scheduledDays: null,
-				lastReview: null,
-				learningSteps: 0
+				source: 'PERSONAL',
+				notes: null,
+				createdAt: new Date()
 			})
-			.run();
-	}
+			.returning()
+			.get();
+
+		if (isUserTurn) {
+			tx.insert(userRepertoireMove)
+				.values({
+					userId: user.id,
+					repertoireId,
+					fromFen,
+					san,
+					due: new Date(),
+					state: 0, // New
+					reps: 0,
+					lapses: 0,
+					stability: null,
+					difficulty: null,
+					elapsedDays: null,
+					scheduledDays: null,
+					lastReview: null,
+					learningSteps: 0
+				})
+				.run();
+		}
+
+		return move;
+	});
 
 	return json(savedMove, { status: 201 });
 };

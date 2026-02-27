@@ -29,6 +29,13 @@ Docker images are tagged per version. To stay on stable releases, pin your
 
 ### Fixed
 
+- **Move + SR card writes are now transactional** — `POST /api/moves` and
+  `POST /api/review/add-move` previously did two separate writes (insert/update
+  `user_move`, then insert/update `user_repertoire_move`) with no transaction
+  wrapper. If the second write failed, the move and its SR card would be out of
+  sync. Both endpoints now use `db.transaction()` so both writes succeed or roll
+  back together. Follows the same pattern as the repertoire DELETE handler.
+
 - **Malformed JSON now returns 400 instead of 500** — all API routes that call
   `request.json()` now wrap the call in a try-catch; a `SyntaxError` from a
   malformed body returns a clean `400 Invalid JSON body` response rather than

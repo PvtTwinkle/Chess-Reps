@@ -91,7 +91,7 @@
 	// Evals for DEVIATION issues: evalCp from White's perspective after each move.
 	// Fetched in the background when analysis loads; populated as results arrive.
 	let deviationEvals = new SvelteMap<number, { played: number | null; correct: number | null }>();
-	const deviationFetching = new Set<number>(); // plain Set — not reactive, just dedup guard
+	const deviationFetching = new SvelteSet<number>(); // dedup guard — tracks in-flight fetches
 	let stockfishSuggestions = new SvelteMap<
 		number,
 		{ san: string; evalCp: number | null; isBook: boolean; openingName: string | null }[]
@@ -146,9 +146,7 @@
 			// Auto-play from the start up to the first issue (or end of game if clean).
 			const loaded = form.analysis as GameAnalysis;
 			const targetPly =
-				loaded.issues.length > 0
-					? loaded.issues[0].ply
-					: loaded.fenHistory.length - 1;
+				loaded.issues.length > 0 ? loaded.issues[0].ply : loaded.fenHistory.length - 1;
 			untrack(() => startAutoPlay(targetPly));
 
 			// Fetch evals for DEVIATION issues in the background (fire and forget).
@@ -318,7 +316,7 @@
 		candidates: { san: string; isBook: boolean }[]
 	): DrawShape[] {
 		const shapes: DrawShape[] = [];
-		const shown = new Set<string>();
+		const shown = new SvelteSet<string>();
 
 		if (gameSan) {
 			const sq = getMoveSquares(fromFen, gameSan);
@@ -332,7 +330,11 @@
 			if (shown.has(c.san)) continue;
 			const sq = getMoveSquares(fromFen, c.san);
 			if (sq) {
-				shapes.push({ orig: sq.from as Key, dest: sq.to as Key, brush: c.isBook ? 'green' : 'yellow' });
+				shapes.push({
+					orig: sq.from as Key,
+					dest: sq.to as Key,
+					brush: c.isBook ? 'green' : 'yellow'
+				});
 				shown.add(c.san);
 			}
 		}
@@ -359,7 +361,8 @@
 			const wTo = analysis.toSquares[dev.ply - 1];
 			if (wFrom && wTo) shapes.push({ orig: wFrom as Key, dest: wTo as Key, brush: 'red' });
 			const correct = getMoveSquares(dev.fromFen, dev.repertoireSan);
-			if (correct) shapes.push({ orig: correct.from as Key, dest: correct.to as Key, brush: 'green' });
+			if (correct)
+				shapes.push({ orig: correct.from as Key, dest: correct.to as Key, brush: 'green' });
 			return shapes;
 		}
 
@@ -377,7 +380,12 @@
 
 			// Chain phase B: board is at the position after the chain opponent's move —
 			// show the user's available response choices.
-			if (chainLeg && chainLeg.opponentAdded && chainLeg.userFen && currentPlyIdx === chainLeg.plyInGame) {
+			if (
+				chainLeg &&
+				chainLeg.opponentAdded &&
+				chainLeg.userFen &&
+				currentPlyIdx === chainLeg.plyInGame
+			) {
 				return buildResponseArrows(chainLeg.userFen, chainLeg.userSan, candidates);
 			}
 
@@ -410,7 +418,9 @@
 					const chess = new Chess(issue.fromFen);
 					chess.move(issue.repertoireSan);
 					correctToFen = chess.fen();
-				} catch { /* ignore */ }
+				} catch {
+					/* ignore */
+				}
 			}
 
 			const evalPos = async (fen: string): Promise<number | null> => {
@@ -421,7 +431,7 @@
 						body: JSON.stringify({ fen, depth: 15, numMoves: 1 })
 					});
 					if (!res.ok) return null;
-					const data = await res.json() as { candidates?: { evalCp: number | null }[] };
+					const data = (await res.json()) as { candidates?: { evalCp: number | null }[] };
 					return data.candidates?.[0]?.evalCp ?? null;
 				} catch {
 					return null;
@@ -616,7 +626,14 @@
 		const userFen = analysis.fenHistory[opponentPlyInGame] ?? null; // FEN after opponent's move
 		const userSan = analysis.sanHistory[opponentPlyInGame] ?? null; // user's game response (may not exist)
 
-		return { opponentFen, opponentSan, opponentAdded: false, userFen, userSan, plyInGame: opponentPlyInGame };
+		return {
+			opponentFen,
+			opponentSan,
+			opponentAdded: false,
+			userFen,
+			userSan,
+			plyInGame: opponentPlyInGame
+		};
 	}
 
 	// Core engine fetch — accepts a FEN and key directly so it can be used for both
@@ -646,7 +663,7 @@
 					// When the same move appears in both lists, merge them: keep the book
 					// entry's isBook/openingName so it renders as a book move, but pull in
 					// the engine's evalCp so the score is still shown.
-					const seen = new Map<
+					const seen = new SvelteMap<
 						string,
 						{ san: string; evalCp: number | null; isBook: boolean; openingName: string | null }
 					>();
@@ -714,7 +731,12 @@
 	async function enrichBookCandidateEvals(
 		issuePly: number,
 		fen: string,
-		mergedList: { san: string; evalCp: number | null; isBook: boolean; openingName: string | null }[]
+		mergedList: {
+			san: string;
+			evalCp: number | null;
+			isBook: boolean;
+			openingName: string | null;
+		}[]
 	) {
 		const bookCandidates = mergedList.filter((c) => c.isBook && c.evalCp === null);
 		for (const candidate of bookCandidates) {
@@ -792,7 +814,7 @@
 			const nextLeg = buildChainLeg(leg.plyInGame + 2);
 			if (nextLeg) {
 				stockfishSuggestions.delete(issuePly); // clear stale candidates from this leg
-				userMoveEvals.delete(issuePly);        // clear stale eval from this leg
+				userMoveEvals.delete(issuePly); // clear stale eval from this leg
 				currentPlyIdx = leg.plyInGame + 1; // advance board to position after user's response
 				chainExtensions.set(issuePly, nextLeg);
 			} else {
@@ -1008,7 +1030,13 @@
 		<!-- ── Board column ──────────────────────────────────────────────────────── -->
 		<div class="board-col">
 			<div class="board-wrap">
-				<ChessBoard fen={currentFen} {orientation} interactive={false} {lastMove} autoShapes={boardShapes} />
+				<ChessBoard
+					fen={currentFen}
+					{orientation}
+					interactive={false}
+					{lastMove}
+					autoShapes={boardShapes}
+				/>
 			</div>
 
 			<!-- Move list — full game, colour-coded -->
@@ -1144,7 +1172,10 @@
 									<!-- Phase B: opponent added — pick a response.                  -->
 									{#if !chainLeg.opponentAdded}
 										<div class="issue-details">
-											<span>Keep building? Opponent would play <strong>{chainLeg.opponentSan}</strong></span>
+											<span
+												>Keep building? Opponent would play <strong>{chainLeg.opponentSan}</strong
+												></span
+											>
 										</div>
 										<div class="issue-actions">
 											<button
@@ -1164,7 +1195,9 @@
 										</div>
 									{:else}
 										<div class="issue-details">
-											<span><strong>{chainLeg.opponentSan}</strong> added. How will you respond?</span>
+											<span
+												><strong>{chainLeg.opponentSan}</strong> added. How will you respond?</span
+											>
 										</div>
 										<div class="issue-actions">
 											{#if chainLeg.userSan}
@@ -1173,7 +1206,9 @@
 													onclick={() => handleChainAddUserResponse(issue.ply)}
 													disabled={isLoading}
 												>
-													Add: {chainLeg.userSan} (your move){userMoveEvalCp !== null ? formatCandidateEval(userMoveEvalCp) : ''}
+													Add: {chainLeg.userSan} (your move){userMoveEvalCp !== null
+														? formatCandidateEval(userMoveEvalCp)
+														: ''}
 												</button>
 											{/if}
 											{#if sfLoading}
@@ -1187,13 +1222,16 @@
 														onclick={() => handleChainAddEngineSuggestion(issue.ply, candidate.san)}
 														disabled={isLoading}
 													>
-														Add: {candidate.san}{formatCandidateEval(candidate.evalCp)}{candidate.isBook ? ` · ${candidate.openingName ?? 'book'}` : ''}
+														Add: {candidate.san}{formatCandidateEval(
+															candidate.evalCp
+														)}{candidate.isBook ? ` · ${candidate.openingName ?? 'book'}` : ''}
 													</button>
 												{/each}
 											{:else if chainLeg.userFen}
 												<button
 													class="act-btn act-btn--ghost"
-													onclick={() => fetchEngineSuggestionForFen(issue.ply, chainLeg.userFen!, 3)}
+													onclick={() =>
+														fetchEngineSuggestionForFen(issue.ply, chainLeg.userFen!, 3)}
 													disabled={sfLoading || isLoading}
 												>
 													Engine suggestion
@@ -1214,8 +1252,13 @@
 										{#if issue.type === 'DEVIATION'}
 											{@const ev = deviationEvals.get(issue.ply)}
 											<span
-												>You played <strong>{issue.playedSan}</strong>{#if ev?.played != null}&nbsp;<span class="move-eval">{formatEval(ev.played)}</span>{/if}, repertoire has
-												<strong>{issue.repertoireSan}</strong>{#if ev?.correct != null}&nbsp;<span class="move-eval">{formatEval(ev.correct)}</span>{/if}</span
+												>You played <strong>{issue.playedSan}</strong
+												>{#if ev?.played != null}&nbsp;<span class="move-eval"
+														>{formatEval(ev.played)}</span
+													>{/if}, repertoire has
+												<strong>{issue.repertoireSan}</strong>{#if ev?.correct != null}&nbsp;<span
+														class="move-eval">{formatEval(ev.correct)}</span
+													>{/if}</span
 											>
 										{:else if issue.type === 'BEYOND_REPERTOIRE'}
 											<span
@@ -1266,7 +1309,9 @@
 													onclick={() => handleAddEngineSuggestion(issue, top.san)}
 													disabled={isLoading}
 												>
-													Add: {top.san}{formatCandidateEval(top.evalCp)}{top.isBook ? ` · ${top.openingName ?? 'book'}` : ''}
+													Add: {top.san}{formatCandidateEval(top.evalCp)}{top.isBook
+														? ` · ${top.openingName ?? 'book'}`
+														: ''}
 												</button>
 											{:else}
 												<button
@@ -1310,11 +1355,15 @@
 														onclick={() => handleAddUserResponse(issue)}
 														disabled={isLoading}
 													>
-														Add: {issue.userResponseSan} (your move){userMoveEvalCp !== null ? formatCandidateEval(userMoveEvalCp) : ''}
+														Add: {issue.userResponseSan} (your move){userMoveEvalCp !== null
+															? formatCandidateEval(userMoveEvalCp)
+															: ''}
 													</button>
 												{/if}
 												{#if sfLoading}
-													<button class="act-btn act-btn--ghost" disabled>Loading candidates…</button>
+													<button class="act-btn act-btn--ghost" disabled
+														>Loading candidates…</button
+													>
 												{:else if sfCandidates && sfCandidates.length > 0}
 													{#each sfCandidates as candidate (candidate.san)}
 														<button
@@ -1324,7 +1373,9 @@
 															onclick={() => handleAddEngineSuggestion(issue, candidate.san)}
 															disabled={isLoading}
 														>
-															Add: {candidate.san}{formatCandidateEval(candidate.evalCp)}{candidate.isBook ? ` · ${candidate.openingName ?? 'book'}` : ''}
+															Add: {candidate.san}{formatCandidateEval(
+																candidate.evalCp
+															)}{candidate.isBook ? ` · ${candidate.openingName ?? 'book'}` : ''}
 														</button>
 													{/each}
 												{/if}

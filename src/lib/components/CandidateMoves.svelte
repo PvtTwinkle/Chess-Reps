@@ -172,11 +172,7 @@
 		{:else}
 			<div class="candidate-list">
 				{#each bookCandidates as c (c.uci)}
-					<button
-						class="candidate-row"
-						onclick={() => onSelectMove(c.san)}
-						{disabled}
-					>
+					<button class="candidate-row" onclick={() => onSelectMove(c.san)} {disabled}>
 						<div class="candidate-main">
 							<!-- Move name -->
 							<span class="candidate-san">{c.san}</span>
@@ -200,32 +196,26 @@
 				{/each}
 			</div>
 		{/if}
+	{:else if engineCandidates.length === 0}
+		<p class="empty-hint">
+			{engineAvailable ? 'No engine suggestions available.' : 'Stockfish engine is not available.'}
+		</p>
 	{:else}
-		{#if engineCandidates.length === 0}
-			<p class="empty-hint">
-				{engineAvailable ? 'No engine suggestions available.' : 'Stockfish engine is not available.'}
-			</p>
-		{:else}
-			<div class="candidate-list">
-				{#each engineCandidates as c (c.uci)}
-					<button
-						class="candidate-row"
-						onclick={() => onSelectMove(c.san)}
-						{disabled}
-					>
-						<div class="candidate-main">
-							<span class="candidate-san">{c.san}</span>
-							<span class="spacer"></span>
-							{#if c.evalMate !== null || c.evalCp !== null}
-								<span class="eval {evalColorClass(c.evalCp, c.evalMate)}">
-									{formatEval(c.evalCp, c.evalMate)}
-								</span>
-							{/if}
-						</div>
-					</button>
-				{/each}
-			</div>
-		{/if}
+		<div class="candidate-list">
+			{#each engineCandidates as c (c.uci)}
+				<button class="candidate-row" onclick={() => onSelectMove(c.san)} {disabled}>
+					<div class="candidate-main">
+						<span class="candidate-san">{c.san}</span>
+						<span class="spacer"></span>
+						{#if c.evalMate !== null || c.evalCp !== null}
+							<span class="eval {evalColorClass(c.evalCp, c.evalMate)}">
+								{formatEval(c.evalCp, c.evalMate)}
+							</span>
+						{/if}
+					</div>
+				</button>
+			{/each}
+		</div>
 	{/if}
 </div>
 

@@ -54,6 +54,7 @@ export const GET: RequestHandler = ({ locals, url }) => {
 
 export const POST: RequestHandler = async ({ locals, request }) => {
 	if (!locals.user) throw error(401, 'Not authenticated');
+	const user = locals.user;
 
 	let body;
 	try {
@@ -78,7 +79,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	const rep = db
 		.select()
 		.from(repertoire)
-		.where(and(eq(repertoire.id, repertoireId), eq(repertoire.userId, locals.user.id)))
+		.where(and(eq(repertoire.id, repertoireId), eq(repertoire.userId, user.id)))
 		.get();
 
 	if (!rep) throw error(404, 'Repertoire not found');
@@ -141,46 +142,50 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		}
 	}
 
-	// Save the move.
-	const savedMove = db
-		.insert(userMove)
-		.values({
-			userId: locals.user.id,
-			repertoireId,
-			fromFen,
-			toFen,
-			san,
-			source: 'PERSONAL',
-			notes: null,
-			createdAt: new Date()
-		})
-		.returning()
-		.get();
-
-	// Create a spaced repetition card for the user's own moves only.
-	// The card starts in "New" state (state=0) and is immediately due,
-	// meaning it will appear in the very next drill session.
+	// Save the move and (for user's own moves) create its SR card in a single
+	// transaction so both writes either succeed or roll back together.
 	// Opponent moves are NOT drilled — you need to know your own responses,
 	// not predict every move your opponent might make.
-	if (isUserTurn) {
-		db.insert(userRepertoireMove)
+	const savedMove = db.transaction((tx) => {
+		const move = tx
+			.insert(userMove)
 			.values({
-				userId: locals.user.id,
+				userId: user.id,
 				repertoireId,
 				fromFen,
+				toFen,
 				san,
-				due: new Date(), // immediately due
-				state: 0, // 0 = New in the FSRS state machine
-				reps: 0,
-				lapses: 0,
-				stability: null,
-				difficulty: null,
-				elapsedDays: null,
-				scheduledDays: null,
-				lastReview: null
+				source: 'PERSONAL',
+				notes: null,
+				createdAt: new Date()
 			})
-			.run();
-	}
+			.returning()
+			.get();
+
+		// The card starts in "New" state (state=0) and is immediately due,
+		// meaning it will appear in the very next drill session.
+		if (isUserTurn) {
+			tx.insert(userRepertoireMove)
+				.values({
+					userId: user.id,
+					repertoireId,
+					fromFen,
+					san,
+					due: new Date(), // immediately due
+					state: 0, // 0 = New in the FSRS state machine
+					reps: 0,
+					lapses: 0,
+					stability: null,
+					difficulty: null,
+					elapsedDays: null,
+					scheduledDays: null,
+					lastReview: null
+				})
+				.run();
+		}
+
+		return move;
+	});
 
 	return json(savedMove, { status: 201 });
 };

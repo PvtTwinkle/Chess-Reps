@@ -195,7 +195,9 @@ async function main() {
 		if (skipped === 0) {
 			console.log('\n✓ All entries loaded successfully (no WARN lines above).');
 		} else {
-			console.log(`\n⚠ ${skipped} entr${skipped === 1 ? 'y' : 'ies'} skipped due to PGN errors (see WARN lines above).`);
+			console.log(
+				`\n⚠ ${skipped} entr${skipped === 1 ? 'y' : 'ies'} skipped due to PGN errors (see WARN lines above).`
+			);
 		}
 		return;
 	}
@@ -241,7 +243,9 @@ async function main() {
 	lines.push(`  UNIQUE(from_fen, san)`);
 	lines.push(`);`);
 	lines.push(`--> statement-breakpoint`);
-	lines.push(`INSERT OR IGNORE INTO book_move_new (id, from_fen, to_fen, san, annotation, contributor)`);
+	lines.push(
+		`INSERT OR IGNORE INTO book_move_new (id, from_fen, to_fen, san, annotation, contributor)`
+	);
 	lines.push(`  SELECT id, from_fen, to_fen, san, annotation, contributor FROM book_move;`);
 	lines.push(`--> statement-breakpoint`);
 	lines.push(`DROP TABLE book_move;`);
@@ -269,8 +273,7 @@ async function main() {
 	for (const chunk of moveChunks) {
 		const values = chunk
 			.map(
-				(m) =>
-					`('${sqlStr(m.fromFen)}', '${sqlStr(m.toFen)}', '${sqlStr(m.san)}', 'lichess-eco')`
+				(m) => `('${sqlStr(m.fromFen)}', '${sqlStr(m.toFen)}', '${sqlStr(m.san)}', 'lichess-eco')`
 			)
 			.join(',\n');
 		lines.push(`INSERT OR IGNORE INTO book_move (from_fen, to_fen, san, contributor) VALUES`);
