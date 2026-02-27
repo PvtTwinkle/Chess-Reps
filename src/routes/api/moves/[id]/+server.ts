@@ -115,7 +115,12 @@ export const PATCH: RequestHandler = async ({ locals, request, params }) => {
 
 	if (!move) throw error(404, 'Move not found');
 
-	const body = await request.json();
+	let body;
+	try {
+		body = await request.json();
+	} catch {
+		throw error(400, 'Invalid JSON body');
+	}
 	let { notes } = body;
 
 	if (notes !== null && typeof notes !== 'string') {

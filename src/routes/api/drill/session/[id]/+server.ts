@@ -14,7 +14,12 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 	const sessionId = parseInt(params.id, 10);
 	if (isNaN(sessionId)) throw error(400, 'Invalid session id');
 
-	const body = await request.json();
+	let body;
+	try {
+		body = await request.json();
+	} catch {
+		throw error(400, 'Invalid JSON body');
+	}
 	const { cardsReviewed, cardsCorrect } = body;
 
 	if (typeof cardsReviewed !== 'number') throw error(400, 'cardsReviewed must be a number');

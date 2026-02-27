@@ -23,7 +23,12 @@ import { eq, and } from 'drizzle-orm';
 export const POST: RequestHandler = async ({ locals, request }) => {
 	if (!locals.user) throw error(401, 'Not authenticated');
 
-	const body = await request.json();
+	let body;
+	try {
+		body = await request.json();
+	} catch {
+		throw error(400, 'Invalid JSON body');
+	}
 	const { repertoireId, fromFen, san, forceReplace = false } = body;
 
 	if (typeof repertoireId !== 'number') throw error(400, 'repertoireId must be a number');

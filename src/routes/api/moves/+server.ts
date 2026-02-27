@@ -55,7 +55,12 @@ export const GET: RequestHandler = ({ locals, url }) => {
 export const POST: RequestHandler = async ({ locals, request }) => {
 	if (!locals.user) throw error(401, 'Not authenticated');
 
-	const body = await request.json();
+	let body;
+	try {
+		body = await request.json();
+	} catch {
+		throw error(400, 'Invalid JSON body');
+	}
 	// toFen is intentionally NOT read from the body — we compute it server-side
 	// by applying the move to fromFen. Accepting it from the client would allow
 	// a crafted request to store an arbitrary FEN as the destination position,

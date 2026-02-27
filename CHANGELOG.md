@@ -27,6 +27,16 @@ Docker images are tagged per version. To stay on stable releases, pin your
   - Indexes also declared in `schema.ts` via Drizzle's `index()` helper so schema and
     migrations stay in sync
 
+### Fixed
+
+- **Malformed JSON now returns 400 instead of 500** — all API routes that call
+  `request.json()` now wrap the call in a try-catch; a `SyntaxError` from a
+  malformed body returns a clean `400 Invalid JSON body` response rather than
+  an unhandled 500. Affected routes: `review/save`, `review/add-move`,
+  `review/fail-card`, `drill/session`, `drill/session/[id]`, `drill/grade`,
+  `moves`, `moves/[id]`, `repertoires`, `repertoires/[id]`, `repertoires/active`,
+  `settings`, `stockfish`.
+
 ### Changed
 
 - **Stockfish API restructured** — book moves and engine moves are now fully

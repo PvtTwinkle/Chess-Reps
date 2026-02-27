@@ -14,7 +14,12 @@ import { eq } from 'drizzle-orm';
 export const PATCH: RequestHandler = async ({ locals, request }) => {
 	if (!locals.user) throw error(401, 'Not authenticated');
 
-	const body = await request.json();
+	let body;
+	try {
+		body = await request.json();
+	} catch {
+		throw error(400, 'Invalid JSON body');
+	}
 
 	// Build an update object with only the fields we recognise and received.
 	// This pattern makes it easy to extend with more settings later without

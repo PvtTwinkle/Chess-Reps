@@ -14,7 +14,7 @@
 // If Stockfish is unreachable (e.g. running without Docker), the endpoint
 // still returns book moves and an empty engine list rather than failing.
 
-import { json } from '@sveltejs/kit';
+import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getTopMoves } from '$lib/stockfish';
 import { db } from '$lib/db';
@@ -49,7 +49,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		return json({ error: 'Unauthorized' }, { status: 401 });
 	}
 
-	const body = (await request.json()) as { fen?: string; depth?: number; numMoves?: number };
+	let body: { fen?: string; depth?: number; numMoves?: number };
+	try {
+		body = (await request.json()) as { fen?: string; depth?: number; numMoves?: number };
+	} catch {
+		throw error(400, 'Invalid JSON body');
+	}
 	const {
 		fen,
 		depth: rawDepth = DEFAULT_DEPTH,

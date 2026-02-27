@@ -32,7 +32,12 @@ export const PATCH: RequestHandler = async ({ locals, request, params }) => {
 
 	if (!existing) throw error(404, 'Repertoire not found');
 
-	const body = await request.json();
+	let body;
+	try {
+		body = await request.json();
+	} catch {
+		throw error(400, 'Invalid JSON body');
+	}
 	const { name } = body;
 
 	if (!name || typeof name !== 'string' || name.trim() === '') {
