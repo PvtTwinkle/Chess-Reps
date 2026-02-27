@@ -112,6 +112,19 @@ Stockfish is a fallback and suggestion tool, not a gatekeeper:
 - Analyzes blunder positions in game review
 - Configurable search depth in user settings
 
+### Lichess Masters API
+
+When online, build mode queries the Lichess Opening Explorer API for the current
+position to show how often each move is played in master games and the win/draw/loss
+breakdown. This gives the user practical context — not just what the engine prefers,
+but what strong human players actually choose.
+
+- Displayed alongside book moves and Stockfish evaluations in build mode
+- Fetched on every position change; not cached to disk
+- Graceful degradation — if the request fails or the app is offline, the column is
+  simply omitted; no error is shown and no functionality is broken
+- The Lichess API is public and does not require authentication
+
 ### Spaced Repetition
 
 Uses the FSRS algorithm (via ts-fsrs). Each user-move node has its own SR state.
