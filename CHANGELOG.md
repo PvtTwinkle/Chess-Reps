@@ -13,6 +13,28 @@ Docker images are tagged per version. To stay on stable releases, pin your
 
 ## [Unreleased]
 
+### Added
+
+- **PGN import for repertoire seeding** — paste or upload a PGN with variations to
+  bulk-populate a repertoire instead of clicking every move manually:
+  - Custom PGN variation-tree parser that walks all parenthetical nesting (Chess.js's
+    `loadPgn()` silently drops variations); replays each line through Chess.js for
+    FEN computation and move validation
+  - Conflict detection: when the PGN has multiple user moves at the same position, or
+    the existing repertoire disagrees with the PGN, the user is prompted to choose
+  - Conflict resolution UI shows a mini ChessBoard with colored arrows for each
+    alternative move and matching colored dots on the choice buttons
+  - PGN annotations (`{like this}`) are preserved as move notes; engine-specific
+    tags (`[%evp ...]`, `[%cal ...]`, `[%csl ...]`) are filtered out
+  - Batch insert via single SQLite transaction for atomicity
+  - Import summary shows moves added, replaced, and duplicates skipped
+  - "Import PGN" button in the Build mode sidebar header
+  - `src/lib/pgn/parseVariations.ts` — variation tree parser + Chess.js replay
+  - `src/lib/pgn/detectConflicts.ts` — conflict detection against existing repertoire
+  - `POST /api/import/parse` — stateless parse + preview endpoint
+  - `POST /api/import/execute` — batch insert with conflict replacement support
+  - `src/lib/components/build/ImportPgnModal.svelte` — multi-step modal UI
+
 ### Changed
 
 - **Refactored RepertoireSelector** — split the 770-line component into two

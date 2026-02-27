@@ -35,10 +35,14 @@
 	import OpeningName from '$lib/components/OpeningName.svelte';
 	import MoveList from '$lib/components/build/MoveList.svelte';
 	import AnnotationModal from '$lib/components/build/AnnotationModal.svelte';
+	import ImportPgnModal from '$lib/components/build/ImportPgnModal.svelte';
 	import { createBuildState } from '$lib/components/build/buildState.svelte';
+	import { invalidateAll } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import type { PageData } from './$types';
 	import { initSounds } from '$lib/sounds';
+
+	let importOpen = $state(false);
 
 	onMount(() => {
 		initSounds();
@@ -109,6 +113,9 @@
 			>
 				{data.repertoire.color === 'WHITE' ? 'White' : 'Black'}
 			</span>
+			<button class="import-btn" onclick={() => importOpen = true} title="Import PGN">
+				Import PGN
+			</button>
 		</div>
 
 		<!-- ECO opening name (updates as moves are played) -->
@@ -259,6 +266,14 @@
 			onClose={s.closeAnnotation}
 		/>
 	{/if}
+
+	<!-- ── PGN import modal ─────────────────────────────────────────────── -->
+	<ImportPgnModal
+		bind:open={importOpen}
+		repertoireId={data.repertoire.id}
+		repertoireColor={data.repertoire.color as 'WHITE' | 'BLACK'}
+		onComplete={() => invalidateAll()}
+	/>
 </div>
 
 <style>
@@ -329,6 +344,25 @@
 		background: #181818;
 		color: #707070;
 		border: 1px solid #2a2a2a;
+	}
+
+	.import-btn {
+		padding: 0.2rem 0.5rem;
+		background: transparent;
+		border: 1px solid #1a4a7a;
+		border-radius: 4px;
+		color: #909098;
+		font-size: 0.7rem;
+		cursor: pointer;
+		transition:
+			border-color 0.15s,
+			color 0.15s;
+		flex-shrink: 0;
+	}
+
+	.import-btn:hover {
+		border-color: #e2b714;
+		color: #e2b714;
 	}
 
 	/* ── Turn indicator ──────────────────────────────────────────────────────── */
