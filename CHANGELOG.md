@@ -13,6 +13,35 @@ Docker images are tagged per version. To stay on stable releases, pin your
 
 ## [Unreleased]
 
+### Changed
+
+- **Stockfish API restructured** — book moves and engine moves are now fully
+  independent lists rather than a merged, sorted combined list:
+  - Book moves are returned first with no engine eval attached (evals in the
+    opening are rarely meaningful and were misleading)
+  - Engine moves are always the top N Stockfish results regardless of overlap
+    with the book; the two groups are shown in separate tabs so no sorting is
+    needed between them
+  - `DEFAULT_DEPTH` raised from 15 → 20; `MAX_DEPTH` raised from 20 → 30;
+    `MIN_DEPTH` (15) introduced to floor any request that asks for shallow analysis
+
+- **Eval scores now shown from the player's perspective** — previously all evals
+  were displayed from White's perspective (standard engine convention), which made
+  scores confusing for Black repertoire players (a "+0.4" meant Black was losing):
+  - `CandidateMoves` component accepts a new `playerColor` prop; Build mode passes
+    the active repertoire's color so the engine tab always shows positive = good for you
+  - `formatEval` and `evalColorClass` flip the sign and colour threshold for Black players
+  - Game Review eval displays (DEVIATION detail scores and candidate move buttons)
+    also flip for Black via `formatEval` / `formatCandidateEval` helpers
+
+### Fixed
+
+- **Review mode: all book moves now shown as candidates** — when a book move
+  happened to also be one of Stockfish's top engine picks, the deduplication logic
+  was overwriting the book entry with the engine entry, stripping its `isBook: true`
+  flag and causing it to render as an engine move. The fix merges the two: the book
+  entry keeps its identity and opening name, and gains the engine's eval score.
+
 ### Added
 
 - **Full ECO opening dataset** — expanded from ~90 hand-picked positions to the

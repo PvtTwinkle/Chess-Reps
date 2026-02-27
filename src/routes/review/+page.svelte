@@ -71,7 +71,7 @@
 	const deviationFetching = new Set<number>(); // plain Set — not reactive, just dedup guard
 	let stockfishSuggestions = new SvelteMap<
 		number,
-		{ san: string; evalCp: number | null; isBook: boolean }[]
+		{ san: string; evalCp: number | null; isBook: boolean; openingName: string | null }[]
 	>();
 	let actionLoading = new SvelteMap<number, boolean>();
 
@@ -348,11 +348,21 @@
 		}
 	}
 
-	// Format a centipawn eval (White's perspective) as a short string.
+	// Format a centipawn eval as a short string from the player's perspective.
+	// evalCp from the server is always White's perspective; flip the sign for
+	// Black players so that positive always means "good for me".
 	function formatEval(cp: number): string {
-		const pawns = Math.abs(cp) / 100;
-		if (cp === 0) return '(=)';
-		return cp > 0 ? `(+${pawns.toFixed(1)})` : `(−${pawns.toFixed(1)})`;
+		const playerCp = analysedPlayerColor === 'BLACK' ? -cp : cp;
+		const pawns = Math.abs(playerCp) / 100;
+		if (playerCp === 0) return '(=)';
+		return playerCp > 0 ? `(+${pawns.toFixed(1)})` : `(−${pawns.toFixed(1)})`;
+	}
+
+	// Same flip logic for candidate move buttons (evalCp may be null when book-only).
+	function formatCandidateEval(evalCp: number | null): string {
+		if (evalCp === null) return '';
+		const playerCp = analysedPlayerColor === 'BLACK' ? -evalCp : evalCp;
+		return ` (${playerCp >= 0 ? '+' : ''}${(playerCp / 100).toFixed(1)})`;
 	}
 
 	// Resolve an issue without any action (skip).
@@ -500,10 +510,36 @@
 			});
 			if (res.ok) {
 				const result = (await res.json()) as {
-					candidates?: { san: string; evalCp: number | null; isBook: boolean }[];
+					candidates?: {
+						san: string;
+						evalCp: number | null;
+						isBook: boolean;
+						openingName: string | null;
+					}[];
 				};
 				if (result.candidates && result.candidates.length > 0) {
-					stockfishSuggestions.set(issue.ply, result.candidates);
+					// The API returns book candidates first, then engine candidates.
+					// Deduplicate by SAN so the {#each (candidate.san)} key is always unique.
+					// When the same move appears in both lists, merge them: keep the book
+					// entry's isBook/openingName so it renders as a book move, but pull in
+					// the engine's evalCp so the score is still shown.
+					const seen = new Map<
+						string,
+						{ san: string; evalCp: number | null; isBook: boolean; openingName: string | null }
+					>();
+					for (const c of result.candidates) {
+						const existing = seen.get(c.san);
+						if (!existing) {
+							seen.set(c.san, c);
+						} else if (!c.isBook && existing.isBook) {
+							// Engine version has an eval — merge it into the book entry so the
+							// move keeps its book identity (styling, openingName) while also
+							// showing an evaluation score.
+							seen.set(c.san, { ...existing, evalCp: c.evalCp });
+						}
+						// All other cases (duplicate book, engine-then-book): first entry wins.
+					}
+					stockfishSuggestions.set(issue.ply, [...seen.values()]);
 				}
 			}
 		} finally {
@@ -844,9 +880,7 @@
 												onclick={() => handleAddEngineSuggestion(issue, top.san)}
 												disabled={isLoading}
 											>
-												Add: {top.san}{top.evalCp != null
-													? ` (${top.evalCp > 0 ? '+' : ''}${(top.evalCp / 100).toFixed(1)})`
-													: ''}{top.isBook ? ' · book' : ''}
+												Add: {top.san}{formatCandidateEval(top.evalCp)}{top.isBook ? ` · ${top.openingName ?? 'book'}` : ''}
 											</button>
 										{:else}
 											<button
@@ -904,9 +938,7 @@
 														onclick={() => handleAddEngineSuggestion(issue, candidate.san)}
 														disabled={isLoading}
 													>
-														Add: {candidate.san}{candidate.evalCp != null
-															? ` (${candidate.evalCp > 0 ? '+' : ''}${(candidate.evalCp / 100).toFixed(1)})`
-															: ''}{candidate.isBook ? ' · book' : ''}
+														Add: {candidate.san}{formatCandidateEval(candidate.evalCp)}{candidate.isBook ? ` · ${candidate.openingName ?? 'book'}` : ''}
 													</button>
 												{/each}
 											{/if}

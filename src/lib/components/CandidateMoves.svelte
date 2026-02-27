@@ -35,9 +35,10 @@
 		currentFen: string;
 		onSelectMove: (san: string) => void;
 		disabled?: boolean;
+		playerColor?: 'WHITE' | 'BLACK';
 	}
 
-	let { currentFen, onSelectMove, disabled = false }: Props = $props();
+	let { currentFen, onSelectMove, disabled = false, playerColor = 'WHITE' }: Props = $props();
 
 	let candidates = $state<Candidate[]>([]);
 	let loading = $state(false);
@@ -102,26 +103,31 @@
 		};
 	});
 
-	// Format an evaluation score for display.
-	// cp and mate are from white's perspective.
+	// Format an evaluation score for display from the player's perspective.
+	// cp and mate arrive from the server as White's perspective; we flip the
+	// sign for Black players so that positive always means "good for me".
 	function formatEval(cp: number | null, mate: number | null): string {
 		if (mate !== null) {
-			return mate > 0 ? `#${mate}` : `-#${Math.abs(mate)}`;
+			const playerMate = playerColor === 'BLACK' ? -mate : mate;
+			return playerMate > 0 ? `#${playerMate}` : `-#${Math.abs(playerMate)}`;
 		}
 		if (cp === null) return '';
-		const pawns = cp / 100;
+		const playerCp = playerColor === 'BLACK' ? -cp : cp;
+		const pawns = playerCp / 100;
 		return (pawns >= 0 ? '+' : '') + pawns.toFixed(2);
 	}
 
-	// Returns a CSS class name based on the evaluation value.
-	// Used to colour the score — green for a clear advantage, red for a clear
-	// disadvantage, neutral for roughly equal positions.
-	// "Advantage" thresholds are from white's perspective.
+	// Returns a CSS class name based on the evaluation value from the player's perspective.
+	// Green = good for the player, red = bad for the player.
 	function evalColorClass(cp: number | null, mate: number | null): string {
-		if (mate !== null) return mate > 0 ? 'eval-white' : 'eval-black';
+		if (mate !== null) {
+			const playerMate = playerColor === 'BLACK' ? -mate : mate;
+			return playerMate > 0 ? 'eval-white' : 'eval-black';
+		}
 		if (cp === null) return '';
-		if (cp > 60) return 'eval-white';
-		if (cp < -60) return 'eval-black';
+		const playerCp = playerColor === 'BLACK' ? -cp : cp;
+		if (playerCp > 60) return 'eval-white';
+		if (playerCp < -60) return 'eval-black';
 		return 'eval-equal';
 	}
 
