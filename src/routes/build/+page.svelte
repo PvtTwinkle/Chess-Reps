@@ -33,177 +33,22 @@
 	import ChessBoard from '$lib/components/ChessBoard.svelte';
 	import CandidateMoves from '$lib/components/CandidateMoves.svelte';
 	import OpeningName from '$lib/components/OpeningName.svelte';
-	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
+	import MoveList from '$lib/components/build/MoveList.svelte';
+	import AnnotationModal from '$lib/components/build/AnnotationModal.svelte';
+	import { createBuildState } from '$lib/components/build/buildState.svelte';
 	import { onMount } from 'svelte';
-	import { Chess } from 'chess.js';
 	import type { PageData } from './$types';
-	import { initSounds, playMove, playCapture } from '$lib/sounds';
+	import { initSounds } from '$lib/sounds';
 
 	onMount(() => {
 		initSounds();
 	});
 
-	const STARTING_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
-
-	// Shape of a move row as returned by the server / API.
-	interface RepertoireMove {
-		id: number;
-		userId: number;
-		repertoireId: number;
-		fromFen: string;
-		toFen: string;
-		san: string;
-		source: string;
-		notes: string | null;
-		createdAt: Date | string | number;
-	}
-
-	// One step in the user's current navigation path through the tree.
-	// "from" and "to" are the board squares (e.g. "e2", "e4") needed to
-	// draw the lastMove highlight on the board.
-	interface NavEntry {
-		fromFen: string;
-		toFen: string;
-		san: string;
-		from: string;
-		to: string;
-	}
-
 	let { data }: { data: PageData } = $props();
 
-	// ── Reactive state ───────────────────────────────────────────────────────────
-
-	// All moves saved to this repertoire. Initialised to empty here; the $effect
-	// below immediately populates it from `data.moves` and re-syncs whenever
-	// the server provides fresh data (e.g. after switching repertoire).
-	let moves = $state<RepertoireMove[]>([]);
-
-	// The user's current navigation path from the starting position.
-	// Pushing adds a step forward; slicing removes steps (undo / navigation click).
-	let navHistory = $state<NavEntry[]>([]);
-
-	// The FEN currently shown on the board.
-	let currentFen = $state(STARTING_FEN);
-
-	// The from/to squares of the last move played — shown as yellow highlights.
-	let lastMove = $state<[string, string] | undefined>(undefined);
-
-	// True while a fetch is in-flight — disables the board to prevent race conditions.
-	let saving = $state(false);
-
-	// Set to the SAN of the conflicting move when the user tries to add a second
-	// move on their own turn (which is not allowed).
-	let conflictSan = $state<string | null>(null);
-
-	// Set when a network or server error occurs.
-	let errorMsg = $state<string | null>(null);
-
-	// True when the user has dismissed the transposition notice at the current position.
-	// Reset automatically whenever currentFen changes so it reappears at each new transposition.
-	let transpositionDismissed = $state(false);
-
-	// Incrementing this key forces ChessBoard to remount, which resets the visual
-	// board state to `currentFen`. We use this to snap a piece back after a
-	// rejected move (conflict or error).
-	let boardKey = $state(0);
-
-	// ── Annotation editing ────────────────────────────────────────────────────────
-
-	// The move currently being annotated. null means the modal is closed.
-	let annotatingMove = $state<RepertoireMove | null>(null);
-
-	// The current value of the textarea while the modal is open.
-	let annotationDraft = $state('');
-
-	// True while a PATCH request for notes is in-flight.
-	let savingAnnotation = $state(false);
-
-	// Error message specific to annotation saving (distinct from the main errorMsg).
-	let annotationError = $state<string | null>(null);
-
-	// One-time flag: have we already replayed the jump line from the URL param?
-	// Plain (non-reactive) variable so Svelte does not track it as a dependency.
-	// Prevents the jump from re-firing on every repertoire switch (which also
-	// triggers this $effect via invalidateAll()).
-	let didJumpToLine = false;
-
-	// Sync all local state from the server-provided page data.
-	// Runs on initial mount AND whenever `data` is refreshed — which happens
-	// when the user switches to a different repertoire via the nav bar
-	// (invalidateAll() re-runs the server load function and delivers fresh data).
-	$effect(() => {
-		moves = data.moves as RepertoireMove[];
-		navHistory = [];
-		currentFen = STARTING_FEN;
-		lastMove = undefined;
-		conflictSan = null;
-		errorMsg = null;
-
-		// If opened from Explorer "Build from here", replay the line once so the
-		// board jumps straight to that position instead of starting at move 1.
-		if (!didJumpToLine && data.jumpLine) {
-			didJumpToLine = true;
-			replayLine(data.jumpLine.split(',').filter(Boolean));
-		}
-	});
-
-	// Replay a sequence of SAN moves from the starting position, setting navHistory,
-	// currentFen, and lastMove to match. Stops at the last valid move if any SAN
-	// in the list is illegal (shouldn't happen in practice, but guard defensively).
-	function replayLine(sans: string[]) {
-		let fen = STARTING_FEN;
-		const history: NavEntry[] = [];
-		for (const san of sans) {
-			try {
-				const chess = new Chess(fen);
-				const result = chess.move(san);
-				if (!result) break;
-				history.push({
-					fromFen: fen,
-					toFen: chess.fen(),
-					san: result.san,
-					from: result.from,
-					to: result.to
-				});
-				fen = chess.fen();
-			} catch {
-				break;
-			}
-		}
-		if (history.length > 0) {
-			navHistory = history;
-			currentFen = fen;
-			lastMove = [history[history.length - 1].from, history[history.length - 1].to];
-		}
-	}
-
-	// Reset the transposition dismissed flag whenever the user navigates to a new position.
-	// This ensures the banner reappears at every new transposition position.
-	$effect(() => {
-		// eslint-disable-next-line @typescript-eslint/no-unused-expressions
-		currentFen; // tracked — changing this FEN re-runs the $effect
-		transpositionDismissed = false;
-	});
-
-	// ── Derived values ───────────────────────────────────────────────────────────
-
-	// Quick lookup: normalised FEN key → moves that start from that position.
-	// Keys use only the first 4 FEN fields (position + side + castling + en-passant),
-	// stripping the half-move clock and full-move counter. This means two paths that
-	// reach the same board position will map to the same bucket even if their
-	// half-move clocks differ — which is exactly what we want for transpositions.
-	const movesFromFen = $derived.by(() => {
-		const map = new SvelteMap<string, RepertoireMove[]>();
-		for (const m of moves) {
-			const key = fenKey(m.fromFen);
-			const arr = map.get(key);
-			if (arr) {
-				arr.push(m);
-			} else {
-				map.set(key, [m]);
-			}
-		}
-		return map;
+	const s = createBuildState({
+		getRepertoireId: () => data.repertoire.id,
+		getRepertoireColor: () => data.repertoire.color
 	});
 
 	// Board orientation: white at bottom for white repertoires, black for black.
@@ -211,368 +56,24 @@
 		data.repertoire.color === 'WHITE' ? 'white' : 'black'
 	);
 
-	// True when it is the user's turn at the current board position.
-	// Determined by comparing the FEN's active side with the repertoire color.
-	const isUserTurn = $derived.by(() => {
-		try {
-			const chess = new Chess(currentFen);
-			const turn = chess.turn(); // 'w' or 'b'
-			return (
-				(data.repertoire.color === 'WHITE' && turn === 'w') ||
-				(data.repertoire.color === 'BLACK' && turn === 'b')
-			);
-		} catch {
-			return true; // safe default if FEN is somehow invalid
-		}
+	// Reset the transposition dismissed flag whenever the user navigates to a new position.
+	$effect(() => {
+		// eslint-disable-next-line @typescript-eslint/no-unused-expressions
+		s.currentFen; // tracked — changing this FEN re-runs the $effect
+		s.dismissTransposition();
 	});
 
-	// All saved moves from the current position, shown in the sidebar.
-	// Uses the normalised key so transposition positions show the same continuation
-	// moves regardless of which path the user took to arrive here.
-	const movesFromCurrentPosition = $derived(movesFromFen.get(fenKey(currentFen)) ?? []);
+	// One-time flag: have we already replayed the jump line from the URL param?
+	// Plain (non-reactive) variable so Svelte does not track it as a dependency.
+	let didJumpToLine = false;
 
-	// The FENs from the navigation history, ordered newest-to-oldest.
-	// Passed to OpeningName so it can walk backwards to find the deepest
-	// recognised ECO position even if the exact current FEN has no entry.
-	// Each navHistory entry's fromFen is the board state BEFORE that move,
-	// so reversing gives us: (position before last move), ..., starting FEN.
-	const fenHistory = $derived([...navHistory].reverse().map((e) => e.fromFen));
-
-	// The navigation history grouped into move-number pairs for display.
-	// e.g. [[e4, e5], [Nf3, Nc6]] represents "1. e4 e5 2. Nf3 Nc6"
-	const movePairs = $derived.by(() => {
-		const pairs: [NavEntry, NavEntry | null][] = [];
-		for (let i = 0; i < navHistory.length; i += 2) {
-			pairs.push([navHistory[i], navHistory[i + 1] ?? null]);
-		}
-		return pairs;
+	// Sync all local state from the server-provided page data.
+	// Runs on initial mount AND whenever `data` is refreshed.
+	$effect(() => {
+		const jumpLine = !didJumpToLine && data.jumpLine ? data.jumpLine : undefined;
+		if (jumpLine) didJumpToLine = true;
+		s.syncFromData(data.moves as Parameters<typeof s.syncFromData>[0], jumpLine);
 	});
-
-	// Strip the half-move clock and full-move counter from a FEN string.
-	// Two positions that differ only in these fields are the same board position
-	// for repertoire purposes. Without this, transpositions reached via different
-	// move orders produce different half-move clock values and the string comparison
-	// would miss them (e.g. "... - 0 3" vs "... - 2 3").
-	function fenKey(fen: string): string {
-		return fen.split(' ').slice(0, 4).join(' ');
-	}
-
-	// True when the current position can also be reached via a different move order
-	// than the one in navHistory. We detect this by checking whether any saved move
-	// leads to currentFen from a different fromFen than the one we arrived from.
-	// FENs are compared by position only (first 4 fields) to handle the half-move
-	// clock mismatch that transpositions naturally produce.
-	const transpositionExists = $derived.by(() => {
-		if (navHistory.length === 0) return false;
-		const lastEntry = navHistory[navHistory.length - 1];
-		const currentKey = fenKey(currentFen);
-		return moves.some(
-			(m) => fenKey(m.toFen) === currentKey && fenKey(m.fromFen) !== fenKey(lastEntry.fromFen)
-		);
-	});
-
-	// ── Helpers ──────────────────────────────────────────────────────────────────
-
-	// Given a FEN and a SAN move, use Chess.js to resolve the from/to squares.
-	// Returns undefined if the move is somehow unparseable (shouldn't happen in
-	// practice because Chess.js already validated the move when it was saved).
-	function resolveSquares(fen: string, san: string): [string, string] | undefined {
-		try {
-			const chess = new Chess(fen);
-			const result = chess.move(san);
-			return result ? [result.from, result.to] : undefined;
-		} catch {
-			return undefined;
-		}
-	}
-
-	// Collect all normalised FEN keys reachable from a given position in the local
-	// move tree. Used after a deletion to figure out which local state entries to
-	// remove. The visited set stores normalised keys to prevent infinite loops and
-	// to correctly match moves stored with different half-move clock values.
-	function collectSubtreeFens(startFen: string): SvelteSet<string> {
-		const visited = new SvelteSet<string>();
-		const queue = [startFen];
-		while (queue.length > 0) {
-			const fen = queue.shift()!;
-			const key = fenKey(fen);
-			if (visited.has(key)) continue;
-			visited.add(key);
-			for (const child of movesFromFen.get(key) ?? []) {
-				queue.push(child.toFen);
-			}
-		}
-		return visited;
-	}
-
-	// ── Move handler (called by ChessBoard after the user moves a piece) ─────────
-
-	async function handleMove(
-		from: string,
-		to: string,
-		san: string,
-		newFen: string,
-		isCapture = false
-	) {
-		conflictSan = null;
-		errorMsg = null;
-
-		// If this exact move is already in the repertoire, just navigate — no API call.
-		// Normalised key lookup so a transposition position finds moves saved via
-		// the other path rather than trying to save a duplicate.
-		const existing = movesFromFen.get(fenKey(currentFen))?.find((m) => m.san === san);
-		if (existing) {
-			navHistory = [...navHistory, { fromFen: currentFen, toFen: newFen, san, from, to }];
-			currentFen = newFen;
-			lastMove = [from, to];
-			if (isCapture) playCapture();
-			else playMove();
-			return;
-		}
-
-		// On the user's turn, only one move per position is allowed.
-		// If a different move already exists, show a warning and snap back.
-		if (isUserTurn && movesFromCurrentPosition.length > 0) {
-			conflictSan = movesFromCurrentPosition[0].san;
-			boardKey += 1; // remount ChessBoard → piece snaps back to currentFen
-			return;
-		}
-
-		// New move — save it to the database.
-		saving = true;
-		try {
-			const res = await fetch('/api/moves', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					repertoireId: data.repertoire.id,
-					fromFen: currentFen,
-					san
-				})
-			});
-
-			if (res.status === 409) {
-				// Server-side conflict (e.g. two browser tabs open at once).
-				const body = await res.json();
-				conflictSan = body.existing?.san ?? '?';
-				boardKey += 1;
-				return;
-			}
-
-			if (!res.ok) {
-				errorMsg = 'Failed to save move. Please try again.';
-				boardKey += 1;
-				return;
-			}
-
-			const savedMove: RepertoireMove = await res.json();
-			moves = [...moves, savedMove];
-			navHistory = [...navHistory, { fromFen: currentFen, toFen: newFen, san, from, to }];
-			currentFen = newFen;
-			lastMove = [from, to];
-			if (isCapture) playCapture();
-			else playMove();
-		} catch {
-			errorMsg = 'Network error. Please try again.';
-			boardKey += 1;
-		} finally {
-			saving = false;
-		}
-	}
-
-	// ── Undo ─────────────────────────────────────────────────────────────────────
-
-	// Step back one move in the navigation history.
-	// The move stays in the database — undo is navigation, not deletion.
-	function handleUndo() {
-		if (navHistory.length === 0) return;
-		const prev = navHistory[navHistory.length - 1];
-		navHistory = navHistory.slice(0, -1);
-		currentFen = prev.fromFen;
-		lastMove =
-			navHistory.length > 0
-				? [navHistory[navHistory.length - 1].from, navHistory[navHistory.length - 1].to]
-				: undefined;
-		conflictSan = null;
-		errorMsg = null;
-	}
-
-	// Jump back to the starting position (clears the navigation history entirely).
-	function handleReset() {
-		navHistory = [];
-		currentFen = STARTING_FEN;
-		lastMove = undefined;
-		conflictSan = null;
-		errorMsg = null;
-	}
-
-	// ── Sidebar navigation ───────────────────────────────────────────────────────
-
-	// Navigate to a saved move by clicking it in the sidebar.
-	// Appends the move to the navigation history so undo still works.
-	function navigateTo(move: RepertoireMove) {
-		const squares = resolveSquares(move.fromFen, move.san);
-		navHistory = [
-			...navHistory,
-			{
-				fromFen: move.fromFen,
-				toFen: move.toFen,
-				san: move.san,
-				from: squares?.[0] ?? '',
-				to: squares?.[1] ?? ''
-			}
-		];
-		currentFen = move.toFen;
-		lastMove = squares;
-		conflictSan = null;
-		errorMsg = null;
-		if (move.san.includes('x')) playCapture();
-		else playMove();
-	}
-
-	// Navigate to a specific index in the current line by clicking a move in the
-	// move-list display. Slices the history up to that point.
-	function navigateToHistoryIdx(idx: number) {
-		navHistory = navHistory.slice(0, idx + 1);
-		currentFen = navHistory[idx].toFen;
-		lastMove =
-			navHistory[idx].from && navHistory[idx].to
-				? [navHistory[idx].from, navHistory[idx].to]
-				: undefined;
-		conflictSan = null;
-		errorMsg = null;
-	}
-
-	// ── Candidate move selection ──────────────────────────────────────────────
-
-	// Called when the user clicks a suggested move in the CandidateMoves panel.
-	// Uses Chess.js to resolve the from/to squares from the SAN, then feeds
-	// the move through the same handleMove path as a drag-and-drop move.
-	// This means conflict detection, auto-save, and undo all work identically.
-	async function handleCandidateSelect(san: string) {
-		try {
-			const chess = new Chess(currentFen);
-			const result = chess.move(san);
-			if (result) {
-				await handleMove(result.from, result.to, result.san, chess.fen(), !!result.captured);
-			}
-		} catch {
-			// Chess.js throws if the move is somehow invalid — shouldn't happen
-			// with candidates from the engine, but guard defensively.
-			errorMsg = 'Could not play the selected move.';
-		}
-	}
-
-	// ── Deletion ─────────────────────────────────────────────────────────────────
-
-	// Remove a move from the repertoire, including all moves that are only
-	// reachable through it (the subtree). If the user is currently viewing a
-	// position inside the deleted subtree, navigate them back to safety.
-	async function deleteMove(move: RepertoireMove) {
-		if (saving) return;
-		saving = true;
-		errorMsg = null;
-
-		try {
-			const res = await fetch(`/api/moves/${move.id}`, { method: 'DELETE' });
-			if (!res.ok) {
-				errorMsg = 'Failed to delete move. Please try again.';
-				return;
-			}
-
-			// Collect all positions that were inside the deleted subtree.
-			const deletedFens = collectSubtreeFens(move.toFen);
-
-			// Remove the deleted move and its subtree from local state.
-			// Compare using normalised keys to catch moves stored with different
-			// half-move clocks (e.g. the same position reached via a transposition).
-			moves = moves.filter((m) => {
-				if (m.id === move.id) return false;
-				if (deletedFens.has(fenKey(m.fromFen))) return false;
-				return true;
-			});
-
-			// If the user is currently at a position inside the deleted subtree,
-			// navigate back to where the deleted move started.
-			if (fenKey(currentFen) === fenKey(move.toFen) || deletedFens.has(fenKey(currentFen))) {
-				const entryIdx = navHistory.findIndex((e) => e.toFen === move.toFen);
-				if (entryIdx >= 0) {
-					navHistory = navHistory.slice(0, entryIdx);
-				}
-				currentFen = move.fromFen;
-				lastMove =
-					navHistory.length > 0
-						? [navHistory[navHistory.length - 1].from, navHistory[navHistory.length - 1].to]
-						: undefined;
-			}
-		} catch {
-			errorMsg = 'Network error. Please try again.';
-		} finally {
-			saving = false;
-		}
-	}
-
-	// ── Annotation helpers ────────────────────────────────────────────────────────
-
-	// Open the annotation modal for a specific move.
-	function openAnnotation(move: RepertoireMove) {
-		annotatingMove = move;
-		annotationDraft = move.notes ?? '';
-		annotationError = null;
-	}
-
-	// Close the modal and discard any unsaved changes.
-	function closeAnnotation() {
-		annotatingMove = null;
-		annotationDraft = '';
-		annotationError = null;
-	}
-
-	// Open the annotation modal for the move that led to the current position.
-	// Used by the "✎" button in the nav controls so the user can annotate the
-	// last move without having to step back first.
-	function annotateLastMove() {
-		if (navHistory.length === 0) return;
-		const last = navHistory[navHistory.length - 1];
-		const move = moves.find(
-			(m) => fenKey(m.fromFen) === fenKey(last.fromFen) && m.san === last.san
-		);
-		if (move) openAnnotation(move);
-	}
-
-	// Save the current draft to the server and update local state.
-	async function saveAnnotation() {
-		if (!annotatingMove) return;
-		savingAnnotation = true;
-		annotationError = null;
-
-		const notes = annotationDraft.trim() === '' ? null : annotationDraft.trim();
-
-		try {
-			const res = await fetch(`/api/moves/${annotatingMove.id}`, {
-				method: 'PATCH',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ notes })
-			});
-
-			if (!res.ok) {
-				const body = await res.json().catch(() => ({}));
-				annotationError = body.message ?? 'Failed to save annotation.';
-				return;
-			}
-
-			const updated: RepertoireMove = await res.json();
-
-			// Replace the updated move in local state so the notes display refreshes.
-			moves = moves.map((m) => (m.id === updated.id ? updated : m));
-
-			closeAnnotation();
-		} catch {
-			annotationError = 'Network error. Please try again.';
-		} finally {
-			savingAnnotation = false;
-		}
-	}
 </script>
 
 <div class="page">
@@ -584,13 +85,13 @@
 				Chessground to reinitialize with `currentFen`, snapping the
 				piece back to where it was.
 			-->
-		{#key boardKey}
+		{#key s.boardKey}
 			<ChessBoard
-				fen={currentFen}
+				fen={s.currentFen}
 				{orientation}
-				interactive={!saving}
-				{lastMove}
-				onMove={handleMove}
+				interactive={!s.saving}
+				lastMove={s.lastMove}
+				onMove={s.handleMove}
 			/>
 		{/key}
 	</div>
@@ -611,12 +112,12 @@
 		</div>
 
 		<!-- ECO opening name (updates as moves are played) -->
-		<OpeningName {currentFen} {fenHistory} />
+		<OpeningName currentFen={s.currentFen} fenHistory={s.fenHistory} />
 
 		<!-- Turn indicator -->
-		<div class="turn-indicator" class:user-turn={isUserTurn} class:opp-turn={!isUserTurn}>
+		<div class="turn-indicator" class:user-turn={s.isUserTurn} class:opp-turn={!s.isUserTurn}>
 			<span class="turn-dot"></span>
-			{#if isUserTurn}
+			{#if s.isUserTurn}
 				YOUR TURN <span class="turn-hint">— play a move on the board</span>
 			{:else}
 				OPPONENT'S TURN <span class="turn-hint">— play their move to add a response</span>
@@ -624,75 +125,54 @@
 		</div>
 
 		<!-- Conflict warning -->
-		{#if conflictSan}
+		{#if s.conflictSan}
 			<div class="banner banner--warn">
-				You already have <strong>{conflictSan}</strong> here. Remove it first to change your move.
-				<button class="banner-dismiss" onclick={() => (conflictSan = null)}>✕</button>
+				You already have <strong>{s.conflictSan}</strong> here. Remove it first to change your move.
+				<button class="banner-dismiss" onclick={() => s.dismissConflict()}>✕</button>
 			</div>
 		{/if}
 
 		<!-- Error message -->
-		{#if errorMsg}
+		{#if s.errorMsg}
 			<div class="banner banner--error">
-				{errorMsg}
-				<button class="banner-dismiss" onclick={() => (errorMsg = null)}>✕</button>
+				{s.errorMsg}
+				<button class="banner-dismiss" onclick={() => s.dismissError()}>✕</button>
 			</div>
 		{/if}
 
 		<!-- Transposition notice -->
-		{#if transpositionExists && !transpositionDismissed}
+		{#if s.transpositionExists && !s.transpositionDismissed}
 			<div class="banner banner--info">
 				<strong>Transposition</strong> — this position is already in your repertoire via a different
 				move order. Your existing preparation applies here.
-				<button class="banner-dismiss" onclick={() => (transpositionDismissed = true)}>✕</button>
+				<button class="banner-dismiss" onclick={() => s.dismissTransposition()}>✕</button>
 			</div>
 		{/if}
 
 		<!-- Current line -->
-		{#if movePairs.length > 0}
-			<div class="section">
-				<div class="section-label">CURRENT LINE</div>
-				<div class="move-list">
-					{#each movePairs as pair, i (i)}
-						<span class="move-num">{i + 1}.</span>
-						<button
-							class="move-san"
-							class:is-current={navHistory.length - 1 === i * 2}
-							onclick={() => navigateToHistoryIdx(i * 2)}
-						>
-							{pair[0].san}
-						</button>
-						{#if pair[1]}
-							<button
-								class="move-san move-san--black"
-								class:is-current={navHistory.length - 1 === i * 2 + 1}
-								onclick={() => navigateToHistoryIdx(i * 2 + 1)}
-							>
-								{pair[1].san}
-							</button>
-						{/if}
-					{/each}
-				</div>
-			</div>
-		{/if}
+		<MoveList
+			movePairs={s.movePairs}
+			currentIdx={s.navHistory.length - 1}
+			onNavigate={s.navigateToHistoryIdx}
+		/>
 
 		<!-- Moves from the current position -->
 		<div class="section">
 			<div class="section-label">
-				{isUserTurn ? 'YOUR MOVE' : 'OPPONENT RESPONSES'}
+				{s.isUserTurn ? 'YOUR MOVE' : 'OPPONENT RESPONSES'}
 			</div>
 
-			{#if movesFromCurrentPosition.length > 0}
+			{#if s.movesFromCurrentPosition.length > 0}
 				<div class="position-moves">
-					{#each movesFromCurrentPosition as m (m.id)}
+					{#each s.movesFromCurrentPosition as m (m.id)}
 						<div class="position-move-item">
 							<div class="position-move-row">
-								<button class="move-nav-btn" onclick={() => navigateTo(m)}>
+								<button class="move-nav-btn" onclick={() => s.navigateTo(m)}>
 									{m.san}
 								</button>
 								<button
 									class="move-annotate-btn"
-									onclick={() => openAnnotation(m)}
+									onclick={() => s.openAnnotation(m)}
 									title="Add or edit annotation"
 									aria-label="Edit annotation for {m.san}"
 								>
@@ -700,8 +180,8 @@
 								</button>
 								<button
 									class="move-delete-btn"
-									onclick={() => deleteMove(m)}
-									disabled={saving}
+									onclick={() => s.deleteMove(m)}
+									disabled={s.saving}
 									title="Remove this move and all moves after it"
 								>
 									✕
@@ -717,7 +197,7 @@
 				</div>
 			{:else}
 				<p class="empty-hint">
-					{#if isUserTurn}
+					{#if s.isUserTurn}
 						No move saved yet — play one on the board.
 					{:else}
 						No responses yet — play an opponent move to add one.
@@ -728,9 +208,9 @@
 
 		<!-- Candidate moves (book + Stockfish suggestions) -->
 		<CandidateMoves
-			{currentFen}
-			onSelectMove={handleCandidateSelect}
-			disabled={saving}
+			currentFen={s.currentFen}
+			onSelectMove={s.handleCandidateSelect}
+			disabled={s.saving}
 			playerColor={data.repertoire.color as 'WHITE' | 'BLACK'}
 		/>
 
@@ -738,24 +218,24 @@
 		<div class="nav-controls">
 			<button
 				class="nav-btn"
-				onclick={handleReset}
-				disabled={navHistory.length === 0 || saving}
+				onclick={s.handleReset}
+				disabled={s.navHistory.length === 0 || s.saving}
 				title="Return to the starting position"
 			>
 				⏮
 			</button>
 			<button
 				class="nav-btn nav-btn--undo"
-				onclick={handleUndo}
-				disabled={navHistory.length === 0 || saving}
+				onclick={s.handleUndo}
+				disabled={s.navHistory.length === 0 || s.saving}
 				title="Go back one move (does not delete from repertoire)"
 			>
 				← Undo
 			</button>
 			<button
 				class="nav-btn nav-btn--annotate"
-				onclick={annotateLastMove}
-				disabled={navHistory.length === 0 || saving}
+				onclick={s.annotateLastMove}
+				disabled={s.navHistory.length === 0 || s.saving}
 				title="Annotate the last move"
 			>
 				✎
@@ -763,61 +243,21 @@
 		</div>
 
 		<!-- Saving indicator -->
-		{#if saving}
+		{#if s.saving}
 			<div class="saving-indicator">Saving…</div>
 		{/if}
 	</div>
 
-	<!-- ── Annotation modal ──────────────────────────────────────────────────────────────────────── -->
-	{#if annotatingMove}
-		<div
-			class="modal-backdrop"
-			role="dialog"
-			aria-modal="true"
-			tabindex="-1"
-			onclick={closeAnnotation}
-			onkeydown={(e) => e.key === 'Escape' && closeAnnotation()}
-		>
-			<div
-				class="modal"
-				role="presentation"
-				onclick={(e) => e.stopPropagation()}
-				onkeydown={(e) => e.stopPropagation()}
-			>
-				<div class="modal-header">
-					<span class="modal-title">Annotation — <strong>{annotatingMove.san}</strong></span>
-					<button class="modal-close" onclick={closeAnnotation} aria-label="Close">✕</button>
-				</div>
-				<textarea
-					class="annotation-textarea"
-					bind:value={annotationDraft}
-					placeholder="Add a note about this move…"
-					maxlength="500"
-					rows="4"
-					disabled={savingAnnotation}
-				></textarea>
-				<div class="annotation-char-count">{annotationDraft.length}/500</div>
-				{#if annotationError}
-					<p class="annotation-error">{annotationError}</p>
-				{/if}
-				<div class="modal-actions">
-					<button
-						class="modal-btn modal-btn--cancel"
-						onclick={closeAnnotation}
-						disabled={savingAnnotation}
-					>
-						Cancel
-					</button>
-					<button
-						class="modal-btn modal-btn--save"
-						onclick={saveAnnotation}
-						disabled={savingAnnotation}
-					>
-						{savingAnnotation ? 'Saving…' : 'Save'}
-					</button>
-				</div>
-			</div>
-		</div>
+	<!-- ── Annotation modal ──────────────────────────────────────────────── -->
+	{#if s.annotatingMove}
+		<AnnotationModal
+			move={s.annotatingMove}
+			bind:draft={s.annotationDraft}
+			saving={s.savingAnnotation}
+			error={s.annotationError}
+			onSave={s.saveAnnotation}
+			onClose={s.closeAnnotation}
+		/>
 	{/if}
 </div>
 
@@ -993,52 +433,6 @@
 		color: #505060;
 	}
 
-	/* ── Move list (current line) ────────────────────────────────────────────── */
-
-	.move-list {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: baseline;
-		gap: 0.1rem 0.25rem;
-		font-size: 0.875rem;
-	}
-
-	.move-num {
-		color: #505060;
-		font-size: 0.78rem;
-		user-select: none;
-	}
-
-	.move-san {
-		background: none;
-		border: none;
-		color: #c0c0d0;
-		font-size: 0.875rem;
-		cursor: pointer;
-		padding: 0.1rem 0.25rem;
-		border-radius: 3px;
-		transition:
-			background 0.1s,
-			color 0.1s;
-		font-family: inherit;
-	}
-
-	.move-san:hover {
-		background: #0f3460;
-		color: #f0f0f0;
-	}
-
-	.move-san.is-current {
-		background: #1a4a7a;
-		color: #e2b714;
-		font-weight: 600;
-	}
-
-	/* Black's moves are slightly dimmer to visually distinguish them. */
-	.move-san--black {
-		color: #909098;
-	}
-
 	/* ── Moves from current position ─────────────────────────────────────────── */
 
 	.position-moves {
@@ -1202,136 +596,5 @@
 	.move-annotate-btn:hover {
 		border-color: #4a6a9a;
 		color: #a0b0d0;
-	}
-
-	/* ── Annotation modal ────────────────────────────────────────────────────── */
-
-	.modal-backdrop {
-		position: fixed;
-		inset: 0;
-		background: rgba(0, 0, 0, 0.6);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		z-index: 100;
-	}
-
-	.modal {
-		background: #111827;
-		border: 1px solid #1a3a5c;
-		border-radius: 8px;
-		padding: 1.25rem;
-		width: 360px;
-		max-width: calc(100vw - 2rem);
-		display: flex;
-		flex-direction: column;
-		gap: 0.75rem;
-	}
-
-	.modal-header {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-	}
-
-	.modal-title {
-		font-size: 0.875rem;
-		color: #c0c0d0;
-	}
-
-	.modal-close {
-		background: none;
-		border: none;
-		color: #505060;
-		font-size: 0.8rem;
-		cursor: pointer;
-		padding: 0.1rem 0.2rem;
-		line-height: 1;
-	}
-
-	.modal-close:hover {
-		color: #a0a0b0;
-	}
-
-	.annotation-textarea {
-		width: 100%;
-		background: #0d1520;
-		border: 1px solid #1a3a5c;
-		border-radius: 4px;
-		color: #c0c0d0;
-		font-family: inherit;
-		font-size: 0.875rem;
-		line-height: 1.5;
-		padding: 0.5rem 0.65rem;
-		resize: vertical;
-		box-sizing: border-box;
-	}
-
-	.annotation-textarea:focus {
-		outline: none;
-		border-color: #4a6a9a;
-	}
-
-	.annotation-textarea:disabled {
-		opacity: 0.5;
-	}
-
-	.annotation-char-count {
-		font-size: 0.72rem;
-		color: #404050;
-		text-align: right;
-		margin-top: -0.4rem;
-	}
-
-	.annotation-error {
-		font-size: 0.8rem;
-		color: #e06060;
-		margin: 0;
-	}
-
-	.modal-actions {
-		display: flex;
-		gap: 0.5rem;
-		justify-content: flex-end;
-	}
-
-	.modal-btn {
-		padding: 0.4rem 1rem;
-		border-radius: 4px;
-		font-size: 0.875rem;
-		font-family: inherit;
-		cursor: pointer;
-		transition:
-			border-color 0.12s,
-			background 0.12s,
-			color 0.12s;
-	}
-
-	.modal-btn:disabled {
-		opacity: 0.5;
-		cursor: default;
-	}
-
-	.modal-btn--cancel {
-		background: none;
-		border: 1px solid #1a3a5c;
-		color: #a0a0b0;
-	}
-
-	.modal-btn--cancel:hover:not(:disabled) {
-		border-color: #4a6a9a;
-		color: #d0d0e0;
-	}
-
-	.modal-btn--save {
-		background: #0f3460;
-		border: 1px solid #1a5090;
-		color: #c8d8f0;
-	}
-
-	.modal-btn--save:hover:not(:disabled) {
-		background: #1a4a7a;
-		border-color: #2a6aaa;
-		color: #e0eeff;
 	}
 </style>

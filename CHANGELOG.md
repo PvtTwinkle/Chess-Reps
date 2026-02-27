@@ -13,6 +13,22 @@ Docker images are tagged per version. To stay on stable releases, pin your
 
 ## [Unreleased]
 
+### Changed
+
+- **Refactored Build Mode page** — split the 1,337-line `build/+page.svelte` into
+  three focused modules with no behavior or UI changes:
+  - `src/lib/components/build/buildState.svelte.ts` — Svelte 5 runes module
+    containing all `$state`, `$derived`, and action functions (`handleMove`,
+    `handleUndo`, `deleteMove`, `navigateTo`, annotation helpers, etc.); exports
+    a `createBuildState()` factory that returns reactive state and actions
+  - `src/lib/components/build/MoveList.svelte` — the "Current Line" move-pair
+    display with numbered moves, clickable SAN buttons, and current-position
+    highlighting
+  - `src/lib/components/build/AnnotationModal.svelte` — the notes modal with
+    textarea, character count, save/cancel, and error display
+  - `+page.svelte` reduced from ~1,337 to ~430 lines (layout, Chessground setup,
+    and event wiring only)
+
 ### Fixed
 
 - **`learningSteps: 0` now explicit in all SR card inserts** — `POST /api/moves`
