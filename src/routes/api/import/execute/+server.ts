@@ -39,7 +39,11 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		throw error(400, 'Invalid JSON body');
 	}
 
-	const { repertoireId, moves, replacements = [] } = body as {
+	const {
+		repertoireId,
+		moves,
+		replacements = []
+	} = body as {
 		repertoireId: number;
 		moves: MoveInput[];
 		replacements: MoveInput[];
@@ -82,8 +86,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			const chess = new Chess(m.fromFen);
 			const fenTurn = chess.turn();
 			const isUserTurn =
-				(repColor === 'WHITE' && fenTurn === 'w') ||
-				(repColor === 'BLACK' && fenTurn === 'b');
+				(repColor === 'WHITE' && fenTurn === 'w') || (repColor === 'BLACK' && fenTurn === 'b');
 
 			const result = chess.move(m.san);
 			if (!result) continue;
@@ -121,9 +124,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 				const existing = tx
 					.select()
 					.from(userMove)
-					.where(
-						and(eq(userMove.repertoireId, repertoireId), eq(userMove.fromFen, vm.fromFen))
-					)
+					.where(and(eq(userMove.repertoireId, repertoireId), eq(userMove.fromFen, vm.fromFen)))
 					.get();
 
 				if (existing) {

@@ -60,24 +60,8 @@ export function detectConflicts(
 	existingMoves: ExistingMoveRow[],
 	parseErrors: string[]
 ): ImportPreview {
-	// Build lookup of existing repertoire: fenKey → san (user turn) or fenKey+san → true (opponent)
-	const existingUserMoveByFen = new Map<string, string>();
-	const existingOpponentMoves = new Set<string>();
-
-	for (const m of existingMoves) {
-		// We don't know which are user-turn vs opponent-turn here, but
-		// user-turn positions have at most one move per fenKey. We can
-		// match by checking against the PGN edges' isUserTurn flag.
-		// For now, store all moves and let the edge-walking logic decide.
-		// We'll use a combined approach: store by fenKey.
-	}
-
-	// Actually, we need to know which moves are user-turn. The edges tell us
-	// isUserTurn for each position, so we can infer it from the FEN's active
-	// color. But existing moves don't carry isUserTurn. However, user-turn
-	// positions only have one move per fenKey, and opponent-turn positions
-	// can have multiple. We'll build both maps and let the edge walker decide.
-	// Simpler: just build a map from fenKey → Set<san> for ALL existing moves.
+	// Build a map from fenKey → Set<san> for all existing moves so the
+	// edge-walking logic can check for duplicates and conflicts.
 	const existingByFen = new Map<string, Set<string>>();
 	for (const m of existingMoves) {
 		const key = fenKey(m.fromFen);

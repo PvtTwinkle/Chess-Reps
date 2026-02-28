@@ -185,16 +185,12 @@ function replayTree(
 			result = chess.move(node.san);
 		} catch {
 			// Illegal move — skip this node and everything after it in this line.
-			errors.push(
-				`Invalid move '${node.san}' after ${moveContext.join(' ') || 'start position'}`
-			);
+			errors.push(`Invalid move '${node.san}' after ${moveContext.join(' ') || 'start position'}`);
 			return;
 		}
 
 		if (!result) {
-			errors.push(
-				`Invalid move '${node.san}' after ${moveContext.join(' ') || 'start position'}`
-			);
+			errors.push(`Invalid move '${node.san}' after ${moveContext.join(' ') || 'start position'}`);
 			return;
 		}
 

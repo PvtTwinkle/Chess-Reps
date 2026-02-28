@@ -15,6 +15,26 @@ Docker images are tagged per version. To stay on stable releases, pin your
 
 ### Added
 
+- **PGN export for repertoire sharing** — export a full repertoire (including all
+  variations and annotations) as a standards-compliant PGN file:
+  - DFS tree traversal converts the FEN-keyed move graph into an ordered move tree,
+    with the first-added move as the mainline and later additions as variations
+  - Transpositions are handled by visiting each position only once; subsequent paths
+    stop at the transposition point
+  - Move annotations are included as PGN comments (`{like this}`)
+  - Standard PGN seven-tag roster headers (Event, Site, Date, White, Black, Result)
+  - Export button on the Build page sidebar (next to Import PGN) with options to
+    download as a `.pgn` file or copy to clipboard
+  - Export button per repertoire in the Manage Repertoires modal for quick download
+  - API endpoint: `GET /api/repertoires/:id/export`
+
+### Fixed
+
+- **ImportPgnModal lint cleanup** — replaced `Map` with `SvelteMap` for proper Svelte 5
+  reactivity, added missing `{#each}` keys, removed dead reactivity hack
+
+- **detectConflicts.ts** — removed unused variables and dead code block
+
 - **PGN import for repertoire seeding** — paste or upload a PGN with variations to
   bulk-populate a repertoire instead of clicking every move manually:
   - Custom PGN variation-tree parser that walks all parenthetical nesting (Chess.js's

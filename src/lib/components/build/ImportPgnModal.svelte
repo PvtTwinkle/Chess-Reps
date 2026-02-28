@@ -17,6 +17,7 @@
 -->
 
 <script lang="ts">
+	import { SvelteMap } from 'svelte/reactivity';
 	import type { ImportConflict, ImportPreview } from '$lib/pgn/detectConflicts';
 	import type { PgnEdge } from '$lib/pgn/parseVariations';
 	import type { DrawShape } from '@lichess-org/chessground/draw';
@@ -50,7 +51,7 @@
 
 	let preview = $state<ImportPreview | null>(null);
 	let currentConflictIdx = $state(0);
-	let resolvedConflicts = $state<Map<string, string>>(new Map());
+	let resolvedConflicts = $state(new SvelteMap<string, string>());
 
 	// ── Result state ─────────────────────────────────────────────────────────
 
@@ -59,9 +60,7 @@
 
 	// ── Derived ──────────────────────────────────────────────────────────────
 
-	const unresolvedCount = $derived(
-		preview ? preview.conflicts.length - resolvedConflicts.size : 0
-	);
+	const unresolvedCount = $derived(preview ? preview.conflicts.length - resolvedConflicts.size : 0);
 
 	const totalNewMoves = $derived(
 		preview ? preview.newUserMoves.length + preview.newOpponentMoves.length : 0
@@ -114,7 +113,7 @@
 		parseError = '';
 		preview = null;
 		currentConflictIdx = 0;
-		resolvedConflicts = new Map();
+		resolvedConflicts = new SvelteMap();
 		result = null;
 		importError = '';
 	}
@@ -166,7 +165,7 @@
 
 			preview = await res.json();
 			currentConflictIdx = 0;
-			resolvedConflicts = new Map();
+			resolvedConflicts = new SvelteMap();
 
 			// If no conflicts, go straight to preview summary
 			step = 'preview';
@@ -181,12 +180,14 @@
 
 	function resolveConflict(fromFen: string, chosenSan: string) {
 		resolvedConflicts.set(fromFen, chosenSan);
-		resolvedConflicts = new Map(resolvedConflicts); // trigger reactivity
 
 		// Advance to next unresolved conflict
 		if (preview) {
 			let next = currentConflictIdx + 1;
-			while (next < preview.conflicts.length && resolvedConflicts.has(preview.conflicts[next].fromFen)) {
+			while (
+				next < preview.conflicts.length &&
+				resolvedConflicts.has(preview.conflicts[next].fromFen)
+			) {
 				next++;
 			}
 			currentConflictIdx = next;
@@ -316,11 +317,7 @@
 							Upload .pgn
 						</label>
 
-						<button
-							class="btn-primary"
-							onclick={handleParse}
-							disabled={!pgnText.trim() || parsing}
-						>
+						<button class="btn-primary" onclick={handleParse} disabled={!pgnText.trim() || parsing}>
 							{parsing ? 'Parsing...' : 'Parse & Preview'}
 						</button>
 					</div>
@@ -330,7 +327,7 @@
 					{/if}
 				</div>
 
-			<!-- ── Step: Preview ──────────────────────────────────────── -->
+				<!-- ── Step: Preview ──────────────────────────────────────── -->
 			{:else if step === 'preview'}
 				{#if preview}
 					<div class="step-preview">
@@ -360,7 +357,7 @@
 						{#if preview.parseErrors.length > 0}
 							<div class="warnings">
 								<p class="warnings-label">{preview.parseErrors.length} move(s) skipped:</p>
-								{#each preview.parseErrors as err}
+								{#each preview.parseErrors as err, i (i)}
 									<p class="warning-item">{err}</p>
 								{/each}
 							</div>
@@ -402,7 +399,7 @@
 											</div>
 
 											<div class="conflict-choices">
-												{#each currentConflict.alternatives as alt, i}
+												{#each currentConflict.alternatives as alt, i (alt)}
 													<button
 														class="choice-btn"
 														class:choice-existing={alt === currentConflict.existingMove}
@@ -431,18 +428,19 @@
 
 						<!-- Action buttons -->
 						<div class="preview-actions">
-							<button class="btn-ghost" onclick={() => { step = 'input'; }}>
+							<button
+								class="btn-ghost"
+								onclick={() => {
+									step = 'input';
+								}}
+							>
 								Back
 							</button>
 
 							{#if totalNewMoves === 0 && preview.conflicts.length === 0}
 								<p class="nothing-hint">Nothing to import — all moves already saved.</p>
 							{:else}
-								<button
-									class="btn-primary"
-									onclick={handleImport}
-									disabled={unresolvedCount > 0}
-								>
+								<button class="btn-primary" onclick={handleImport} disabled={unresolvedCount > 0}>
 									{unresolvedCount > 0
 										? `Resolve ${unresolvedCount} conflict${unresolvedCount > 1 ? 's' : ''}`
 										: `Import ${totalNewMoves + resolvedConflicts.size} move${totalNewMoves + resolvedConflicts.size !== 1 ? 's' : ''}`}
@@ -452,14 +450,14 @@
 					</div>
 				{/if}
 
-			<!-- ── Step: Importing ────────────────────────────────────── -->
+				<!-- ── Step: Importing ────────────────────────────────────── -->
 			{:else if step === 'importing'}
 				<div class="step-importing">
 					<div class="spinner"></div>
 					<p>Importing moves...</p>
 				</div>
 
-			<!-- ── Step: Done ─────────────────────────────────────────── -->
+				<!-- ── Step: Done ─────────────────────────────────────────── -->
 			{:else if step === 'done'}
 				<div class="step-done">
 					{#if result}

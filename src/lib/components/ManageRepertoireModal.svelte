@@ -13,6 +13,7 @@
 
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
+	import { downloadTextFile } from '$lib/download';
 
 	interface Repertoire {
 		id: number;
@@ -42,6 +43,10 @@
 
 	// ── Delete confirmation state ────────────────────────────────────────────────
 	let confirmDeleteId = $state<number | null>(null);
+
+	// ── Export state ─────────────────────────────────────────────────────────────
+	let exportingId = $state<number | null>(null);
+	let exportMsg = $state('');
 
 	// ── Request-in-flight guard (prevents double-clicks) ────────────────────────
 	let busy = $state(false);
@@ -127,6 +132,26 @@
 		onchange();
 		busy = false;
 	}
+
+	// ── Export a repertoire as PGN ────────────────────────────────────────────────
+	async function handleExport(id: number) {
+		if (exportingId) return;
+		exportingId = id;
+		exportMsg = '';
+		try {
+			const res = await fetch(`/api/repertoires/${id}/export`);
+			if (!res.ok) throw new Error('Export failed');
+			const { pgn, filename } = await res.json();
+			downloadTextFile(pgn, filename);
+			exportMsg = 'Downloaded!';
+			setTimeout(() => (exportMsg = ''), 2000);
+		} catch {
+			exportMsg = 'Export failed';
+			setTimeout(() => (exportMsg = ''), 3000);
+		} finally {
+			exportingId = null;
+		}
+	}
 </script>
 
 {#if open}
@@ -192,6 +217,13 @@
 								{rep.color === 'WHITE' ? 'White' : 'Black'}
 							</span>
 							<div class="row-actions">
+								<button
+									class="btn-ghost"
+									onclick={() => handleExport(rep.id)}
+									disabled={exportingId === rep.id}
+								>
+									{exportingId === rep.id ? 'Exporting…' : 'Export'}
+								</button>
 								<button class="btn-ghost" onclick={() => startEdit(rep)}>Rename</button>
 								<button class="btn-ghost btn-ghost--danger" onclick={() => askDelete(rep.id)}>
 									Delete
@@ -205,6 +237,10 @@
 					<p class="empty-hint">No repertoires yet — create one below.</p>
 				{/if}
 			</div>
+
+			{#if exportMsg}
+				<p class="export-msg">{exportMsg}</p>
+			{/if}
 
 			<!-- Create new repertoire form -->
 			<div class="create-section">
@@ -541,5 +577,12 @@
 	.btn-danger:disabled {
 		opacity: 0.45;
 		cursor: default;
+	}
+
+	.export-msg {
+		font-size: 0.8rem;
+		color: #60c060;
+		text-align: center;
+		margin: 0 0 0.75rem;
 	}
 </style>

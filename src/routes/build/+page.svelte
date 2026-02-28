@@ -41,8 +41,44 @@
 	import { onMount } from 'svelte';
 	import type { PageData } from './$types';
 	import { initSounds } from '$lib/sounds';
+	import { downloadTextFile, copyToClipboard } from '$lib/download';
 
 	let importOpen = $state(false);
+	let exporting = $state(false);
+	let exportDropdown = $state(false);
+	let exportPgn = $state('');
+	let exportFilename = $state('');
+	let exportMsg = $state('');
+
+	async function handleExport() {
+		if (exporting) return;
+		exporting = true;
+		exportMsg = '';
+		try {
+			const res = await fetch(`/api/repertoires/${data.repertoire.id}/export`);
+			if (!res.ok) throw new Error('Export failed');
+			const result = await res.json();
+			exportPgn = result.pgn;
+			exportFilename = result.filename;
+			exportDropdown = true;
+		} catch {
+			exportMsg = 'Export failed';
+		} finally {
+			exporting = false;
+		}
+	}
+
+	function handleDownload() {
+		downloadTextFile(exportPgn, exportFilename);
+		exportDropdown = false;
+	}
+
+	async function handleCopy() {
+		const ok = await copyToClipboard(exportPgn);
+		exportDropdown = false;
+		exportMsg = ok ? 'Copied!' : 'Copy failed';
+		if (ok) setTimeout(() => (exportMsg = ''), 2000);
+	}
 
 	onMount(() => {
 		initSounds();
@@ -113,9 +149,26 @@
 			>
 				{data.repertoire.color === 'WHITE' ? 'White' : 'Black'}
 			</span>
-			<button class="import-btn" onclick={() => importOpen = true} title="Import PGN">
+			<button class="import-btn" onclick={() => (importOpen = true)} title="Import PGN">
 				Import PGN
 			</button>
+			<div class="export-wrap">
+				<button class="import-btn" onclick={handleExport} disabled={exporting} title="Export PGN">
+					{exporting ? 'Exporting…' : 'Export PGN'}
+				</button>
+				{#if exportDropdown}
+					<div class="export-dropdown">
+						<button class="export-option" onclick={handleDownload}>Download .pgn</button>
+						<button class="export-option" onclick={handleCopy}>Copy to clipboard</button>
+						<button class="export-option export-cancel" onclick={() => (exportDropdown = false)}
+							>Cancel</button
+						>
+					</div>
+				{/if}
+				{#if exportMsg}
+					<span class="export-msg">{exportMsg}</span>
+				{/if}
+			</div>
 		</div>
 
 		<!-- ECO opening name (updates as moves are played) -->
@@ -360,9 +413,72 @@
 		flex-shrink: 0;
 	}
 
-	.import-btn:hover {
+	.import-btn:hover:not(:disabled) {
 		border-color: #e2b714;
 		color: #e2b714;
+	}
+
+	.import-btn:disabled {
+		opacity: 0.45;
+		cursor: default;
+	}
+
+	/* ── Export dropdown ────────────────────────────────────────────────────── */
+
+	.export-wrap {
+		position: relative;
+		flex-shrink: 0;
+	}
+
+	.export-dropdown {
+		position: absolute;
+		top: calc(100% + 4px);
+		right: 0;
+		background: #1a2840;
+		border: 1px solid #0f3460;
+		border-radius: 5px;
+		overflow: hidden;
+		z-index: 20;
+		min-width: 150px;
+	}
+
+	.export-option {
+		display: block;
+		width: 100%;
+		padding: 0.45rem 0.75rem;
+		background: none;
+		border: none;
+		border-bottom: 1px solid #0f3460;
+		color: #c0c0d0;
+		font-size: 0.78rem;
+		cursor: pointer;
+		text-align: left;
+		font-family: inherit;
+		transition:
+			background 0.1s,
+			color 0.1s;
+	}
+
+	.export-option:last-child {
+		border-bottom: none;
+	}
+
+	.export-option:hover {
+		background: #0f1f35;
+		color: #e2b714;
+	}
+
+	.export-cancel {
+		color: #606070;
+	}
+
+	.export-msg {
+		position: absolute;
+		top: calc(100% + 4px);
+		right: 0;
+		font-size: 0.72rem;
+		color: #60c060;
+		white-space: nowrap;
 	}
 
 	/* ── Turn indicator ──────────────────────────────────────────────────────── */
