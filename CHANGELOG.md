@@ -32,6 +32,12 @@ Docker images are tagged per version. To stay on stable releases, pin your
 
 ### Added
 
+- **Gap Finder on dashboard** — the dashboard now detects positions where the
+  opening book has moves that the user hasn't prepared a response to. Shows the
+  top 5 gaps with formatted move lines (e.g. "1. e4 c5") and "Open in Build
+  Mode" links that deep-link to the exact position. Displays a "fully covered"
+  message when no gaps remain. Also available as `GET /api/gaps?repertoireId=X`.
+
 - **PGN export for repertoire sharing** — export a full repertoire (including all
   variations and annotations) as a standards-compliant PGN file:
   - DFS tree traversal converts the FEN-keyed move graph into an ordered move tree,
