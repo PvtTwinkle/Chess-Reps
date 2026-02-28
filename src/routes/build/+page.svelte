@@ -38,7 +38,7 @@
 	import ImportPgnModal from '$lib/components/build/ImportPgnModal.svelte';
 	import { createBuildState, STARTING_FEN, fenKey } from '$lib/components/build/buildState.svelte';
 	import { invalidateAll } from '$app/navigation';
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import type { PageData } from './$types';
 	import { initSounds } from '$lib/sounds';
 	import { downloadTextFile, copyToClipboard } from '$lib/download';
@@ -114,6 +114,17 @@
 		const jumpLine = !didJumpToLine && data.jumpLine ? data.jumpLine : undefined;
 		if (jumpLine) didJumpToLine = true;
 		s.syncFromData(data.moves as Parameters<typeof s.syncFromData>[0], jumpLine);
+
+		// When arriving via a Gap Finder deep link, the jump line may include
+		// an opponent book move that isn't in the user's repertoire yet. Save
+		// any missing moves so the tree stays connected.
+		// Wrapped in untrack() because saveJumpLineMoves reads reactive state
+		// (moves, navHistory) — without untrack, those reads would become
+		// dependencies of this $effect, causing it to re-run and reset the
+		// board back to the starting position when the saves complete.
+		if (jumpLine) {
+			untrack(() => s.saveJumpLineMoves());
+		}
 	});
 </script>
 

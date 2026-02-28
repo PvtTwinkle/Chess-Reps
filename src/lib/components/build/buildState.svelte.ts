@@ -201,6 +201,47 @@ export function createBuildState(params: CreateBuildStateParams) {
 		}
 	}
 
+	// Save any moves from the replayed jump line that aren't already in the
+	// user's repertoire. This is needed for Gap Finder deep links: the gap
+	// line includes an opponent book move that exists in the opening book but
+	// not in the user's move tree. Without saving it, the user's response
+	// would be a disconnected leaf in the tree.
+	async function saveJumpLineMoves(): Promise<void> {
+		if (navHistory.length === 0) return;
+
+		for (const entry of navHistory) {
+			const key = fenKey(entry.fromFen);
+			const existing = moves.find(
+				(m) => fenKey(m.fromFen) === key && m.san === entry.san
+			);
+			if (existing) continue;
+
+			// This move is in the jump line but not in the user's repertoire — save it.
+			try {
+				const res = await fetch('/api/moves', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						repertoireId: params.getRepertoireId(),
+						fromFen: entry.fromFen,
+						san: entry.san
+					})
+				});
+
+				if (res.ok || res.status === 201) {
+					const savedMove: RepertoireMove = await res.json();
+					// Only add if not already present (the API returns existing moves for idempotent calls).
+					if (!moves.find((m) => m.id === savedMove.id)) {
+						moves = [...moves, savedMove];
+					}
+				}
+			} catch {
+				// Silently skip — the user can still play from this position,
+				// the tree just won't be fully connected until next time.
+			}
+		}
+	}
+
 	// ── Move handler ─────────────────────────────────────────────────────────
 
 	async function handleMove(
@@ -573,6 +614,7 @@ export function createBuildState(params: CreateBuildStateParams) {
 
 		// Actions
 		syncFromData,
+		saveJumpLineMoves,
 		handleMove,
 		handleUndo,
 		handleReset,
