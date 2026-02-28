@@ -1,4 +1,4 @@
-// PATCH  /api/repertoires/[id]  — rename a repertoire
+// PATCH  /api/repertoires/[id]  — update repertoire settings (name, startFen)
 // DELETE /api/repertoires/[id]  — delete a repertoire and all its data
 
 import { json, error } from '@sveltejs/kit';
@@ -14,7 +14,8 @@ import {
 import { and, eq } from 'drizzle-orm';
 
 // ── PATCH ──────────────────────────────────────────────────────────────────────
-// Expects JSON body: { name: string }
+// Expects JSON body: { name?: string, startFen?: string | null }
+// At least one field must be provided.
 // Verifies the repertoire belongs to the current user before updating.
 
 export const PATCH: RequestHandler = async ({ locals, request, params }) => {
@@ -23,7 +24,7 @@ export const PATCH: RequestHandler = async ({ locals, request, params }) => {
 	const id = parseInt(params.id);
 	if (isNaN(id)) throw error(400, 'Invalid id');
 
-	// Ownership check — never allow renaming another user's repertoire.
+	// Ownership check.
 	const existing = db
 		.select()
 		.from(repertoire)
@@ -38,18 +39,32 @@ export const PATCH: RequestHandler = async ({ locals, request, params }) => {
 	} catch {
 		throw error(400, 'Invalid JSON body');
 	}
-	const { name } = body;
 
-	if (!name || typeof name !== 'string' || name.trim() === '') {
-		throw error(400, 'name is required');
+	const updates: Record<string, unknown> = {};
+
+	// Handle name update.
+	if ('name' in body) {
+		const { name } = body;
+		if (!name || typeof name !== 'string' || name.trim() === '') {
+			throw error(400, 'name must be a non-empty string');
+		}
+		updates.name = name.trim();
 	}
 
-	const updated = db
-		.update(repertoire)
-		.set({ name: name.trim() })
-		.where(eq(repertoire.id, id))
-		.returning()
-		.get();
+	// Handle startFen update (null = reset to default, string = custom start).
+	if ('startFen' in body) {
+		const { startFen } = body;
+		if (startFen !== null && (typeof startFen !== 'string' || startFen.trim() === '')) {
+			throw error(400, 'startFen must be a FEN string or null');
+		}
+		updates.startFen = startFen;
+	}
+
+	if (Object.keys(updates).length === 0) {
+		throw error(400, 'At least one field (name, startFen) is required');
+	}
+
+	const updated = db.update(repertoire).set(updates).where(eq(repertoire.id, id)).returning().get();
 
 	return json(updated);
 };

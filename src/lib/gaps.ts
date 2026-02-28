@@ -38,12 +38,15 @@ interface MoveRow {
  * @param moves      All userMove rows for the repertoire
  * @param bookMoves  Book moves from opponent-turn positions in the repertoire
  * @param color      Which side the user plays ("WHITE" or "BLACK")
+ * @param startFens  Optional start FENs — only positions reachable from these
+ *                   are checked for gaps. Defaults to [STARTING_FEN].
  * @returns          Sorted array of Gap objects (shallowest first)
  */
 export function computeGaps(
 	moves: MoveRow[],
 	bookMoves: MoveRow[],
-	color: 'WHITE' | 'BLACK'
+	color: 'WHITE' | 'BLACK',
+	startFens?: string[]
 ): Gap[] {
 	if (moves.length === 0) return [];
 
@@ -71,11 +74,11 @@ export function computeGaps(
 		list.push(m);
 	}
 
-	const startKey = fenKey(STARTING_FEN);
+	const rootKey = fenKey(STARTING_FEN);
 	const pathMap = new Map<string, string[]>(); // fenKey → SAN path to reach it
-	pathMap.set(startKey, []);
+	pathMap.set(rootKey, []);
 
-	const queue: string[] = [startKey];
+	const queue: string[] = [rootKey];
 	while (queue.length > 0) {
 		const current = queue.shift()!;
 		const children = adj.get(current);
@@ -90,19 +93,49 @@ export function computeGaps(
 		}
 	}
 
+	// Build the set of in-scope positions: only check gaps at positions
+	// reachable from the effective start FEN(s).
+	const effectiveStarts = startFens ?? [STARTING_FEN];
+	const inScopeKeys = new Set<string>();
+	const scopeQueue: string[] = [];
+
+	for (const fen of effectiveStarts) {
+		const key = fenKey(fen);
+		if (!inScopeKeys.has(key)) {
+			inScopeKeys.add(key);
+			scopeQueue.push(key);
+		}
+	}
+
+	while (scopeQueue.length > 0) {
+		const current = scopeQueue.shift()!;
+		const children = adj.get(current);
+		if (!children) continue;
+
+		for (const child of children) {
+			const childKey = fenKey(child.toFen);
+			if (inScopeKeys.has(childKey)) continue;
+			inScopeKeys.add(childKey);
+			scopeQueue.push(childKey);
+		}
+	}
+
 	// Find gaps: book moves whose destination is not covered by any user move.
+	// Only consider book moves from in-scope positions.
 	// Deduplicate by toFen key to avoid counting the same uncovered position
 	// multiple times (e.g. reached via transposition).
 	const seen = new Set<string>();
 	const gaps: Gap[] = [];
 
 	for (const bm of bookMoves) {
+		const fromKey = fenKey(bm.fromFen);
+		if (!inScopeKeys.has(fromKey)) continue; // outside repertoire scope
+
 		const toKey = fenKey(bm.toFen);
 		if (coveredKeys.has(toKey)) continue; // user has a response here
 		if (seen.has(toKey)) continue; // already recorded this gap
 		seen.add(toKey);
 
-		const fromKey = fenKey(bm.fromFen);
 		const pathToFrom = pathMap.get(fromKey);
 		if (!pathToFrom) continue; // unreachable from starting position (shouldn't happen)
 

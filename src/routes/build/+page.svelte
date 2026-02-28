@@ -36,7 +36,7 @@
 	import MoveList from '$lib/components/build/MoveList.svelte';
 	import AnnotationModal from '$lib/components/build/AnnotationModal.svelte';
 	import ImportPgnModal from '$lib/components/build/ImportPgnModal.svelte';
-	import { createBuildState } from '$lib/components/build/buildState.svelte';
+	import { createBuildState, STARTING_FEN, fenKey } from '$lib/components/build/buildState.svelte';
 	import { invalidateAll } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import type { PageData } from './$types';
@@ -88,7 +88,8 @@
 
 	const s = createBuildState({
 		getRepertoireId: () => data.repertoire.id,
-		getRepertoireColor: () => data.repertoire.color
+		getRepertoireColor: () => data.repertoire.color,
+		getStartFen: () => data.repertoire.startFen ?? null
 	});
 
 	// Board orientation: white at bottom for white repertoires, black for black.
@@ -301,6 +302,39 @@
 				✎
 			</button>
 		</div>
+
+		<!-- Start position control -->
+		{#if s.isStartPosition}
+			<div class="start-indicator">
+				<span class="start-label">Start Position</span>
+				<button
+					class="start-clear-btn"
+					onclick={s.clearStartPosition}
+					disabled={s.saving}
+					title="Reset to default (after first move)"
+				>
+					Clear
+				</button>
+			</div>
+		{:else if fenKey(s.currentFen) !== fenKey(STARTING_FEN) && s.navHistory.length > 0}
+			<button
+				class="start-btn"
+				onclick={s.setStartPosition}
+				disabled={s.saving}
+				title="Set this position as the repertoire's starting point — moves before it won't be drilled"
+			>
+				Set as Start Position
+			</button>
+		{:else if s.startFen && fenKey(s.currentFen) === fenKey(STARTING_FEN)}
+			<button
+				class="start-clear-btn-standalone"
+				onclick={s.clearStartPosition}
+				disabled={s.saving}
+				title="Reset to default (after first move)"
+			>
+				Clear Start Position
+			</button>
+		{/if}
 
 		<!-- Saving indicator -->
 		{#if s.saving}
@@ -746,5 +780,100 @@
 	.move-annotate-btn:hover {
 		border-color: #4a6a9a;
 		color: #a0b0d0;
+	}
+
+	/* ── Start position controls ─────────────────────────────────────────── */
+
+	.start-indicator {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 0.4rem 0.65rem;
+		background: rgba(40, 160, 80, 0.12);
+		border: 1px solid rgba(40, 160, 80, 0.3);
+		border-radius: 5px;
+	}
+
+	.start-label {
+		font-size: 0.78rem;
+		font-weight: 600;
+		color: #50b870;
+		letter-spacing: 0.03em;
+	}
+
+	.start-clear-btn {
+		padding: 0.15rem 0.4rem;
+		background: transparent;
+		border: 1px solid rgba(40, 160, 80, 0.3);
+		border-radius: 3px;
+		color: #508060;
+		font-size: 0.7rem;
+		cursor: pointer;
+		font-family: inherit;
+		transition:
+			border-color 0.12s,
+			color 0.12s;
+	}
+
+	.start-clear-btn:hover:not(:disabled) {
+		border-color: #c04040;
+		color: #e06060;
+	}
+
+	.start-clear-btn:disabled {
+		opacity: 0.35;
+		cursor: default;
+	}
+
+	.start-btn {
+		width: 100%;
+		padding: 0.4rem 0.65rem;
+		background: #0f1f35;
+		border: 1px solid #1a3a5c;
+		border-radius: 4px;
+		color: #a0a0b0;
+		font-size: 0.8rem;
+		cursor: pointer;
+		font-family: inherit;
+		transition:
+			border-color 0.12s,
+			color 0.12s,
+			background 0.12s;
+	}
+
+	.start-btn:hover:not(:disabled) {
+		border-color: #50b870;
+		color: #50b870;
+		background: rgba(40, 160, 80, 0.08);
+	}
+
+	.start-btn:disabled {
+		opacity: 0.35;
+		cursor: default;
+	}
+
+	.start-clear-btn-standalone {
+		width: 100%;
+		padding: 0.4rem 0.65rem;
+		background: #0f1f35;
+		border: 1px solid #1a3a5c;
+		border-radius: 4px;
+		color: #707080;
+		font-size: 0.8rem;
+		cursor: pointer;
+		font-family: inherit;
+		transition:
+			border-color 0.12s,
+			color 0.12s;
+	}
+
+	.start-clear-btn-standalone:hover:not(:disabled) {
+		border-color: #c04040;
+		color: #e06060;
+	}
+
+	.start-clear-btn-standalone:disabled {
+		opacity: 0.35;
+		cursor: default;
 	}
 </style>

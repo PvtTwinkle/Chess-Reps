@@ -4,11 +4,16 @@
 // all SR cards that are currently due (due <= now). Also loads user settings
 // so the client knows whether sound is enabled.
 //
+// Cards for "lead-in" moves (before the repertoire's start position) are
+// filtered out so the user only drills positions within scope.
+//
 import type { PageServerLoad } from './$types';
 import { redirect } from '@sveltejs/kit';
 import { db } from '$lib/db';
 import { userMove, userRepertoireMove, userSettings } from '$lib/db/schema';
 import { eq, and, lte } from 'drizzle-orm';
+import { fenKey } from '$lib/gaps';
+import { getEffectiveStartFens, buildInScopeFens } from '$lib/repertoire';
 
 export const load: PageServerLoad = async ({ locals, parent }) => {
 	const { activeRepertoireId, repertoires } = await parent();
@@ -33,9 +38,8 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 		.where(and(eq(userMove.userId, userId), eq(userMove.repertoireId, activeRepertoireId)))
 		.all();
 
-	// All SR cards that are due right now (due <= now). The client filters these
-	// further based on the selected sub-mode.
-	const dueCards = db
+	// All SR cards that are due right now (due <= now).
+	let dueCards = db
 		.select()
 		.from(userRepertoireMove)
 		.where(
@@ -46,6 +50,16 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 			)
 		)
 		.all();
+
+	// Filter out cards for lead-in moves (before the repertoire's start position).
+	// Only positions reachable from the effective start FEN(s) are in scope.
+	const startFens = getEffectiveStartFens(
+		activeRep.startFen ?? null,
+		moves,
+		activeRep.color as 'WHITE' | 'BLACK'
+	);
+	const inScope = buildInScopeFens(startFens, moves);
+	dueCards = dueCards.filter((c) => inScope.has(fenKey(c.fromFen)));
 
 	// User settings: we need soundEnabled (and potentially other future settings).
 	const settings = db.select().from(userSettings).where(eq(userSettings.userId, userId)).get();

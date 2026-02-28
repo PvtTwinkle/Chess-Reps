@@ -115,6 +115,7 @@ export const repertoire = sqliteTable('repertoire', {
 		.references(() => user.id),
 	name: text('name').notNull(), // e.g. "White - e4 lines"
 	color: text('color').notNull(), // "WHITE" or "BLACK" — which side the user plays
+	startFen: text('start_fen'), // custom start position FEN — null means "after user's first move" (default)
 	createdAt: integer('created_at', { mode: 'timestamp' }).notNull()
 });
 

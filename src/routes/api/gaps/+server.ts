@@ -9,6 +9,7 @@ import { db } from '$lib/db';
 import { repertoire, userMove, bookMove } from '$lib/db/schema';
 import { eq, and, inArray } from 'drizzle-orm';
 import { computeGaps } from '$lib/gaps';
+import { getEffectiveStartFens } from '$lib/repertoire';
 
 export const GET: RequestHandler = ({ locals, url }) => {
 	if (!locals.user) throw error(401, 'Not authenticated');
@@ -48,7 +49,12 @@ export const GET: RequestHandler = ({ locals, url }) => {
 			? db.select().from(bookMove).where(inArray(bookMove.fromFen, opponentFens)).all()
 			: [];
 
-	const gaps = computeGaps(moves, relevantBookMoves, rep.color as 'WHITE' | 'BLACK');
+	const startFens = getEffectiveStartFens(
+		rep.startFen ?? null,
+		moves,
+		rep.color as 'WHITE' | 'BLACK'
+	);
+	const gaps = computeGaps(moves, relevantBookMoves, rep.color as 'WHITE' | 'BLACK', startFens);
 
 	return json({ count: gaps.length, gaps });
 };

@@ -57,6 +57,13 @@
 			"when": 1772193600000,
 			"tag": "0007_add_indexes",
 			"breakpoints": true
+		},
+		{
+			"idx": 8,
+			"version": "6",
+			"when": 1772280000000,
+			"tag": "0008_add_start_fen",
+			"breakpoints": true
 		}
 	]
 }

@@ -32,6 +32,14 @@ Docker images are tagged per version. To stay on stable releases, pin your
 
 ### Added
 
+- **Repertoire start position** — each repertoire now supports a configurable
+  start position that defines where its scope begins. Drill cards for lead-in
+  moves (before the start) are automatically excluded, and the gap finder only
+  checks positions within scope. By default, the start is after the user's first
+  move (so 1. d4 in a London repertoire or 1...c5 in a Sicilian repertoire won't
+  be drilled). Set a deeper custom start in Build Mode via the "Set as Start
+  Position" button (e.g. after 1. d4 d5 2. Nc3 Nc6 3. Bf4 for the Jobava London).
+
 - **Gap Finder on dashboard** — the dashboard now detects positions where the
   opening book has moves that the user hasn't prepared a response to. Shows the
   top 5 gaps with formatted move lines (e.g. "1. e4 c5") and "Open in Build

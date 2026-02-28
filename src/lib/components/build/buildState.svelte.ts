@@ -57,6 +57,7 @@ function resolveSquares(fen: string, san: string): [string, string] | undefined 
 interface CreateBuildStateParams {
 	getRepertoireId: () => number;
 	getRepertoireColor: () => string;
+	getStartFen: () => string | null;
 }
 
 export function createBuildState(params: CreateBuildStateParams) {
@@ -71,6 +72,7 @@ export function createBuildState(params: CreateBuildStateParams) {
 	let errorMsg = $state<string | null>(null);
 	let transpositionDismissed = $state(false);
 	let boardKey = $state(0);
+	let startFen = $state<string | null>(null);
 
 	// ── Annotation state ─────────────────────────────────────────────────────
 
@@ -124,6 +126,9 @@ export function createBuildState(params: CreateBuildStateParams) {
 		}
 		return pairs;
 	});
+
+	// True when the current position is the repertoire's custom start position.
+	const isStartPosition = $derived(startFen !== null && fenKey(currentFen) === fenKey(startFen));
 
 	// True when the current position can also be reached via a different move order.
 	const transpositionExists = $derived.by(() => {
@@ -189,6 +194,7 @@ export function createBuildState(params: CreateBuildStateParams) {
 		lastMove = undefined;
 		conflictSan = null;
 		errorMsg = null;
+		startFen = params.getStartFen();
 
 		if (jumpLine) {
 			replayLine(jumpLine.split(',').filter(Boolean));
@@ -443,6 +449,58 @@ export function createBuildState(params: CreateBuildStateParams) {
 		transpositionDismissed = true;
 	}
 
+	// ── Start position management ───────────────────────────────────────────
+
+	async function setStartPosition(): Promise<void> {
+		if (saving) return;
+		saving = true;
+		errorMsg = null;
+
+		try {
+			const res = await fetch(`/api/repertoires/${params.getRepertoireId()}`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ startFen: currentFen })
+			});
+
+			if (!res.ok) {
+				errorMsg = 'Failed to set start position.';
+				return;
+			}
+
+			startFen = currentFen;
+		} catch {
+			errorMsg = 'Network error. Please try again.';
+		} finally {
+			saving = false;
+		}
+	}
+
+	async function clearStartPosition(): Promise<void> {
+		if (saving) return;
+		saving = true;
+		errorMsg = null;
+
+		try {
+			const res = await fetch(`/api/repertoires/${params.getRepertoireId()}`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ startFen: null })
+			});
+
+			if (!res.ok) {
+				errorMsg = 'Failed to clear start position.';
+				return;
+			}
+
+			startFen = null;
+		} catch {
+			errorMsg = 'Network error. Please try again.';
+		} finally {
+			saving = false;
+		}
+	}
+
 	return {
 		// Reactive state (getters/setters so reactivity crosses the module boundary)
 		get moves() {
@@ -506,6 +564,12 @@ export function createBuildState(params: CreateBuildStateParams) {
 		get transpositionExists() {
 			return transpositionExists;
 		},
+		get startFen() {
+			return startFen;
+		},
+		get isStartPosition() {
+			return isStartPosition;
+		},
 
 		// Actions
 		syncFromData,
@@ -522,7 +586,9 @@ export function createBuildState(params: CreateBuildStateParams) {
 		saveAnnotation,
 		dismissConflict,
 		dismissError,
-		dismissTransposition
+		dismissTransposition,
+		setStartPosition,
+		clearStartPosition
 	};
 }
 

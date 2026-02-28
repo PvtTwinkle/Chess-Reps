@@ -13,6 +13,7 @@ import { userMove, bookMove } from '$lib/db/schema';
 import { eq, and, inArray } from 'drizzle-orm';
 import { computeGaps } from '$lib/gaps';
 import type { Gap } from '$lib/gaps';
+import { getEffectiveStartFens } from '$lib/repertoire';
 
 export const load: PageServerLoad = async ({ parent }) => {
 	const { repertoires, activeRepertoireId } = await parent();
@@ -54,7 +55,17 @@ export const load: PageServerLoad = async ({ parent }) => {
 			? db.select().from(bookMove).where(inArray(bookMove.fromFen, opponentFens)).all()
 			: [];
 
-	const gaps = computeGaps(moves, relevantBookMoves, activeRep.color as 'WHITE' | 'BLACK');
+	const startFens = getEffectiveStartFens(
+		activeRep.startFen ?? null,
+		moves,
+		activeRep.color as 'WHITE' | 'BLACK'
+	);
+	const gaps = computeGaps(
+		moves,
+		relevantBookMoves,
+		activeRep.color as 'WHITE' | 'BLACK',
+		startFens
+	);
 
 	return { repertoires, gaps };
 };
