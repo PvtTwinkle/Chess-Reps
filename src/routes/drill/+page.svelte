@@ -50,6 +50,7 @@
 		fromFen: string;
 		toFen: string;
 		san: string;
+		notes: string | null;
 	}
 
 	// Shape of a due SR card from the server (user_repertoire_move table).
@@ -118,6 +119,10 @@
 	let hintUsed = $state(false);
 	let hintSquare = $state<string | null>(null);
 
+	// True after the user has graded a correct answer — shows "Next" button
+	// instead of auto-advancing, giving them time to read the move note.
+	let awaitingNext = $state(false);
+
 	// Session stats (accumulated across all cards in this session).
 	let totalReviewed = $state(0);
 	let correctCount = $state(0);
@@ -137,9 +142,6 @@
 	// trigger re-renders when set/cleared.
 	let autoPlayTimer: ReturnType<typeof setTimeout> | undefined;
 
-	// Timer handle for the incorrect-reveal delay.
-	let incorrectTimer: ReturnType<typeof setTimeout> | undefined;
-
 	// Whether sound effects are enabled. Initialised from server settings,
 	// can be toggled in-session via the mute button (persisted to the DB).
 	let soundEnabled = $state(true);
@@ -151,25 +153,37 @@
 
 	// ── Keyboard shortcuts ─────────────────────────────────────────────────────
 
-	// Register a keydown listener for the grading shortcuts.
+	// Register a keydown listener for grading and Next button shortcuts.
 	// The $effect cleanup function removes the listener when the component unmounts.
 	$effect(() => {
 		function handleKey(e: KeyboardEvent) {
-			// Only fire shortcuts when the grading buttons are visible and no
-			// modifier keys are held (avoids conflicts with browser shortcuts).
-			if (phase !== 'correct' || e.ctrlKey || e.altKey || e.metaKey) return;
-			// Ignore keypresses inside input fields.
+			// Ignore keypresses with modifiers or inside input fields.
+			if (e.ctrlKey || e.altKey || e.metaKey) return;
 			if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
 
-			if (e.key === '1') {
+			// "Next" shortcut: Space or Enter when the Next button is visible.
+			// Visible when: awaitingNext (graded correct), or incorrect, or hint-used correct.
+			const nextVisible =
+				awaitingNext || phase === 'incorrect' || (phase === 'correct' && hintUsed);
+			if (nextVisible && (e.key === ' ' || e.key === 'Enter')) {
 				e.preventDefault();
-				gradeAndAdvance(1);
-			} else if (e.key === '2') {
-				e.preventDefault();
-				gradeAndAdvance(3);
-			} else if (e.key === '3') {
-				e.preventDefault();
-				gradeAndAdvance(4);
+				handleNext();
+				return;
+			}
+
+			// Grade shortcuts: 1/2/3 for Again/Good/Easy during correct phase
+			// (only when grade buttons are shown — not hint-used, not already graded).
+			if (phase === 'correct' && !hintUsed && !awaitingNext) {
+				if (e.key === '1') {
+					e.preventDefault();
+					submitGrade(1);
+				} else if (e.key === '2') {
+					e.preventDefault();
+					submitGrade(3);
+				} else if (e.key === '3') {
+					e.preventDefault();
+					submitGrade(4);
+				}
 			}
 		}
 
@@ -242,6 +256,38 @@
 	// A shape with only `orig` (no `dest`) draws a circle dot on that square.
 	const hintShapes = $derived<DrawShape[]>(
 		hintSquare ? [{ orig: hintSquare as Key, brush: 'yellow' }] : []
+	);
+
+	// Note on the move that REACHES a given position (keyed by normalised toFen).
+	// Used to show the opponent's last-move annotation while the user is thinking.
+	const noteByPosition = $derived.by(() => {
+		const map = new Map<string, string>();
+		for (const m of allMoves) {
+			if (m.notes) map.set(fenKey(m.toFen), m.notes);
+		}
+		return map;
+	});
+
+	// Note on a specific move (keyed by normalised fromFen + san).
+	// Used to show the card's own annotation after the user guesses.
+	const noteByMove = $derived.by(() => {
+		const map = new Map<string, string>();
+		for (const m of allMoves) {
+			if (m.notes) map.set(fenKey(m.fromFen) + ':' + m.san, m.notes);
+		}
+		return map;
+	});
+
+	// Note for the current position (opponent's last move annotation).
+	const currentPositionNote = $derived(
+		currentCard ? (noteByPosition.get(fenKey(currentCard.fromFen)) ?? null) : null
+	);
+
+	// Note for the card's own move (the user's move annotation).
+	const currentMoveNote = $derived(
+		currentCard
+			? (noteByMove.get(fenKey(currentCard.fromFen) + ':' + currentCard.san) ?? null)
+			: null
 	);
 
 	// ── Utility functions ──────────────────────────────────────────────────────
@@ -348,7 +394,6 @@
 	// Reset board state to the starting position.
 	function resetBoard(): void {
 		stopAutoPlay();
-		stopIncorrectTimer();
 		navHistory = [];
 		currentFen = STARTING_FEN;
 		lastMove = undefined;
@@ -356,6 +401,7 @@
 		revealedSan = null;
 		hintUsed = false;
 		hintSquare = null;
+		awaitingNext = false;
 		boardKey++;
 	}
 
@@ -364,13 +410,6 @@
 		if (autoPlayTimer !== undefined) {
 			clearTimeout(autoPlayTimer);
 			autoPlayTimer = undefined;
-		}
-	}
-
-	function stopIncorrectTimer(): void {
-		if (incorrectTimer !== undefined) {
-			clearTimeout(incorrectTimer);
-			incorrectTimer = undefined;
 		}
 	}
 
@@ -475,17 +514,8 @@
 			if (isCapture) playCapture();
 			else playMove();
 
-			if (hintUsed) {
-				// Hint was used — auto-grade as Again (no grade buttons).
-				// Green flash shows they played the right move; the penalty is in the grade.
-				phase = 'correct'; // template checks hintUsed to show the penalty message
-				incorrectTimer = setTimeout(() => {
-					gradeAndAdvance(1); // Rating.Again
-				}, 2000);
-			} else {
-				phase = 'correct';
-				playCorrect();
-			}
+			phase = 'correct';
+			if (!hintUsed) playCorrect();
 		} else {
 			// Wrong move — snap the board back and show the correct move.
 			boardKey++;
@@ -494,18 +524,14 @@
 			playIncorrect();
 			revealedSan = currentCard.san;
 			setTimeout(() => (flashColor = null), 600);
-
-			// After a moment, auto-grade as Again and move on.
-			incorrectTimer = setTimeout(() => {
-				gradeAndAdvance(1); // Rating.Again = 1
-			}, 2000);
 		}
 	}
 
 	// ── Grading ────────────────────────────────────────────────────────────────
 
-	// Called when the user clicks Again / Good / Easy, or auto-called on wrong answer.
-	async function gradeAndAdvance(rating: number): Promise<void> {
+	// Submit the grade for the current card to the server and update stats.
+	// Does NOT advance to the next card — call advanceToNext() separately.
+	async function submitGrade(rating: number): Promise<void> {
 		if (grading || !currentCard) return;
 		grading = true;
 
@@ -545,6 +571,11 @@
 		if (wasCorrect) correctCount++;
 
 		grading = false;
+		awaitingNext = true;
+	}
+
+	// Advance to the next card after the user clicks "Next".
+	async function advanceToNext(): Promise<void> {
 		currentCardIdx++;
 		resetBoard();
 
@@ -566,10 +597,17 @@
 			}
 		}
 
-		// Small pause between cards so the transition feels deliberate.
-		setTimeout(() => {
-			startNextCard();
-		}, 300);
+		startNextCard();
+	}
+
+	// Called by the "Next" button. For incorrect/hint cases, grades as Again
+	// first; for already-graded correct answers, just advances.
+	async function handleNext(): Promise<void> {
+		if (!awaitingNext) {
+			// Not yet graded — this is an incorrect or hint-used card.
+			await submitGrade(1); // Rating.Again
+		}
+		await advanceToNext();
 	}
 
 	// ── Session restart ────────────────────────────────────────────────────────
@@ -800,7 +838,7 @@
 				</div>
 			{/if}
 
-			<!-- Current line display (clickable) -->
+			<!-- Current line display -->
 			{#if navHistory.length > 0}
 				<div class="section">
 					<div class="section-label">CURRENT LINE</div>
@@ -814,8 +852,16 @@
 					</div>
 				</div>
 			{/if}
+
+			<!-- Note on the opponent's last move (the move that reached this position) -->
+			{#if currentPositionNote}
+				<div class="note-box">
+					<div class="note-label">NOTE</div>
+					<div class="note-text">{currentPositionNote}</div>
+				</div>
+			{/if}
 		{:else if phase === 'correct'}
-			<!-- Correct! Show grading buttons, or auto-advance if a hint was used. -->
+			<!-- Correct! Show grading buttons or Next (if hint-used / already graded). -->
 			<div class="feedback feedback--correct">
 				<span class="feedback-icon">✓</span>
 				{hintUsed ? 'Correct! (hint used)' : 'Correct!'}
@@ -835,30 +881,46 @@
 				</div>
 			{/if}
 
+			<!-- Note on the card's move (the user's annotation for this move) -->
+			{#if currentMoveNote}
+				<div class="note-box">
+					<div class="note-label">NOTE</div>
+					<div class="note-text">{currentMoveNote}</div>
+				</div>
+			{/if}
+
 			{#if hintUsed}
-				<!-- Hint was used — auto-graded Again, no grade buttons shown. -->
-				<p class="auto-advance-hint">Graded as Again — advancing…</p>
+				<!-- Hint was used — will be graded Again when Next is clicked. -->
+				<p class="auto-advance-hint">Will be graded as Again</p>
+				<button class="btn btn--primary next-btn" onclick={handleNext}>
+					Next <kbd>Space</kbd>
+				</button>
+			{:else if awaitingNext}
+				<!-- Already graded — show Next button. -->
+				<button class="btn btn--primary next-btn" onclick={handleNext}>
+					Next <kbd>Space</kbd>
+				</button>
 			{:else}
 				<div class="section">
 					<div class="section-label">HOW WELL DID YOU KNOW IT?</div>
 					<div class="grade-buttons">
 						<button
 							class="grade-btn grade-btn--again"
-							onclick={() => gradeAndAdvance(1)}
+							onclick={() => submitGrade(1)}
 							disabled={grading}
 						>
 							Again
 						</button>
 						<button
 							class="grade-btn grade-btn--good"
-							onclick={() => gradeAndAdvance(3)}
+							onclick={() => submitGrade(3)}
 							disabled={grading}
 						>
 							Good
 						</button>
 						<button
 							class="grade-btn grade-btn--easy"
-							onclick={() => gradeAndAdvance(4)}
+							onclick={() => submitGrade(4)}
 							disabled={grading}
 						>
 							Easy
@@ -872,7 +934,7 @@
 				</div>
 			{/if}
 		{:else if phase === 'incorrect'}
-			<!-- Wrong move — reveal the correct answer and auto-advance. -->
+			<!-- Wrong move — reveal the correct answer, show note, and Next button. -->
 			<div class="feedback feedback--incorrect">
 				<span class="feedback-icon">✗</span> Incorrect
 			</div>
@@ -884,7 +946,18 @@
 				</div>
 			{/if}
 
-			<p class="auto-advance-hint">Advancing in a moment…</p>
+			<!-- Note on the card's move (the user's annotation for this move) -->
+			{#if currentMoveNote}
+				<div class="note-box">
+					<div class="note-label">NOTE</div>
+					<div class="note-text">{currentMoveNote}</div>
+				</div>
+			{/if}
+
+			<p class="auto-advance-hint">Will be graded as Again</p>
+			<button class="btn btn--primary next-btn" onclick={handleNext}>
+				Next <kbd>Space</kbd>
+			</button>
 		{/if}
 	</div>
 </div>
@@ -1433,5 +1506,48 @@
 		background: #1a1a2e;
 		border-color: #0f3460;
 		color: #888;
+	}
+
+	/* ── Note box (annotations) ──────────────────────────────────────────────── */
+
+	.note-box {
+		display: flex;
+		flex-direction: column;
+		gap: 0.25rem;
+		padding: 0.5rem 0.65rem;
+		border-radius: 4px;
+		border-left: 3px solid #4a90d9;
+		background: rgba(74, 144, 217, 0.08);
+	}
+
+	.note-label {
+		font-size: 0.6rem;
+		font-weight: 700;
+		letter-spacing: 0.1em;
+		color: #4a90d9;
+		text-transform: uppercase;
+	}
+
+	.note-text {
+		font-size: 0.8rem;
+		color: #bbb;
+		line-height: 1.45;
+		font-style: italic;
+		white-space: pre-wrap;
+	}
+
+	/* ── Next button ─────────────────────────────────────────────────────────── */
+
+	.next-btn {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.5rem;
+		width: 100%;
+	}
+
+	.next-btn kbd {
+		font-size: 0.6rem;
+		opacity: 0.5;
 	}
 </style>

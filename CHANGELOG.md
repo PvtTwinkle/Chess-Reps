@@ -13,6 +13,19 @@ Docker images are tagged per version. To stay on stable releases, pin your
 
 ## [Unreleased]
 
+### Changed
+
+- **Drill mode: show move annotations** — during the waiting phase, the sidebar
+  displays the note on the opponent's last move (the move that reached the current
+  position). After guessing (correct or incorrect), it swaps to show the note on
+  the card's own move, reinforcing why that move is the right choice.
+
+- **Drill mode: manual "Next" button replaces auto-advance** — after grading a
+  correct answer (or seeing the correct move on a wrong answer), a "Next" button
+  appears instead of auto-advancing. This gives you time to read the annotation
+  before moving on. Space or Enter triggers Next; 1/2/3 shortcuts still work for
+  grading.
+
 ### Added
 
 - **PGN export for repertoire sharing** — export a full repertoire (including all
