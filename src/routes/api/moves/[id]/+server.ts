@@ -92,6 +92,43 @@ export const DELETE: RequestHandler = ({ locals, params }) => {
 	// Delete the move itself.
 	db.delete(userMove).where(eq(userMove.id, id)).run();
 
+	// Defense-in-depth: sweep for orphaned SR cards in this repertoire.
+	// An SR card is orphaned if no userMove exists with the same
+	// (repertoireId, fromFen, san). This catches edge cases like FEN
+	// normalization mismatches from PGN transpositions.
+	const allCards = db
+		.select({
+			id: userRepertoireMove.id,
+			fromFen: userRepertoireMove.fromFen,
+			san: userRepertoireMove.san
+		})
+		.from(userRepertoireMove)
+		.where(
+			and(
+				eq(userRepertoireMove.userId, locals.user.id),
+				eq(userRepertoireMove.repertoireId, move.repertoireId)
+			)
+		)
+		.all();
+
+	for (const card of allCards) {
+		const matchingMove = db
+			.select({ id: userMove.id })
+			.from(userMove)
+			.where(
+				and(
+					eq(userMove.repertoireId, move.repertoireId),
+					eq(userMove.fromFen, card.fromFen),
+					eq(userMove.san, card.san)
+				)
+			)
+			.get();
+
+		if (!matchingMove) {
+			db.delete(userRepertoireMove).where(eq(userRepertoireMove.id, card.id)).run();
+		}
+	}
+
 	return json({ deleted: subtreeCount + 1 });
 };
 

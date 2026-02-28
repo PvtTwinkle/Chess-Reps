@@ -22,6 +22,45 @@ import { repertoire, userMove, userRepertoireMove } from '$lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { fenKey } from '$lib/pgn/index';
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type TxLike = { select: any; delete: any };
+
+// Recursively deletes all moves reachable from startFen in the given repertoire,
+// including their SR cards. Works within a Drizzle transaction.
+// Mirrors the deleteSubtree logic in DELETE /api/moves/[id].
+function deleteSubtreeInTx(
+	tx: TxLike,
+	userId: number,
+	repertoireId: number,
+	startFen: string
+): void {
+	const children = tx
+		.select()
+		.from(userMove)
+		.where(and(eq(userMove.repertoireId, repertoireId), eq(userMove.fromFen, startFen)))
+		.all() as { id: number; toFen: string; san: string }[];
+
+	for (const child of children) {
+		// Recurse into the child's subtree before deleting the child itself.
+		deleteSubtreeInTx(tx, userId, repertoireId, child.toFen);
+
+		// Delete the SR card for this move if one exists.
+		tx.delete(userRepertoireMove)
+			.where(
+				and(
+					eq(userRepertoireMove.userId, userId),
+					eq(userRepertoireMove.repertoireId, repertoireId),
+					eq(userRepertoireMove.fromFen, startFen),
+					eq(userRepertoireMove.san, child.san)
+				)
+			)
+			.run();
+
+		// Delete the move row itself.
+		tx.delete(userMove).where(eq(userMove.id, child.id)).run();
+	}
+}
+
 interface MoveInput {
 	fromFen: string;
 	san: string;
@@ -137,6 +176,12 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 					// Different move exists — check if user chose to replace it
 					const replaceKey = fenKey(vm.fromFen) + '|' + vm.san;
 					if (replacementSet.has(replaceKey)) {
+						// Before replacing, delete the old move's downstream subtree.
+						// When we change this move's san/toFen, children hanging off
+						// the OLD toFen become orphaned — unreachable from the tree
+						// root. We must remove them (and their SR cards) now.
+						deleteSubtreeInTx(tx, user.id, repertoireId, existing.toFen);
+
 						// User chose this PGN move over the existing one — replace
 						tx.update(userMove)
 							.set({

@@ -81,7 +81,10 @@
 	// All due cards loaded from the server.
 	let allDueCards = $state<DueCard[]>([]);
 
-	// Index into allDueCards — which card we're currently drilling.
+	// Which depth section to drill: 'all' = no filter.
+	let selectedSection = $state<'all' | DrillSection>('all');
+
+	// Index into filteredCards — which card we're currently drilling.
 	let currentCardIdx = $state(0);
 
 	// SAN moves from move 1 to the current due card's fromFen.
@@ -207,8 +210,22 @@
 
 	// ── Derived ───────────────────────────────────────────────────────────────
 
+	// How many due cards fall into each depth section.
+	const sectionCounts = $derived({
+		foundations: allDueCards.filter((c) => getSection(c.fromFen) === 'foundations').length,
+		mainlines: allDueCards.filter((c) => getSection(c.fromFen) === 'mainlines').length,
+		deep: allDueCards.filter((c) => getSection(c.fromFen) === 'deep').length
+	});
+
+	// Due cards filtered to the selected section (or all if 'all').
+	const filteredCards = $derived(
+		selectedSection === 'all'
+			? allDueCards
+			: allDueCards.filter((c) => getSection(c.fromFen) === selectedSection)
+	);
+
 	// The card being drilled right now.
-	const currentCard = $derived(allDueCards[currentCardIdx] ?? null);
+	const currentCard = $derived(filteredCards[currentCardIdx] ?? null);
 
 	// The FENs from the navigation history, newest-first, for OpeningName.
 	const fenHistory = $derived([...navHistory].reverse().map((e) => e.fromFen));
@@ -219,7 +236,7 @@
 	);
 
 	// Progress fraction (0–1) for the progress bar.
-	const progress = $derived(allDueCards.length === 0 ? 1 : currentCardIdx / allDueCards.length);
+	const progress = $derived(filteredCards.length === 0 ? 1 : currentCardIdx / filteredCards.length);
 
 	// Yellow circle on the piece's square when a hint is active.
 	// A shape with only `orig` (no `dest`) draws a circle dot on that square.
@@ -247,6 +264,20 @@
 		return `In ${diffDays} days`;
 	}
 
+	// Switch to a different depth section. Resets the drill session so the user
+	// starts fresh with the filtered card set. Called from the section tab buttons.
+	function setSection(section: 'all' | DrillSection): void {
+		if (section === selectedSection) return;
+		selectedSection = section;
+		currentCardIdx = 0;
+		totalReviewed = 0;
+		correctCount = 0;
+		sessionId = null;
+		nextDueAt = null;
+		resetBoard();
+		startNextCard();
+	}
+
 	// ── Hint ───────────────────────────────────────────────────────────────────
 
 	// Use Chess.js to find which square the correct piece moves FROM.
@@ -263,6 +294,23 @@
 		if (hintUsed || !currentCard || phase !== 'waiting') return;
 		hintSquare = getHintSquare(currentFen, currentCard.san);
 		hintUsed = true;
+	}
+
+	// ── Depth section helpers ─────────────────────────────────────────────────
+
+	type DrillSection = 'foundations' | 'mainlines' | 'deep';
+
+	// Extract the full-move number from a FEN string (6th field, 1-indexed).
+	function getMoveNumber(fen: string): number {
+		return parseInt(fen.split(' ')[5], 10) || 1;
+	}
+
+	// Map a FEN to one of the three depth sections.
+	function getSection(fen: string): DrillSection {
+		const move = getMoveNumber(fen);
+		if (move <= 5) return 'foundations';
+		if (move <= 15) return 'mainlines';
+		return 'deep';
 	}
 
 	// Strip the half-move clock and full-move counter from a FEN so that
@@ -328,14 +376,14 @@
 
 	// ── Card loading and auto-play ─────────────────────────────────────────────
 
-	// Load the card at allDueCards[currentCardIdx] and start playing through from move 1.
+	// Load the card at filteredCards[currentCardIdx] and start playing through from move 1.
 	function startNextCard(): void {
-		if (allDueCards.length === 0 || currentCardIdx >= allDueCards.length) {
+		if (filteredCards.length === 0 || currentCardIdx >= filteredCards.length) {
 			phase = 'complete';
 			return;
 		}
 
-		const card = allDueCards[currentCardIdx];
+		const card = filteredCards[currentCardIdx];
 		path = reconstructPath(allMoves, card.fromFen);
 
 		resetBoard();
@@ -502,7 +550,7 @@
 
 		// If this was the last card, finalize the session record and retrieve
 		// the next-due timestamp to show on the end screen.
-		if (currentCardIdx >= allDueCards.length && sessionId !== null) {
+		if (currentCardIdx >= filteredCards.length && sessionId !== null) {
 			try {
 				const finalRes = await fetch(`/api/drill/session/${sessionId}`, {
 					method: 'PATCH',
@@ -610,11 +658,51 @@
 		<!-- ECO opening name -->
 		<OpeningName {currentFen} {fenHistory} />
 
+		<!-- Depth section filter -->
+		{#if allDueCards.length > 0 && phase !== 'complete'}
+			<div class="section-filter">
+				<div class="section-label">FOCUS</div>
+				<div class="section-tabs">
+					<button
+						class="section-tab"
+						class:active={selectedSection === 'all'}
+						onclick={() => setSection('all')}
+					>
+						All Moves <span class="tab-count">{allDueCards.length}</span>
+					</button>
+					<button
+						class="section-tab"
+						class:active={selectedSection === 'foundations'}
+						class:dimmed={sectionCounts.foundations === 0}
+						onclick={() => setSection('foundations')}
+					>
+						Foundation (1–5) <span class="tab-count">{sectionCounts.foundations}</span>
+					</button>
+					<button
+						class="section-tab"
+						class:active={selectedSection === 'mainlines'}
+						class:dimmed={sectionCounts.mainlines === 0}
+						onclick={() => setSection('mainlines')}
+					>
+						Mainlines (6–15) <span class="tab-count">{sectionCounts.mainlines}</span>
+					</button>
+					<button
+						class="section-tab"
+						class:active={selectedSection === 'deep'}
+						class:dimmed={sectionCounts.deep === 0}
+						onclick={() => setSection('deep')}
+					>
+						Deep Lines (16+) <span class="tab-count">{sectionCounts.deep}</span>
+					</button>
+				</div>
+			</div>
+		{/if}
+
 		<!-- Progress bar -->
-		{#if phase !== 'complete' && allDueCards.length > 0}
+		{#if phase !== 'complete' && filteredCards.length > 0}
 			<div class="progress-section">
 				<div class="progress-label">
-					Card {Math.min(currentCardIdx + 1, allDueCards.length)} of {allDueCards.length}
+					Card {Math.min(currentCardIdx + 1, filteredCards.length)} of {filteredCards.length}
 				</div>
 				<div class="progress-bar">
 					<div class="progress-fill" style="width: {progress * 100}%"></div>
@@ -635,6 +723,12 @@
 				<p class="empty-hint">No cards due right now. Come back later or build more repertoire.</p>
 				<a href="/build" class="btn btn--primary">Build Mode</a>
 				<a href="/explorer" class="btn btn--secondary">Explorer</a>
+			</div>
+		{:else if filteredCards.length === 0}
+			<!-- Due cards exist but none match the selected section -->
+			<div class="empty-state">
+				<p class="empty-title">No cards in this range</p>
+				<p class="empty-hint">Try a different section, or select "All" to drill everything.</p>
 			</div>
 		{:else if phase === 'complete'}
 			<!-- Session complete screen -->
@@ -821,6 +915,58 @@
 		display: flex;
 		flex-direction: column;
 		gap: 1rem;
+	}
+
+	/* ── Section filter tabs ─────────────────────────────────────────────────── */
+
+	.section-filter {
+		display: flex;
+		flex-direction: column;
+		gap: 0.4rem;
+	}
+
+	.section-tabs {
+		display: flex;
+		gap: 0.35rem;
+	}
+
+	.section-tab {
+		flex: 1;
+		padding: 0.35rem 0.25rem;
+		border-radius: 4px;
+		border: 1px solid #0f3460;
+		background: #1a1a2e;
+		color: #888;
+		font-size: 0.7rem;
+		font-weight: 600;
+		cursor: pointer;
+		transition: all 0.15s;
+		text-align: center;
+	}
+
+	.section-tab:hover {
+		border-color: #4a90d9;
+		color: #bbb;
+	}
+
+	.section-tab.active {
+		background: #0f3460;
+		border-color: #4a90d9;
+		color: #e0e0e0;
+	}
+
+	.section-tab.dimmed {
+		opacity: 0.45;
+	}
+
+	.section-tab.dimmed:hover {
+		opacity: 0.7;
+	}
+
+	.tab-count {
+		font-weight: 400;
+		opacity: 0.6;
+		font-size: 0.65rem;
 	}
 
 	/* ── Board overlays ──────────────────────────────────────────────────────── */

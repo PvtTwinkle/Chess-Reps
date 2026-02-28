@@ -30,6 +30,12 @@ Docker images are tagged per version. To stay on stable releases, pin your
 
 ### Fixed
 
+- **PGN import no longer creates orphaned drill cards** — when a conflict was
+  resolved by replacing a move, the old move's downstream subtree (children and
+  their SR cards) was left behind because only the parent's `san`/`toFen` was
+  updated. Now the old subtree is deleted before the replacement, and the delete
+  endpoint also sweeps for any orphaned SR cards as a defense-in-depth measure.
+
 - **ImportPgnModal lint cleanup** — replaced `Map` with `SvelteMap` for proper Svelte 5
   reactivity, added missing `{#each}` keys, removed dead reactivity hack
 
@@ -56,6 +62,10 @@ Docker images are tagged per version. To stay on stable releases, pin your
   - `src/lib/components/build/ImportPgnModal.svelte` — multi-step modal UI
 
 ### Changed
+
+- **Drill depth tabs renamed** — tab labels changed from "All / 1–5 / 6–15 / 16+"
+  to "All Moves / Foundation (1–5) / Mainlines (6–15) / Deep Lines (16+)" for
+  clearer intent at a glance
 
 - **Refactored RepertoireSelector** — split the 770-line component into two
   single-purpose files with no behavior or UI changes:

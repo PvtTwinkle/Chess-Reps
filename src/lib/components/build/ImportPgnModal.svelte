@@ -51,7 +51,7 @@
 
 	let preview = $state<ImportPreview | null>(null);
 	let currentConflictIdx = $state(0);
-	let resolvedConflicts = $state(new SvelteMap<string, string>());
+	let resolvedConflicts = new SvelteMap<string, string>();
 
 	// ── Result state ─────────────────────────────────────────────────────────
 
@@ -113,7 +113,7 @@
 		parseError = '';
 		preview = null;
 		currentConflictIdx = 0;
-		resolvedConflicts = new SvelteMap();
+		resolvedConflicts.clear();
 		result = null;
 		importError = '';
 	}
@@ -165,7 +165,7 @@
 
 			preview = await res.json();
 			currentConflictIdx = 0;
-			resolvedConflicts = new SvelteMap();
+			resolvedConflicts.clear();
 
 			// If no conflicts, go straight to preview summary
 			step = 'preview';
