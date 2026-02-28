@@ -1,6 +1,6 @@
 // POST /api/drill/grade — apply a rating to a drill card and update its SR state.
 //
-// The client sends the card ID and the user's rating (Again=1, Good=3, Easy=4).
+// The client sends the card ID and the user's rating (Forgot=1, Unsure=3, Easy=4).
 // We load the card, run the FSRS algorithm to compute the next due date and
 // updated memory state, then write the result back to user_repertoire_move.
 //
@@ -28,7 +28,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	// Validate inputs.
 	if (typeof cardId !== 'number') throw error(400, 'cardId must be a number');
 	if (![Rating.Again, Rating.Good, Rating.Easy].includes(rating)) {
-		throw error(400, 'rating must be 1 (Again), 3 (Good), or 4 (Easy)');
+		throw error(400, 'rating must be 1 (Forgot), 3 (Unsure), or 4 (Easy)');
 	}
 
 	// Load the card and verify it belongs to this user.

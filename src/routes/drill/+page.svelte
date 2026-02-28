@@ -261,7 +261,7 @@
 	// Note on the move that REACHES a given position (keyed by normalised toFen).
 	// Used to show the opponent's last-move annotation while the user is thinking.
 	const noteByPosition = $derived.by(() => {
-		const map = new Map<string, string>();
+		const map = new SvelteMap<string, string>();
 		for (const m of allMoves) {
 			if (m.notes) map.set(fenKey(m.toFen), m.notes);
 		}
@@ -271,7 +271,7 @@
 	// Note on a specific move (keyed by normalised fromFen + san).
 	// Used to show the card's own annotation after the user guesses.
 	const noteByMove = $derived.by(() => {
-		const map = new Map<string, string>();
+		const map = new SvelteMap<string, string>();
 		for (const m of allMoves) {
 			if (m.notes) map.set(fenKey(m.fromFen) + ':' + m.san, m.notes);
 		}
@@ -834,7 +834,7 @@
 			{:else}
 				<div class="hint-active">
 					<span>💡 Hint active — piece highlighted</span>
-					<span class="hint-penalty">Move will be graded Again</span>
+					<span class="hint-penalty">Move will be graded Forgot</span>
 				</div>
 			{/if}
 
@@ -891,7 +891,7 @@
 
 			{#if hintUsed}
 				<!-- Hint was used — will be graded Again when Next is clicked. -->
-				<p class="auto-advance-hint">Will be graded as Again</p>
+				<p class="auto-advance-hint">Will be graded as Forgot</p>
 				<button class="btn btn--primary next-btn" onclick={handleNext}>
 					Next <kbd>Space</kbd>
 				</button>
@@ -902,21 +902,21 @@
 				</button>
 			{:else}
 				<div class="section">
-					<div class="section-label">HOW WELL DID YOU KNOW IT?</div>
+					<div class="section-label">HOW CONFIDENT WAS YOUR RESPONSE?</div>
 					<div class="grade-buttons">
 						<button
-							class="grade-btn grade-btn--again"
+							class="grade-btn grade-btn--forgot"
 							onclick={() => submitGrade(1)}
 							disabled={grading}
 						>
-							Again
+							Forgot
 						</button>
 						<button
-							class="grade-btn grade-btn--good"
+							class="grade-btn grade-btn--unsure"
 							onclick={() => submitGrade(3)}
 							disabled={grading}
 						>
-							Good
+							Unsure
 						</button>
 						<button
 							class="grade-btn grade-btn--easy"
@@ -927,8 +927,8 @@
 						</button>
 					</div>
 					<div class="shortcut-hints">
-						<span class="shortcut"><kbd>1</kbd> Again</span>
-						<span class="shortcut"><kbd>2</kbd> Good</span>
+						<span class="shortcut"><kbd>1</kbd> Forgot</span>
+						<span class="shortcut"><kbd>2</kbd> Unsure</span>
 						<span class="shortcut"><kbd>3</kbd> Easy</span>
 					</div>
 				</div>
@@ -954,7 +954,7 @@
 				</div>
 			{/if}
 
-			<p class="auto-advance-hint">Will be graded as Again</p>
+			<p class="auto-advance-hint">Will be graded as Forgot</p>
 			<button class="btn btn--primary next-btn" onclick={handleNext}>
 				Next <kbd>Space</kbd>
 			</button>
@@ -1366,13 +1366,13 @@
 		filter: brightness(1.15);
 	}
 
-	.grade-btn--again {
+	.grade-btn--forgot {
 		background: rgba(220, 60, 60, 0.2);
 		border-color: rgba(220, 60, 60, 0.5);
 		color: #e06060;
 	}
 
-	.grade-btn--good {
+	.grade-btn--unsure {
 		background: rgba(60, 140, 220, 0.2);
 		border-color: rgba(60, 140, 220, 0.5);
 		color: #60aaee;

@@ -15,6 +15,10 @@ Docker images are tagged per version. To stay on stable releases, pin your
 
 ### Changed
 
+- **Drill mode: confidence-based grading labels** — replaced FSRS terminology
+  (Again/Good/Easy) with friendlier labels (Forgot/Unsure/Easy). Section header
+  now reads "How confident was your response?" to better guide self-assessment.
+
 - **Drill mode: show move annotations** — during the waiting phase, the sidebar
   displays the note on the opponent's last move (the move that reached the current
   position). After guessing (correct or incorrect), it swaps to show the note on
