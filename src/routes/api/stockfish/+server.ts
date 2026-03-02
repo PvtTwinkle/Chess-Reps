@@ -47,13 +47,19 @@ export interface Candidate {
 export const POST: RequestHandler = async ({ request, locals }) => {
 	if (!locals.user) throw error(401, 'Not authenticated');
 
-	let body: { fen?: string; depth?: number; numMoves?: number };
+	let body: { fen?: string; depth?: number; numMoves?: number; mode?: string };
 	try {
-		body = (await request.json()) as { fen?: string; depth?: number; numMoves?: number };
+		body = (await request.json()) as typeof body;
 	} catch {
 		throw error(400, 'Invalid JSON body');
 	}
 	const { fen, numMoves: rawNumMoves = DEFAULT_ENGINE_MOVES } = body;
+
+	// mode controls which sources to query:
+	//   'book'   — only book moves (instant, no Stockfish call)
+	//   'engine' — only engine moves (no book_move query)
+	//   'both'   — current behavior (default, backwards compatible)
+	const mode = body.mode ?? 'both';
 
 	// Load the user's stored preferences for depth and timeout.
 	const settings = db
@@ -77,13 +83,17 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 	// ── 1. Book lookup ────────────────────────────────────────────────────────
 	// Find all known opening moves from this exact position.
-	const bookMoves = db.select().from(bookMove).where(eq(bookMove.fromFen, fen)).all();
+	// Skipped when mode is 'engine' (caller only wants Stockfish results).
+	const bookMoves =
+		mode !== 'engine' ? db.select().from(bookMove).where(eq(bookMove.fromFen, fen)).all() : [];
 
 	// ── 2. Stockfish analysis ─────────────────────────────────────────────────
 	// Request exactly numMoves PVs — the engine section is independent of the
 	// book section, so we only need the top N engine candidates.
-	const engineResults = await getTopMoves(fen, depth, numMoves, timeoutSec * 1000);
-	const engineAvailable = engineResults.length > 0;
+	// Skipped when mode is 'book' (caller only wants opening book results).
+	const engineResults =
+		mode !== 'book' ? await getTopMoves(fen, depth, numMoves, timeoutSec * 1000) : [];
+	const engineAvailable = mode !== 'book' ? engineResults.length > 0 : false;
 
 	// Stockfish scores are from the side-to-move's perspective. Multiply by this
 	// to convert them to white's perspective for display.
@@ -93,6 +103,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	// ── 3. Look up ECO opening names for positions reached by book moves ──────
 	// Each book move has a toFen — the position after the move is played. We batch
 	// query eco_opening to find a name for each resulting position in one round-trip.
+	// Skipped when there are no book moves (engine-only mode or no book data).
 	const toFens = bookMoves.map((bm) => bm.toFen).filter(Boolean) as string[];
 	const openingRows =
 		toFens.length > 0

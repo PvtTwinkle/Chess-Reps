@@ -1,19 +1,23 @@
 <!--
 	CandidateMoves — sidebar panel for Build Mode.
 
-	Shows suggested moves at the current board position, drawn from two sources:
-	  • The shared opening book (shown with the ECO opening name if known)
-	  • Stockfish engine analysis (shown with an evaluation score only)
+	Shows suggested moves at the current board position, drawn from three
+	independent sources — each with its own loading state so results appear
+	as soon as they're available:
 
-	Two tabs switch between Book moves and Engine suggestions. Book tab is shown
-	first; if there are no book moves the Engine tab is activated automatically.
+	  • Book — shared opening book moves (instant, local DB)
+	  • Masters — Lichess Masters Database popularity & W/D/L stats (~200-500ms)
+	  • Engine — Stockfish top-N analysis (~2-10s)
+
+	Three tabs switch between the sources. Book tab is shown first; if there
+	are no book moves the Masters tab is activated automatically, then Engine.
 
 	When the user clicks a candidate, onSelectMove is called with the SAN of
 	that move. The parent (build page) handles playing it on the board through
 	the same handleMove path as a drag-and-drop move — so conflict detection,
 	auto-save, and undo history all work identically.
 
-	The evaluation score is always shown from white's perspective:
+	The evaluation score (Engine tab) is always shown from white's perspective:
 	  +0.45 = white is 0.45 pawns better
 	  -1.20 = black is 1.20 pawns better
 	  #3    = white mates in 3
@@ -31,6 +35,16 @@
 		openingName: string | null;
 	}
 
+	interface MastersMove {
+		san: string;
+		uci: string;
+		white: number;
+		draws: number;
+		black: number;
+		totalGames: number;
+		averageRating: number;
+	}
+
 	interface Props {
 		currentFen: string;
 		onSelectMove: (san: string) => void;
@@ -40,70 +54,191 @@
 
 	let { currentFen, onSelectMove, disabled = false, playerColor = 'WHITE' }: Props = $props();
 
-	let candidates = $state<Candidate[]>([]);
-	let loading = $state(false);
+	// ── Book state ────────────────────────────────────────────────────────────
+	let bookCandidates = $state<Candidate[]>([]);
+	let bookLoading = $state(false);
+	let bookError = $state(false);
+
+	// ── Engine state ──────────────────────────────────────────────────────────
+	let engineCandidates = $state<Candidate[]>([]);
+	let engineLoading = $state(false);
+	let engineError = $state(false);
 	let engineAvailable = $state(true);
-	let fetchError = $state(false);
 
-	// Active tab — switches between book and engine move lists.
-	let activeTab = $state<'book' | 'engine'>('book');
+	// ── Masters state ─────────────────────────────────────────────────────────
+	let mastersMoves = $state<MastersMove[]>([]);
+	let mastersLoading = $state(false);
+	let mastersError = $state(false);
+	let mastersRateLimited = $state(false);
+	// Bumps on each rate limit to force the $effect to re-run after a cooldown.
+	let mastersRetryTrigger = $state(0);
+	let mastersRetryCount = $state(0);
+	const MASTERS_MAX_RETRIES = 3;
 
-	// Split the flat candidate list into the two source buckets.
-	const bookCandidates = $derived(candidates.filter((c) => c.isBook));
-	const engineCandidates = $derived(candidates.filter((c) => !c.isBook));
+	// ── Tab state ─────────────────────────────────────────────────────────────
+	let activeTab = $state<'book' | 'engine' | 'masters'>('book');
+	// Prevents auto-switch from overriding a deliberate user tab click.
+	let userClickedTab = $state(false);
 
-	// Fetch candidates whenever the current position changes.
-	// The AbortController ensures that if the position changes before the
-	// previous request finishes, the stale response is discarded.
+	function selectTab(tab: 'book' | 'engine' | 'masters') {
+		activeTab = tab;
+		userClickedTab = true;
+	}
+
+	// ── Book fetch — near-instant (local DB query) ────────────────────────────
 	$effect(() => {
 		const fen = currentFen;
 		const controller = new AbortController();
 
-		loading = true;
-		fetchError = false;
-		candidates = [];
-		// Reset to book tab on each new position; we'll switch to engine below
-		// if there turn out to be no book moves.
+		bookLoading = true;
+		bookError = false;
+		bookCandidates = [];
+		// Reset tab and user-click flag on every position change.
 		activeTab = 'book';
+		userClickedTab = false;
 
 		fetch('/api/stockfish', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ fen }),
+			body: JSON.stringify({ fen, mode: 'book' }),
 			signal: controller.signal
 		})
 			.then((res) => {
-				if (!res.ok) throw new Error('Analysis failed');
+				if (!res.ok) throw new Error('Book fetch failed');
 				return res.json();
 			})
 			.then((data) => {
-				candidates = data.candidates;
-				engineAvailable = data.engineAvailable;
-				// Auto-switch to the engine tab when this position has no book moves
-				// so the user immediately sees useful content.
-				const hasBook = (data.candidates as Candidate[]).some((c) => c.isBook);
-				if (!hasBook) activeTab = 'engine';
+				bookCandidates = (data.candidates as Candidate[]).filter((c) => c.isBook);
+				// Auto-switch to engine if no book moves and user hasn't clicked a tab.
+				// We don't auto-switch to masters because it's lazy-loaded (opt-in only)
+				// to avoid unnecessary API calls.
+				if (bookCandidates.length === 0 && !userClickedTab) {
+					activeTab = 'engine';
+				}
 			})
 			.catch((err) => {
-				// AbortError is expected when the position changes — not a real error.
-				if (err.name !== 'AbortError') {
-					fetchError = true;
-				}
+				if (err.name !== 'AbortError') bookError = true;
 			})
 			.finally(() => {
-				if (!controller.signal.aborted) {
-					loading = false;
-				}
+				if (!controller.signal.aborted) bookLoading = false;
 			});
 
-		// Cleanup: abort the in-flight request if the position changes before
-		// it completes, preventing stale results from clobbering new ones.
 		return () => {
 			controller.abort();
 		};
 	});
 
-	// Format an evaluation score for display from the player's perspective.
+	// ── Engine fetch — slow (~2-10s, Stockfish analysis) ──────────────────────
+	$effect(() => {
+		const fen = currentFen;
+		const controller = new AbortController();
+
+		engineLoading = true;
+		engineError = false;
+		engineCandidates = [];
+
+		fetch('/api/stockfish', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ fen, mode: 'engine' }),
+			signal: controller.signal
+		})
+			.then((res) => {
+				if (!res.ok) throw new Error('Engine fetch failed');
+				return res.json();
+			})
+			.then((data) => {
+				engineCandidates = (data.candidates as Candidate[]).filter((c) => !c.isBook);
+				engineAvailable = data.engineAvailable;
+			})
+			.catch((err) => {
+				if (err.name !== 'AbortError') engineError = true;
+			})
+			.finally(() => {
+				if (!controller.signal.aborted) engineLoading = false;
+			});
+
+		return () => {
+			controller.abort();
+		};
+	});
+
+	// ── Masters fetch — lazy, only when the Masters tab is active ─────────────
+	// This effect watches currentFen, activeTab, and mastersRetryTrigger. It
+	// only fetches when the user is viewing the Masters tab, avoiding unnecessary
+	// API calls while browsing on Book/Engine tabs. Responses are cached
+	// server-side in SQLite so repeated positions are served instantly.
+	//
+	// Includes a 1-second debounce for uncached positions to be respectful of
+	// the Lichess rate limit. On 429, shows a rate-limited message and
+	// automatically retries after 5 seconds.
+	$effect(() => {
+		const fen = currentFen;
+		const tab = activeTab;
+		// eslint-disable-next-line @typescript-eslint/no-unused-vars
+		const _retry = mastersRetryTrigger; // tracked so retries re-run this effect
+
+		// Not viewing Masters tab — reset state and do nothing.
+		if (tab !== 'masters') {
+			mastersMoves = [];
+			mastersLoading = false;
+			mastersError = false;
+			mastersRateLimited = false;
+			mastersRetryCount = 0;
+			return;
+		}
+
+		let cancelled = false;
+		let controller: AbortController | null = null;
+
+		mastersLoading = true;
+		mastersError = false;
+		mastersRateLimited = false;
+		mastersMoves = [];
+
+		const timer = setTimeout(() => {
+			if (cancelled) return;
+			controller = new AbortController();
+
+			fetch(`/api/lichess/masters?fen=${encodeURIComponent(fen)}`, {
+				signal: controller.signal
+			})
+				.then((res) => {
+					if (!res.ok) throw new Error('Masters fetch failed');
+					return res.json();
+				})
+				.then((data) => {
+					if (cancelled) return;
+					if (data.rateLimited) {
+						mastersRateLimited = true;
+						if (mastersRetryCount < MASTERS_MAX_RETRIES) {
+							mastersRetryCount++;
+							// Auto-retry after 5 seconds.
+							setTimeout(() => {
+								if (!cancelled) mastersRetryTrigger++;
+							}, 5000);
+						}
+					} else {
+						mastersMoves = data.moves ?? [];
+						mastersRetryCount = 0;
+					}
+				})
+				.catch((err) => {
+					if (err.name !== 'AbortError' && !cancelled) mastersError = true;
+				})
+				.finally(() => {
+					if (!cancelled) mastersLoading = false;
+				});
+		}, 1000);
+
+		return () => {
+			cancelled = true;
+			clearTimeout(timer);
+			controller?.abort();
+		};
+	});
+
+	// ── Eval formatting (Engine tab only) ─────────────────────────────────────
 	// cp and mate arrive from the server as White's perspective; we flip the
 	// sign for Black players so that positive always means "good for me".
 	function formatEval(cp: number | null, mate: number | null): string {
@@ -117,8 +252,6 @@
 		return (pawns >= 0 ? '+' : '') + pawns.toFixed(2);
 	}
 
-	// Returns a CSS class name based on the evaluation value from the player's perspective.
-	// Green = good for the player, red = bad for the player.
 	function evalColorClass(cp: number | null, mate: number | null): string {
 		if (mate !== null) {
 			const playerMate = playerColor === 'BLACK' ? -mate : mate;
@@ -131,10 +264,14 @@
 		return 'eval-equal';
 	}
 
-	// The subtitle shown below a book move — opening name takes priority over
-	// the curator annotation; show whichever is available.
+	// The subtitle shown below a book move — opening name takes priority.
 	function bookSubtitle(c: Candidate): string | null {
 		return c.openingName ?? c.annotation ?? null;
+	}
+
+	// Format game count with locale separators (e.g. 1,234).
+	function formatCount(n: number): string {
+		return n.toLocaleString();
 	}
 </script>
 
@@ -144,51 +281,52 @@
 		<button
 			class="tab"
 			class:active={activeTab === 'book'}
-			onclick={() => (activeTab = 'book')}
+			onclick={() => selectTab('book')}
 			type="button"
 		>
-			Book{#if !loading && bookCandidates.length > 0}&nbsp;({bookCandidates.length}){/if}
+			Book{#if !bookLoading && bookCandidates.length > 0}&nbsp;({bookCandidates.length}){/if}
+		</button>
+		<button
+			class="tab"
+			class:active={activeTab === 'masters'}
+			onclick={() => selectTab('masters')}
+			type="button"
+		>
+			Masters{#if !mastersLoading && mastersMoves.length > 0}&nbsp;({mastersMoves.length}){/if}
 		</button>
 		<button
 			class="tab"
 			class:active={activeTab === 'engine'}
-			onclick={() => (activeTab = 'engine')}
-			disabled={!engineAvailable}
+			onclick={() => selectTab('engine')}
+			disabled={!engineAvailable && !engineLoading}
 			type="button"
-			title={engineAvailable ? undefined : 'Stockfish engine is not available'}
+			title={!engineAvailable && !engineLoading ? 'Stockfish engine is not available' : undefined}
 		>
-			Engine{#if !loading && engineCandidates.length > 0}&nbsp;({engineCandidates.length}){/if}
+			Engine{#if !engineLoading && engineCandidates.length > 0}&nbsp;({engineCandidates.length}){/if}
 		</button>
 	</div>
 
-	<!-- Content area -->
-	{#if loading}
-		<div class="loading">Analysing…</div>
-	{:else if fetchError}
-		<p class="empty-hint">Could not load suggestions.</p>
-	{:else if activeTab === 'book'}
-		{#if bookCandidates.length === 0}
+	<!-- ── Book tab content ─────────────────────────────────────────────────── -->
+	{#if activeTab === 'book'}
+		{#if bookLoading}
+			<div class="loading">Loading book…</div>
+		{:else if bookError}
+			<p class="empty-hint">Could not load book moves.</p>
+		{:else if bookCandidates.length === 0}
 			<p class="empty-hint">No book moves at this position.</p>
 		{:else}
 			<div class="candidate-list">
 				{#each bookCandidates as c (c.uci)}
 					<button class="candidate-row" onclick={() => onSelectMove(c.san)} {disabled}>
 						<div class="candidate-main">
-							<!-- Move name -->
 							<span class="candidate-san">{c.san}</span>
-
-							<!-- Spacer pushes the eval to the right -->
 							<span class="spacer"></span>
-
-							<!-- Evaluation score -->
 							{#if c.evalMate !== null || c.evalCp !== null}
 								<span class="eval {evalColorClass(c.evalCp, c.evalMate)}">
 									{formatEval(c.evalCp, c.evalMate)}
 								</span>
 							{/if}
 						</div>
-
-						<!-- Opening name or annotation — shown below the move name -->
 						{#if bookSubtitle(c)}
 							<div class="opening-name">{bookSubtitle(c)}</div>
 						{/if}
@@ -196,6 +334,56 @@
 				{/each}
 			</div>
 		{/if}
+
+		<!-- ── Masters tab content ───────────────────────────────────────────── -->
+	{:else if activeTab === 'masters'}
+		{#if mastersLoading}
+			<div class="loading">Loading masters…</div>
+		{:else if mastersRateLimited && mastersRetryCount < MASTERS_MAX_RETRIES}
+			<p class="rate-limit-hint">
+				Rate limited by Lichess. Retrying ({mastersRetryCount}/{MASTERS_MAX_RETRIES})…
+			</p>
+		{:else if mastersRateLimited}
+			<p class="rate-limit-hint">Rate limited by Lichess. Try again later.</p>
+		{:else if mastersError}
+			<p class="empty-hint">Masters database unavailable.</p>
+		{:else if mastersMoves.length === 0}
+			<p class="empty-hint">No master games from this position.</p>
+		{:else}
+			<div class="candidate-list">
+				{#each mastersMoves as m (m.uci)}
+					{@const winPct = m.totalGames > 0 ? (m.white / m.totalGames) * 100 : 0}
+					{@const drawPct = m.totalGames > 0 ? (m.draws / m.totalGames) * 100 : 0}
+					{@const lossPct = m.totalGames > 0 ? (m.black / m.totalGames) * 100 : 0}
+					<button class="candidate-row" onclick={() => onSelectMove(m.san)} {disabled}>
+						<div class="candidate-main">
+							<span class="candidate-san">{m.san}</span>
+							<span class="spacer"></span>
+							<span class="masters-stats">
+								<span class="masters-rating">{m.averageRating}</span>
+								<span class="masters-games">{formatCount(m.totalGames)}</span>
+							</span>
+						</div>
+						<div class="wdl-bar">
+							<div class="wdl-white" style="width: {winPct}%"></div>
+							<div class="wdl-draw" style="width: {drawPct}%"></div>
+							<div class="wdl-black" style="width: {lossPct}%"></div>
+						</div>
+						<div class="wdl-labels">
+							<span class="wdl-label wdl-label-white">{winPct.toFixed(0)}%</span>
+							<span class="wdl-label wdl-label-draw">{drawPct.toFixed(0)}%</span>
+							<span class="wdl-label wdl-label-black">{lossPct.toFixed(0)}%</span>
+						</div>
+					</button>
+				{/each}
+			</div>
+		{/if}
+
+		<!-- ── Engine tab content ────────────────────────────────────────────── -->
+	{:else if engineLoading}
+		<div class="loading">Analysing…</div>
+	{:else if engineError}
+		<p class="empty-hint">Could not load engine suggestions.</p>
 	{:else if engineCandidates.length === 0}
 		<p class="empty-hint">
 			{engineAvailable ? 'No engine suggestions available.' : 'Stockfish engine is not available.'}
@@ -279,6 +467,13 @@
 	.empty-hint {
 		font-size: 0.82rem;
 		color: #404050;
+		font-style: italic;
+		margin: 0;
+	}
+
+	.rate-limit-hint {
+		font-size: 0.82rem;
+		color: #c09050;
 		font-style: italic;
 		margin: 0;
 	}
@@ -369,5 +564,69 @@
 		/* Allow long opening names (e.g. "Sicilian Defense, Najdorf Variation,
 		   English Attack") to wrap rather than overflow the button */
 		white-space: normal;
+	}
+
+	/* ── Masters tab — stats and W/D/L bar ──────────────────────────────────── */
+
+	.masters-stats {
+		display: flex;
+		gap: 0.5rem;
+		align-items: center;
+		flex-shrink: 0;
+		font-size: 0.75rem;
+		font-variant-numeric: tabular-nums;
+	}
+
+	.masters-rating {
+		color: #8090a0;
+	}
+
+	.masters-games {
+		color: #506070;
+	}
+
+	/* Horizontal W/D/L bar — green (white wins), grey (draws), red (black wins) */
+	.wdl-bar {
+		display: flex;
+		height: 4px;
+		border-radius: 2px;
+		overflow: hidden;
+		width: 100%;
+	}
+
+	.wdl-white {
+		background: #a0c080;
+	}
+
+	.wdl-draw {
+		background: #707080;
+	}
+
+	.wdl-black {
+		background: #c07070;
+	}
+
+	/* Percentage labels below the bar */
+	.wdl-labels {
+		display: flex;
+		justify-content: space-between;
+		font-size: 0.65rem;
+		font-variant-numeric: tabular-nums;
+	}
+
+	.wdl-label {
+		line-height: 1;
+	}
+
+	.wdl-label-white {
+		color: #a0c080;
+	}
+
+	.wdl-label-draw {
+		color: #707080;
+	}
+
+	.wdl-label-black {
+		color: #c07070;
 	}
 </style>

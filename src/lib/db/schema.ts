@@ -60,6 +60,21 @@ export const ecoOpening = sqliteTable('eco_opening', {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// CACHE TABLES
+// Locally cached data from external APIs. Populated lazily at runtime.
+// Not user-scoped — master game stats are the same for everyone.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Cached responses from the Lichess Masters Opening Explorer API.
+// Keyed by FEN so each position is fetched at most once. Master game stats
+// don't change meaningfully over time, so entries never expire.
+export const mastersCache = sqliteTable('masters_cache', {
+	fen: text('fen').primaryKey(),
+	responseJson: text('response_json').notNull(), // JSON string of MastersResponse
+	fetchedAt: integer('fetched_at').notNull() // unix timestamp (seconds)
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // USER TABLES
 // Personal data. Lives only on the user's own instance. Never shared.
 // Every table includes user_id even though only one user exists today —

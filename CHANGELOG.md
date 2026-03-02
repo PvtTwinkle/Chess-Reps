@@ -15,6 +15,25 @@ Docker images are tagged per version. To stay on stable releases, pin your
 
 ### Added
 
+- **Lichess Masters Database tab** — Build Mode's candidate moves panel now has a
+  third tab showing move popularity and win/draw/loss stats from master-level games:
+  - Data sourced from the Lichess Opening Explorer Masters API (2.2M+ master games)
+  - Lazy-loaded: only fetches when the Masters tab is clicked (no API calls while
+    browsing Book or Engine tabs)
+  - Permanent SQLite cache: each position is fetched from Lichess at most once —
+    all subsequent requests are served locally with zero latency
+  - W/D/L horizontal bar per move showing white win %, draw %, and black win %
+  - Total games count and per-move game counts displayed
+  - Rate limit handling: shows an amber "Retrying (1/3)…" message on HTTP 429,
+    auto-retries up to 3 times with 5-second delays, then shows "Try again later"
+  - Graceful degradation: if the API is unreachable, returns empty results without
+    affecting Book or Engine tabs
+  - `GET /api/lichess/masters?fen=<fen>` — server-side proxy with cache
+  - `drizzle/migrations/0010_masters_cache.sql` — `masters_cache` table (FEN as PK)
+  - Book and Engine tabs now fetch independently with separate loading states:
+    Book fetches use `mode=book` (instant, no Stockfish call), Engine fetches use
+    `mode=engine` (no book query overhead)
+
 - **Settings page** — full settings page at `/settings` with four sections:
   - **Board Theme** — choose from 5 board color themes (brown, blue, green,
     purple, grey) with a live preview. Theme applies instantly across all pages.
