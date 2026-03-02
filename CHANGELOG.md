@@ -13,6 +13,25 @@ Docker images are tagged per version. To stay on stable releases, pin your
 
 ## [Unreleased]
 
+### Added
+
+- **Progress dashboard** — the dashboard now shows 8 widgets for the active
+  repertoire:
+  - **Due Now** — count of in-scope cards due for review, links to Drill mode
+  - **Mastered** — count of cards in Review state vs total, with percentage
+  - **Streak** — consecutive calendar days with completed drill sessions
+    (grace: today without a session doesn't break the streak)
+  - **Next Review** — relative time until the soonest future due card
+  - **Card State Breakdown** — horizontal stacked bar showing New, Learning,
+    Review, and Relearning counts with color legend
+  - **Accuracy Trend** — last 14 completed sessions as colored blocks
+    (green >80%, yellow 60–80%, red <60%)
+  - **Gap Finder** — existing widget, now part of the unified grid layout
+  - **Trouble Spots** — top 5 cards with 3+ lapses, showing the move and lapse
+    count
+  - All card stats are scope-filtered (lead-in moves excluded)
+  - Pure CSS visualizations, no charting library
+
 ### Changed
 
 - **Drill mode: confidence-based grading labels** — replaced FSRS terminology
