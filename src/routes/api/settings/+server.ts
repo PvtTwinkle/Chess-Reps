@@ -1,6 +1,6 @@
 // PATCH /api/settings — update one or more user settings fields.
 //
-// Currently supports: { soundEnabled: boolean }
+// Supports: { soundEnabled: boolean, stockfishDepth: number, stockfishTimeout: number, boardTheme: string }
 // Returns the updated settings row.
 //
 // The user must be authenticated; settings are scoped to locals.user.id.
@@ -28,6 +28,22 @@ export const PATCH: RequestHandler = async ({ locals, request }) => {
 
 	if (typeof body.soundEnabled === 'boolean') {
 		updates.soundEnabled = body.soundEnabled;
+	}
+
+	// Stockfish analysis depth: integer clamped to 15–30.
+	if (typeof body.stockfishDepth === 'number') {
+		updates.stockfishDepth = Math.max(15, Math.min(30, Math.round(body.stockfishDepth)));
+	}
+
+	// Stockfish analysis timeout: integer clamped to 3–30 seconds.
+	if (typeof body.stockfishTimeout === 'number') {
+		updates.stockfishTimeout = Math.max(3, Math.min(30, Math.round(body.stockfishTimeout)));
+	}
+
+	// Board theme: must be one of the known theme names.
+	const VALID_THEMES = ['brown', 'blue', 'green', 'purple', 'grey'];
+	if (typeof body.boardTheme === 'string' && VALID_THEMES.includes(body.boardTheme)) {
+		updates.boardTheme = body.boardTheme;
 	}
 
 	if (Object.keys(updates).length === 0) {

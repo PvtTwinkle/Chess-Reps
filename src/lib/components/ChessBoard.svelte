@@ -8,12 +8,12 @@
 	import type { Key } from '@lichess-org/chessground/types';
 	import type { DrawShape } from '@lichess-org/chessground/draw';
 
-	// These three CSS imports are all you need for a working board.
-	// All piece images (SVGs) and board square colours are base64-encoded
-	// directly inside the CSS files — no external image files required.
+	// Chessground base CSS (layout + positioning) is always needed.
+	// Board square colors come from our generated theme CSS (class-scoped),
+	// and the cburnett piece set is the default (piece set selection deferred).
 	import '@lichess-org/chessground/assets/chessground.base.css';
-	import '@lichess-org/chessground/assets/chessground.brown.css'; // classic brown/cream squares
-	import '@lichess-org/chessground/assets/chessground.cburnett.css'; // cburnett piece set
+	import '$lib/themes/board-themes.css';
+	import '@lichess-org/chessground/assets/chessground.cburnett.css';
 
 	// ---------------------------------------------------------------------------
 	// Props
@@ -24,6 +24,8 @@
 		fen?: string;
 		/** Which colour appears at the bottom of the board. */
 		orientation?: 'white' | 'black';
+		/** Board color theme name (matches a .board-theme-{name} CSS class). */
+		boardTheme?: string;
 		/**
 		 * When true, the player whose turn it is can drag/click their pieces.
 		 * Set to false during opponent auto-play in drill mode.
@@ -53,6 +55,7 @@
 	let {
 		fen = STARTING_FEN,
 		orientation = 'white',
+		boardTheme = 'brown',
 		interactive = true,
 		lastMove = undefined,
 		onMove = undefined,
@@ -244,7 +247,7 @@
 	The width is controlled by the parent — set a width on the parent element
 	and the board will fill it.  Height is kept equal to width via aspect-ratio.
 -->
-<div bind:this={boardEl} class="board-wrap"></div>
+<div bind:this={boardEl} class="board-wrap board-theme-{boardTheme}"></div>
 
 <style>
 	/*

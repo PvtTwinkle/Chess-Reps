@@ -11,7 +11,7 @@
 import type { PageServerLoad, Actions } from './$types';
 import { fail, redirect } from '@sveltejs/kit';
 import { db } from '$lib/db';
-import { repertoire, userMove, reviewedGame, userSettings } from '$lib/db/schema';
+import { repertoire, userMove, reviewedGame } from '$lib/db/schema';
 import { eq, and, desc } from 'drizzle-orm';
 import { parsePgn, analyzeGame } from '$lib/pgn';
 
@@ -47,13 +47,10 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 		.limit(20)
 		.all();
 
-	const settings = db.select().from(userSettings).where(eq(userSettings.userId, userId)).get();
-
 	return {
 		repertoire: activeRep,
 		moves,
-		recentGames,
-		settings: settings ?? null
+		recentGames
 	};
 };
 

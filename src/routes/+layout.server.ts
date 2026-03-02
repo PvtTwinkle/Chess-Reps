@@ -3,24 +3,27 @@
 // Runs on every request before the layout renders. Returns data that is
 // available to +layout.svelte and (via inheritance) to every child page.
 //
-// We use this to pass three things into every page:
+// We use this to pass four things into every page:
 //   user              — who is logged in (or null on /login)
 //   repertoires       — the full list of this user's repertoires
 //   activeRepertoireId — which repertoire is currently selected (from cookie)
+//   settings          — user preferences (board theme, sound, engine depth, etc.)
 //
 // The repertoires list powers the RepertoireSelector in the nav bar.
 // The activeRepertoireId will be used by build/drill/explorer to scope data.
+// Settings are loaded once here instead of per-page so every ChessBoard
+// consumer can access the board theme without duplicating the query.
 
 import type { LayoutServerLoad } from './$types';
 import { db } from '$lib/db';
-import { repertoire } from '$lib/db/schema';
+import { repertoire, userSettings } from '$lib/db/schema';
 import { eq } from 'drizzle-orm';
 
 export const load: LayoutServerLoad = ({ locals, cookies }) => {
 	// When the user is not logged in (e.g. the /login page), return early
 	// with empty values so the nav doesn't try to render repertoire data.
 	if (!locals.user) {
-		return { user: null, repertoires: [], activeRepertoireId: null };
+		return { user: null, repertoires: [], activeRepertoireId: null, settings: null };
 	}
 
 	// Fetch all repertoires for this user, oldest first.
@@ -52,9 +55,19 @@ export const load: LayoutServerLoad = ({ locals, cookies }) => {
 		activeRepertoireId = repertoires[0].id;
 	}
 
+	// User settings (board theme, sound, engine depth, etc.).
+	// Returns null if the user has never changed any setting — consumers
+	// fall back to defaults in that case.
+	const settings = db
+		.select()
+		.from(userSettings)
+		.where(eq(userSettings.userId, locals.user.id))
+		.get();
+
 	return {
 		user: locals.user,
 		repertoires,
-		activeRepertoireId
+		activeRepertoireId,
+		settings: settings ?? null
 	};
 };

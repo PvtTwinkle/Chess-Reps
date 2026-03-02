@@ -40,7 +40,7 @@
 	import { invalidateAll } from '$app/navigation';
 	import { onMount, untrack } from 'svelte';
 	import type { PageData } from './$types';
-	import { initSounds } from '$lib/sounds';
+	import { initSounds, setSoundEnabled } from '$lib/sounds';
 	import { downloadTextFile, copyToClipboard } from '$lib/download';
 
 	let importOpen = $state(false);
@@ -85,6 +85,12 @@
 	});
 
 	let { data }: { data: PageData } = $props();
+
+	// Keep the sounds module in sync with the user's saved preference.
+	// This reacts to changes from the settings page (via invalidateAll).
+	$effect(() => {
+		setSoundEnabled(data.settings?.soundEnabled ?? true);
+	});
 
 	const s = createBuildState({
 		getRepertoireId: () => data.repertoire.id,
@@ -141,6 +147,7 @@
 			<ChessBoard
 				fen={s.currentFen}
 				{orientation}
+				boardTheme={data.settings?.boardTheme ?? 'blue'}
 				interactive={!s.saving}
 				lastMove={s.lastMove}
 				onMove={s.handleMove}

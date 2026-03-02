@@ -101,6 +101,7 @@ export const userSettings = sqliteTable('user_settings', {
 		.notNull()
 		.references(() => user.id),
 	stockfishDepth: integer('stockfish_depth').notNull().default(15), // higher = stronger but slower
+	stockfishTimeout: integer('stockfish_timeout').notNull().default(10), // analysis timeout in seconds (3–30)
 	boardTheme: text('board_theme').notNull().default('blue'), // e.g. "blue", "green", "brown"
 	pieceSet: text('piece_set').notNull().default('cburnett'), // e.g. "cburnett", "merida", "alpha"
 	soundEnabled: integer('sound_enabled', { mode: 'boolean' }).notNull().default(true),

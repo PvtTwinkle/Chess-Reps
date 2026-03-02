@@ -64,6 +64,13 @@
 			"when": 1772280000000,
 			"tag": "0008_add_start_fen",
 			"breakpoints": true
+		},
+		{
+			"idx": 9,
+			"version": "6",
+			"when": 1772366400000,
+			"tag": "0009_add_stockfish_timeout",
+			"breakpoints": true
 		}
 	]
 }

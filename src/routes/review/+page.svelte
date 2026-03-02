@@ -105,6 +105,11 @@
 
 	onMount(() => {
 		initSounds();
+	});
+
+	// Keep the sounds module in sync with the user's saved preference.
+	// This reacts to changes from the settings page (via invalidateAll).
+	$effect(() => {
 		setSoundEnabled(data.settings?.soundEnabled ?? true);
 	});
 
@@ -428,7 +433,7 @@
 					const res = await fetch('/api/stockfish', {
 						method: 'POST',
 						headers: { 'Content-Type': 'application/json' },
-						body: JSON.stringify({ fen, depth: 15, numMoves: 1 })
+						body: JSON.stringify({ fen, numMoves: 1 })
 					});
 					if (!res.ok) return null;
 					const data = (await res.json()) as { candidates?: { evalCp: number | null }[] };
@@ -650,7 +655,7 @@
 			const res = await fetch('/api/stockfish', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ fen, depth: 15, numMoves })
+				body: JSON.stringify({ fen, numMoves })
 			});
 			if (res.ok) {
 				const result = (await res.json()) as {
@@ -722,7 +727,7 @@
 			const res = await fetch('/api/stockfish', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ fen: toFen, depth: 15, numMoves: 1 })
+				body: JSON.stringify({ fen: toFen, numMoves: 1 })
 			});
 			if (res.ok) {
 				const result = (await res.json()) as { candidates?: { evalCp: number | null }[] };
@@ -755,7 +760,7 @@
 				const res = await fetch('/api/stockfish', {
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ fen: toFen, depth: 15, numMoves: 1 })
+					body: JSON.stringify({ fen: toFen, numMoves: 1 })
 				});
 				if (res.ok) {
 					const result = (await res.json()) as { candidates?: { evalCp: number | null }[] };
@@ -1041,6 +1046,7 @@
 				<ChessBoard
 					fen={currentFen}
 					{orientation}
+					boardTheme={data.settings?.boardTheme ?? 'blue'}
 					interactive={false}
 					{lastMove}
 					autoShapes={boardShapes}

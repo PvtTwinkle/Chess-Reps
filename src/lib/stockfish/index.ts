@@ -19,9 +19,8 @@ import * as net from 'net';
 const STOCKFISH_HOST = process.env.STOCKFISH_HOST ?? 'stockfish';
 const STOCKFISH_PORT = parseInt(process.env.STOCKFISH_PORT ?? '3001', 10);
 
-// How long we wait before giving up on an analysis request.
-// Depth 15 typically finishes in 1–3 seconds; 10 s is a generous safety net.
-const ANALYSIS_TIMEOUT_MS = 10_000;
+// Default timeout when no explicit value is provided (10 seconds).
+const DEFAULT_TIMEOUT_MS = 10_000;
 
 export interface StockfishMove {
 	// The move in UCI notation: from-square + to-square + optional promotion piece.
@@ -41,15 +40,17 @@ export interface StockfishMove {
 
 // Asks Stockfish to analyse a position and return its top candidate moves.
 //
-// fen      — position to analyse, in FEN notation
-// depth    — search depth in half-moves (higher = stronger but slower)
-// numMoves — how many candidates to return (controls the MultiPV setting)
+// fen       — position to analyse, in FEN notation
+// depth     — search depth in half-moves (higher = stronger but slower)
+// numMoves  — how many candidates to return (controls the MultiPV setting)
+// timeoutMs — how long to wait before returning partial results (user-configurable)
 //
 // Returns [] without throwing if the engine is unavailable.
 export async function getTopMoves(
 	fen: string,
 	depth: number,
-	numMoves: number
+	numMoves: number,
+	timeoutMs: number = DEFAULT_TIMEOUT_MS
 ): Promise<StockfishMove[]> {
 	return new Promise((resolve) => {
 		// bestResults maps MultiPV index (1-based) → latest result for that PV.
@@ -69,7 +70,7 @@ export async function getTopMoves(
 
 		// Safety net: if analysis takes too long, return partial results rather
 		// than hanging the request indefinitely.
-		const timer = setTimeout(finish, ANALYSIS_TIMEOUT_MS);
+		const timer = setTimeout(finish, timeoutMs);
 
 		socket.on('connect', () => {
 			// UCI handshake. "uci" puts Stockfish in UCI mode. We set MultiPV before

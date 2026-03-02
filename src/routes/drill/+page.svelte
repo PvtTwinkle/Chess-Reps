@@ -646,6 +646,7 @@
 				<ChessBoard
 					fen={currentFen}
 					{orientation}
+					boardTheme={data.settings?.boardTheme ?? 'blue'}
 					interactive={phase === 'waiting'}
 					{lastMove}
 					autoShapes={hintShapes}

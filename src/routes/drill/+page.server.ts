@@ -1,8 +1,8 @@
 // Drill mode page server load function.
 //
 // Loads the active repertoire's full move tree (for path reconstruction) and
-// all SR cards that are currently due (due <= now). Also loads user settings
-// so the client knows whether sound is enabled.
+// all SR cards that are currently due (due <= now). User settings (sound,
+// board theme, etc.) come from the layout load — no need to query them here.
 //
 // Cards for "lead-in" moves (before the repertoire's start position) are
 // filtered out so the user only drills positions within scope.
@@ -10,7 +10,7 @@
 import type { PageServerLoad } from './$types';
 import { redirect } from '@sveltejs/kit';
 import { db } from '$lib/db';
-import { userMove, userRepertoireMove, userSettings } from '$lib/db/schema';
+import { userMove, userRepertoireMove } from '$lib/db/schema';
 import { eq, and, lte } from 'drizzle-orm';
 import { fenKey } from '$lib/gaps';
 import { getEffectiveStartFens, buildInScopeFens } from '$lib/repertoire';
@@ -61,13 +61,9 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 	const inScope = buildInScopeFens(startFens, moves);
 	dueCards = dueCards.filter((c) => inScope.has(fenKey(c.fromFen)));
 
-	// User settings: we need soundEnabled (and potentially other future settings).
-	const settings = db.select().from(userSettings).where(eq(userSettings.userId, userId)).get();
-
 	return {
 		repertoire: activeRep,
 		moves,
-		dueCards,
-		settings: settings ?? null
+		dueCards
 	};
 };

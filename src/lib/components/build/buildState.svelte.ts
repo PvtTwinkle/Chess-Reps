@@ -211,9 +211,7 @@ export function createBuildState(params: CreateBuildStateParams) {
 
 		for (const entry of navHistory) {
 			const key = fenKey(entry.fromFen);
-			const existing = moves.find(
-				(m) => fenKey(m.fromFen) === key && m.san === entry.san
-			);
+			const existing = moves.find((m) => fenKey(m.fromFen) === key && m.san === entry.san);
 			if (existing) continue;
 
 			// This move is in the jump line but not in the user's repertoire — save it.

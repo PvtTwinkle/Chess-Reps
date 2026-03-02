@@ -256,6 +256,7 @@
 		<ChessBoard
 			fen={currentFen}
 			{orientation}
+			boardTheme={data.settings?.boardTheme ?? 'blue'}
 			interactive={false}
 			{lastMove}
 			autoShapes={boardShapes}

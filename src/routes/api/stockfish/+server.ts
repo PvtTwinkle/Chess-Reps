@@ -18,13 +18,13 @@ import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getTopMoves } from '$lib/stockfish';
 import { db } from '$lib/db';
-import { bookMove, ecoOpening } from '$lib/db/schema';
+import { bookMove, ecoOpening, userSettings } from '$lib/db/schema';
 import { eq, inArray } from 'drizzle-orm';
 import { Chess } from 'chess.js';
 
-// How many engine candidates to return. Will eventually be driven by settings.
+// How many engine candidates to return.
 const DEFAULT_ENGINE_MOVES = 3;
-// Search depth. Will eventually be driven by the user's settings page.
+// Fallback search depth when the user has no settings row.
 const DEFAULT_DEPTH = 20;
 
 // Depth range enforced on every request. MIN prevents trivially shallow
@@ -53,13 +53,25 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	} catch {
 		throw error(400, 'Invalid JSON body');
 	}
-	const {
-		fen,
-		depth: rawDepth = DEFAULT_DEPTH,
-		numMoves: rawNumMoves = DEFAULT_ENGINE_MOVES
-	} = body;
+	const { fen, numMoves: rawNumMoves = DEFAULT_ENGINE_MOVES } = body;
+
+	// Load the user's stored preferences for depth and timeout.
+	const settings = db
+		.select({
+			stockfishDepth: userSettings.stockfishDepth,
+			stockfishTimeout: userSettings.stockfishTimeout
+		})
+		.from(userSettings)
+		.where(eq(userSettings.userId, locals.user.id))
+		.get();
+
+	// Depth: use the request value if provided, otherwise the user's preference.
+	const rawDepth = body.depth ?? settings?.stockfishDepth ?? DEFAULT_DEPTH;
 	const depth = Math.max(MIN_DEPTH, Math.min(rawDepth, MAX_DEPTH));
 	const numMoves = Math.min(rawNumMoves, MAX_CANDIDATES);
+
+	// Timeout in seconds from the user's settings (default 10s).
+	const timeoutSec = settings?.stockfishTimeout ?? 10;
 
 	if (!fen || typeof fen !== 'string') throw error(400, 'fen is required');
 
@@ -70,7 +82,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	// ── 2. Stockfish analysis ─────────────────────────────────────────────────
 	// Request exactly numMoves PVs — the engine section is independent of the
 	// book section, so we only need the top N engine candidates.
-	const engineResults = await getTopMoves(fen, depth, numMoves);
+	const engineResults = await getTopMoves(fen, depth, numMoves, timeoutSec * 1000);
 	const engineAvailable = engineResults.length > 0;
 
 	// Stockfish scores are from the side-to-move's perspective. Multiply by this

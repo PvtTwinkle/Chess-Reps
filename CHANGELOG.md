@@ -15,6 +15,23 @@ Docker images are tagged per version. To stay on stable releases, pin your
 
 ### Added
 
+- **Settings page** — full settings page at `/settings` with four sections:
+  - **Board Theme** — choose from 5 board color themes (brown, blue, green,
+    purple, grey) with a live preview. Theme applies instantly across all pages.
+  - **Sound Effects** — on/off toggle (previously only accessible from the drill
+    page mute button)
+  - **Stockfish Depth** — slider (15–30) to control engine analysis strength
+  - **Analysis Timeout** — slider (3–30 seconds) to control how long to wait for
+    engine results before returning partial analysis
+  - **Change Password** — secure password change form (verifies current password,
+    invalidates other sessions on success)
+- User settings are now loaded globally from the layout, so board theme and sound
+  preferences apply consistently across Build, Drill, Explorer, and Review pages
+- Stockfish API reads depth and timeout from user settings when not explicitly
+  provided in the request
+
+### Changed
+
 - **Progress dashboard** — the dashboard now shows 8 widgets for the active
   repertoire:
   - **Due Now** — count of in-scope cards due for review, links to Drill mode
