@@ -6,7 +6,7 @@
 	as soon as they're available:
 
 	  • Book — shared opening book moves (instant, local DB)
-	  • Masters — Lichess Masters Database popularity & W/D/L stats (~200-500ms)
+	  • Masters — Chessmont master game statistics & W/D/L stats (instant, local DB)
 	  • Engine — Stockfish top-N analysis (~2-10s)
 
 	Three tabs switch between the sources. Book tab is shown first; if there
@@ -37,12 +37,10 @@
 
 	interface MastersMove {
 		san: string;
-		uci: string;
 		white: number;
 		draws: number;
 		black: number;
 		totalGames: number;
-		averageRating: number;
 	}
 
 	interface Props {
@@ -69,11 +67,6 @@
 	let mastersMoves = $state<MastersMove[]>([]);
 	let mastersLoading = $state(false);
 	let mastersError = $state(false);
-	let mastersRateLimited = $state(false);
-	// Bumps on each rate limit to force the $effect to re-run after a cooldown.
-	let mastersRetryTrigger = $state(0);
-	let mastersRetryCount = $state(0);
-	const MASTERS_MAX_RETRIES = 3;
 
 	// ── Tab state ─────────────────────────────────────────────────────────────
 	let activeTab = $state<'book' | 'engine' | 'masters'>('book');
@@ -109,11 +102,10 @@
 			})
 			.then((data) => {
 				bookCandidates = (data.candidates as Candidate[]).filter((c) => c.isBook);
-				// Auto-switch to engine if no book moves and user hasn't clicked a tab.
-				// We don't auto-switch to masters because it's lazy-loaded (opt-in only)
-				// to avoid unnecessary API calls.
+				// Auto-switch to masters if no book moves and user hasn't clicked a tab.
+				// Masters is now instant (local DB), so cascade: book → masters → engine.
 				if (bookCandidates.length === 0 && !userClickedTab) {
-					activeTab = 'engine';
+					activeTab = 'masters';
 				}
 			})
 			.catch((err) => {
@@ -163,78 +155,51 @@
 		};
 	});
 
-	// ── Masters fetch — lazy, only when the Masters tab is active ─────────────
-	// This effect watches currentFen, activeTab, and mastersRetryTrigger. It
-	// only fetches when the user is viewing the Masters tab, avoiding unnecessary
-	// API calls while browsing on Book/Engine tabs. Responses are cached
-	// server-side in SQLite so repeated positions are served instantly.
-	//
-	// Includes a 1-second debounce for uncached positions to be respectful of
-	// the Lichess rate limit. On 429, shows a rate-limited message and
-	// automatically retries after 5 seconds.
+	// ── Masters fetch — local Chessmont DB, instant response ─────────────────
+	// Fetches move statistics from the local chessmont_moves table when the
+	// Masters tab is active. No debounce or rate limiting needed — the query
+	// hits the local PostgreSQL database directly.
 	$effect(() => {
 		const fen = currentFen;
 		const tab = activeTab;
-		// eslint-disable-next-line @typescript-eslint/no-unused-vars
-		const _retry = mastersRetryTrigger; // tracked so retries re-run this effect
 
 		// Not viewing Masters tab — reset state and do nothing.
 		if (tab !== 'masters') {
 			mastersMoves = [];
 			mastersLoading = false;
 			mastersError = false;
-			mastersRateLimited = false;
-			mastersRetryCount = 0;
 			return;
 		}
 
-		let cancelled = false;
-		let controller: AbortController | null = null;
+		const controller = new AbortController();
 
 		mastersLoading = true;
 		mastersError = false;
-		mastersRateLimited = false;
 		mastersMoves = [];
 
-		const timer = setTimeout(() => {
-			if (cancelled) return;
-			controller = new AbortController();
-
-			fetch(`/api/lichess/masters?fen=${encodeURIComponent(fen)}`, {
-				signal: controller.signal
+		fetch(`/api/masters?fen=${encodeURIComponent(fen)}`, {
+			signal: controller.signal
+		})
+			.then((res) => {
+				if (!res.ok) throw new Error('Masters fetch failed');
+				return res.json();
 			})
-				.then((res) => {
-					if (!res.ok) throw new Error('Masters fetch failed');
-					return res.json();
-				})
-				.then((data) => {
-					if (cancelled) return;
-					if (data.rateLimited) {
-						mastersRateLimited = true;
-						if (mastersRetryCount < MASTERS_MAX_RETRIES) {
-							mastersRetryCount++;
-							// Auto-retry after 5 seconds.
-							setTimeout(() => {
-								if (!cancelled) mastersRetryTrigger++;
-							}, 5000);
-						}
-					} else {
-						mastersMoves = data.moves ?? [];
-						mastersRetryCount = 0;
-					}
-				})
-				.catch((err) => {
-					if (err.name !== 'AbortError' && !cancelled) mastersError = true;
-				})
-				.finally(() => {
-					if (!cancelled) mastersLoading = false;
-				});
-		}, 1000);
+			.then((data) => {
+				mastersMoves = data.moves ?? [];
+				// Auto-cascade to engine if masters also empty and user hasn't clicked.
+				if (mastersMoves.length === 0 && !userClickedTab) {
+					activeTab = 'engine';
+				}
+			})
+			.catch((err) => {
+				if (err.name !== 'AbortError') mastersError = true;
+			})
+			.finally(() => {
+				if (!controller.signal.aborted) mastersLoading = false;
+			});
 
 		return () => {
-			cancelled = true;
-			clearTimeout(timer);
-			controller?.abort();
+			controller.abort();
 		};
 	});
 
@@ -339,19 +304,13 @@
 	{:else if activeTab === 'masters'}
 		{#if mastersLoading}
 			<div class="loading">Loading masters…</div>
-		{:else if mastersRateLimited && mastersRetryCount < MASTERS_MAX_RETRIES}
-			<p class="rate-limit-hint">
-				Rate limited by Lichess. Retrying ({mastersRetryCount}/{MASTERS_MAX_RETRIES})…
-			</p>
-		{:else if mastersRateLimited}
-			<p class="rate-limit-hint">Rate limited by Lichess. Try again later.</p>
 		{:else if mastersError}
 			<p class="empty-hint">Masters database unavailable.</p>
 		{:else if mastersMoves.length === 0}
 			<p class="empty-hint">No master games from this position.</p>
 		{:else}
 			<div class="candidate-list">
-				{#each mastersMoves as m (m.uci)}
+				{#each mastersMoves as m (m.san)}
 					{@const winPct = m.totalGames > 0 ? (m.white / m.totalGames) * 100 : 0}
 					{@const drawPct = m.totalGames > 0 ? (m.draws / m.totalGames) * 100 : 0}
 					{@const lossPct = m.totalGames > 0 ? (m.black / m.totalGames) * 100 : 0}
@@ -359,10 +318,7 @@
 						<div class="candidate-main">
 							<span class="candidate-san">{m.san}</span>
 							<span class="spacer"></span>
-							<span class="masters-stats">
-								<span class="masters-rating">{m.averageRating}</span>
-								<span class="masters-games">{formatCount(m.totalGames)}</span>
-							</span>
+							<span class="masters-games">{formatCount(m.totalGames)}</span>
 						</div>
 						<div class="wdl-bar">
 							<div class="wdl-white" style="width: {winPct}%"></div>
@@ -471,13 +427,6 @@
 		margin: 0;
 	}
 
-	.rate-limit-hint {
-		font-size: 0.82rem;
-		color: #c09050;
-		font-style: italic;
-		margin: 0;
-	}
-
 	/* ── Candidate list ──────────────────────────────────────────────────────── */
 
 	.candidate-list {
@@ -568,21 +517,11 @@
 
 	/* ── Masters tab — stats and W/D/L bar ──────────────────────────────────── */
 
-	.masters-stats {
-		display: flex;
-		gap: 0.5rem;
-		align-items: center;
-		flex-shrink: 0;
+	.masters-games {
 		font-size: 0.75rem;
 		font-variant-numeric: tabular-nums;
-	}
-
-	.masters-rating {
-		color: #8090a0;
-	}
-
-	.masters-games {
 		color: #506070;
+		flex-shrink: 0;
 	}
 
 	/* Horizontal W/D/L bar — green (white wins), grey (draws), red (black wins) */

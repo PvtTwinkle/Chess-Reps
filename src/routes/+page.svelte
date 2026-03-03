@@ -171,7 +171,7 @@
 			<div class="widget-label">Accuracy Trend</div>
 			{#if data.recentSessions.length > 0}
 				<div class="trend-row">
-					{#each data.recentSessions as session}
+					{#each data.recentSessions as session (session.completedAt)}
 						<div
 							class="trend-block {accuracyClass(session.cardsReviewed, session.cardsCorrect)}"
 							title="{accuracy(
@@ -224,7 +224,7 @@
 			<div class="widget widget-wide">
 				<div class="widget-label">Trouble Spots</div>
 				<ul class="trouble-list">
-					{#each data.troubleSpots as spot}
+					{#each data.troubleSpots as spot (spot.fromFen + spot.san)}
 						<li class="trouble-item">
 							<span class="trouble-move">{spot.san}</span>
 							<span class="trouble-fen">{spot.fromFen.split(' ')[0].slice(0, 20)}…</span>

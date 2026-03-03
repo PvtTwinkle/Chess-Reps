@@ -14,6 +14,7 @@ import {
 	index,
 	integer,
 	pgTable,
+	primaryKey,
 	serial,
 	text,
 	timestamp,
@@ -67,20 +68,28 @@ export const ecoOpening = pgTable('eco_opening', {
 	name: text('name').notNull() // e.g. "Sicilian Defense, Najdorf Variation"
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// CACHE TABLES
-// Locally cached data from external APIs. Populated lazily at runtime.
-// Not user-scoped — master game stats are the same for everyone.
-// ─────────────────────────────────────────────────────────────────────────────
-
-// Cached responses from the Lichess Masters Opening Explorer API.
-// Keyed by FEN so each position is fetched at most once. Master game stats
-// don't change meaningfully over time, so entries never expire.
-export const mastersCache = pgTable('masters_cache', {
-	fen: text('fen').primaryKey(),
-	responseJson: text('response_json').notNull(), // JSON string of MastersResponse
-	fetchedAt: integer('fetched_at').notNull() // unix timestamp (seconds)
-});
+// Master game statistics from the Chessmont database (~21.5M master games, ELO >= 2500).
+// Populated by the chessmont-import script (separate Docker container).
+// Read-only at runtime — the app only queries this table, never writes to it.
+//
+// FENs are normalized to 4 fields (position + side + castling + en-passant),
+// matching the fenKey() convention used throughout the app. This handles
+// transpositions (same position reached via different move orders).
+export const chessmontMoves = pgTable(
+	'chessmont_moves',
+	{
+		positionFen: text('position_fen').notNull(),
+		moveSan: text('move_san').notNull(),
+		resultingFen: text('resulting_fen').notNull(),
+		gamesPlayed: integer('games_played').notNull().default(0),
+		whiteWins: integer('white_wins').notNull().default(0),
+		blackWins: integer('black_wins').notNull().default(0),
+		draws: integer('draws').notNull().default(0)
+	},
+	(table) => ({
+		pk: primaryKey({ columns: [table.positionFen, table.moveSan] })
+	})
+);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // USER TABLES

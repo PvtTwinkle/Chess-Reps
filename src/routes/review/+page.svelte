@@ -102,12 +102,10 @@
 
 	interface MastersMove {
 		san: string;
-		uci: string;
 		white: number;
 		draws: number;
 		black: number;
 		totalGames: number;
-		averageRating: number;
 	}
 
 	let deviationMasters = new SvelteMap<number, MastersMove[]>();
@@ -510,14 +508,10 @@
 		deviationMastersLoading.set(issue.ply, true);
 		deviationMastersError.set(issue.ply, false);
 		try {
-			const res = await fetch(`/api/lichess/masters?fen=${encodeURIComponent(issue.fromFen)}`);
+			const res = await fetch(`/api/masters?fen=${encodeURIComponent(issue.fromFen)}`);
 			if (!res.ok) throw new Error('Masters fetch failed');
 			const data = await res.json();
-			if (data.rateLimited) {
-				deviationMastersError.set(issue.ply, true);
-			} else {
-				deviationMasters.set(issue.ply, ((data.moves as MastersMove[]) ?? []).slice(0, 5));
-			}
+			deviationMasters.set(issue.ply, ((data.moves as MastersMove[]) ?? []).slice(0, 5));
 		} catch {
 			deviationMastersError.set(issue.ply, true);
 		} finally {
@@ -1381,7 +1375,7 @@
 												<div class="masters-inline-error">Masters unavailable</div>
 											{:else if masters && masters.length > 0}
 												<div class="masters-mini-list">
-													{#each masters as m (m.uci)}
+													{#each masters as m (m.san)}
 														{@const winPct = m.totalGames > 0 ? (m.white / m.totalGames) * 100 : 0}
 														{@const drawPct = m.totalGames > 0 ? (m.draws / m.totalGames) * 100 : 0}
 														{@const lossPct = m.totalGames > 0 ? (m.black / m.totalGames) * 100 : 0}
