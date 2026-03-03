@@ -761,7 +761,6 @@
 				<p class="empty-title">All caught up!</p>
 				<p class="empty-hint">No cards due right now. Come back later or build more repertoire.</p>
 				<a href="/build" class="btn btn--primary">Build Mode</a>
-				<a href="/explorer" class="btn btn--secondary">Explorer</a>
 			</div>
 		{:else if filteredCards.length === 0}
 			<!-- Due cards exist but none match the selected section -->
@@ -799,7 +798,7 @@
 					</div>
 				</div>
 				<button class="btn btn--primary" onclick={restartSession}> Drill again </button>
-				<a href="/explorer" class="btn btn--secondary">Go to Explorer</a>
+				<a href="/" class="btn btn--secondary">Dashboard</a>
 			</div>
 		{:else if phase === 'playing'}
 			<!-- Auto-playing through the line -->

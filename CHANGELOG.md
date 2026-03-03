@@ -30,6 +30,14 @@ Docker images are tagged per version. To stay on stable releases, pin your
 
 ### Fixed
 
+### Removed
+
+- **Explorer page** — removed the `/explorer` route entirely. Its read-only
+  repertoire browsing was redundant with Build Mode's tree view. Nav link,
+  drill-page links, and related comments cleaned up.
+
+### Fixed
+
 - **Game Review: reactive loop in analysis reset** — wrapped all `SvelteMap`/`SvelteSet`
   `.clear()` calls in `untrack()` inside the form-sync `$effect` to prevent background
   fetches from re-triggering the effect and resetting playback/button state.
@@ -64,7 +72,7 @@ Docker images are tagged per version. To stay on stable releases, pin your
   - **Change Password** — secure password change form (verifies current password,
     invalidates other sessions on success)
 - User settings are now loaded globally from the layout, so board theme and sound
-  preferences apply consistently across Build, Drill, Explorer, and Review pages
+  preferences apply consistently across Build, Drill, and Review pages
 - Stockfish API reads depth and timeout from user settings when not explicitly
   provided in the request
 
@@ -339,7 +347,7 @@ Docker images are tagged per version. To stay on stable releases, pin your
   grading buttons are visible and are ignored inside input fields
 - **Sound feedback** — distinct audio cues for every chess interaction:
   - Piece movement and capture sounds on all interactive board moves (drag-and-drop
-    and sidebar clicks) in Build mode, Explorer mode, and Drill mode
+    and sidebar clicks) in Build mode and Drill mode
   - Auto-played moves in Drill mode also produce sounds as each position is replayed
   - "Correct" notification sound after a right answer in Drill mode
   - "Incorrect" error sound on a wrong answer in Drill mode
@@ -423,19 +431,6 @@ Variation"` with the ECO code highlighted in gold; renders nothing if no match
 - **Opening book seed** (`drizzle/migrations/0002_seed_book_moves.sql`) — Alapin
   Sicilian mainline (1.e4 c5 2.c3 d5) as a minimal test dataset; FEN strings
   generated from Chess.js to match runtime FEN output exactly
-
-- **Explorer mode** (`src/routes/explorer/`) — read-only repertoire tree browser:
-  - Board arrows show all prepared moves at the current position (green = your moves,
-    blue = opponent responses) using Chessground `autoShapes`
-  - Gap indicators (`!` badge) on opponent moves that lead to positions with no
-    prepared user response
-  - Current line breadcrumb with clickable moves for fast position jumping
-  - Back / Reset navigation controls; no board interaction — fully read-only
-  - "Build from here" button links to Build mode at the exact current position by
-    encoding the nav history as a `?line=e4,e5,Nf3` query param; Build mode replays
-    the line on first mount so the board jumps straight to that position
-  - `autoShapes` prop added to `ChessBoard` component for programmatic arrow/dot
-    overlay (available for Drill mode and other future features too)
 
 - **Move annotations** — free-text notes on any saved move in Build mode:
   - ✎ button on each move row in the sidebar opens an edit modal pre-filled with

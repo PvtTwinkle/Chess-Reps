@@ -10,7 +10,7 @@
 //   settings          — user preferences (board theme, sound, engine depth, etc.)
 //
 // The repertoires list powers the RepertoireSelector in the nav bar.
-// The activeRepertoireId will be used by build/drill/explorer to scope data.
+// The activeRepertoireId will be used by build/drill to scope data.
 // Settings are loaded once here instead of per-page so every ChessBoard
 // consumer can access the board theme without duplicating the query.
 

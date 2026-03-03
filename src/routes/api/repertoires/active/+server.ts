@@ -1,7 +1,7 @@
 // POST /api/repertoires/active  — record which repertoire the user is working in
 //
 // The active repertoire is stored in a browser cookie so the server knows
-// which repertoire to scope build/drill/explorer data to on every page load.
+// which repertoire to scope build/drill data to on every page load.
 // Calling this endpoint sets (or updates) that cookie.
 
 import { json, error } from '@sveltejs/kit';

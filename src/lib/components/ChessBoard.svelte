@@ -44,7 +44,7 @@
 		onMove?: (from: string, to: string, san: string, newFen: string, isCapture: boolean) => void;
 		/**
 		 * Programmatic arrows/dots to draw on the board (e.g. repertoire move arrows
-		 * in explorer mode). Uses Chessground's autoShapes — these are distinct from
+		 * in build mode). Uses Chessground's autoShapes — these are distinct from
 		 * user-drawn right-click arrows. Defaults to an empty array (no shapes).
 		 */
 		autoShapes?: DrawShape[];
@@ -217,7 +217,7 @@
 	 * Why not put all of this in onMount?  Because onMount runs once.  We need
 	 * the board to update whenever the parent passes a new FEN (e.g. after an
 	 * opponent move is played in drill mode, or when the user navigates to a
-	 * different position in explorer mode).
+	 * different position in build mode).
 	 */
 	$effect(() => {
 		if (!initialized || !cg) return;
