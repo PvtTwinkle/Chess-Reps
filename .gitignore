@@ -22,7 +22,7 @@ Thumbs.db
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
-# SQLite database — lives in data/ at runtime, must not be committed
+# Database data directory — not committed (PostgreSQL uses a Docker volume)
 /data/
 
 # Claude Code local instructions — personal, not for version control

@@ -35,11 +35,10 @@ export const POST: RequestHandler = async ({ locals, request, cookies }) => {
 	}
 
 	// Look up the current password hash.
-	const currentUser = db
+	const [currentUser] = await db
 		.select({ passwordHash: user.passwordHash })
 		.from(user)
-		.where(eq(user.id, locals.user.id))
-		.get();
+		.where(eq(user.id, locals.user.id));
 
 	if (!currentUser) {
 		throw error(500, 'User not found');
@@ -47,21 +46,21 @@ export const POST: RequestHandler = async ({ locals, request, cookies }) => {
 
 	// Verify the current password — use the same generic error message for
 	// wrong password as the login page (avoid leaking information).
-	if (!bcrypt.compareSync(currentPassword, currentUser.passwordHash)) {
+	if (!(await bcrypt.compare(currentPassword, currentUser.passwordHash))) {
 		throw error(403, 'Current password is incorrect');
 	}
 
 	// Hash the new password and update.
-	const newHash = bcrypt.hashSync(newPassword, 10);
-	db.update(user).set({ passwordHash: newHash }).where(eq(user.id, locals.user.id)).run();
+	const newHash = await bcrypt.hash(newPassword, 10);
+	await db.update(user).set({ passwordHash: newHash }).where(eq(user.id, locals.user.id));
 
 	// Invalidate all other sessions for this user (good security practice).
 	// The current session stays valid so the user doesn't get logged out.
 	const currentToken = cookies.get(SESSION_COOKIE_NAME);
 	if (currentToken) {
-		db.delete(session)
-			.where(and(eq(session.userId, locals.user.id), ne(session.id, currentToken)))
-			.run();
+		await db
+			.delete(session)
+			.where(and(eq(session.userId, locals.user.id), ne(session.id, currentToken)));
 	}
 
 	return json({ success: true });

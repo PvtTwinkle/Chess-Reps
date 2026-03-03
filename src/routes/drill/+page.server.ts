@@ -32,14 +32,13 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 
 	// All moves in the repertoire — used by the client to reconstruct the path
 	// from move 1 to each due card's position.
-	const moves = db
+	const moves = await db
 		.select()
 		.from(userMove)
-		.where(and(eq(userMove.userId, userId), eq(userMove.repertoireId, activeRepertoireId)))
-		.all();
+		.where(and(eq(userMove.userId, userId), eq(userMove.repertoireId, activeRepertoireId)));
 
 	// All SR cards that are due right now (due <= now).
-	let dueCards = db
+	let dueCards = await db
 		.select()
 		.from(userRepertoireMove)
 		.where(
@@ -48,8 +47,7 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 				eq(userRepertoireMove.repertoireId, activeRepertoireId),
 				lte(userRepertoireMove.due, now)
 			)
-		)
-		.all();
+		);
 
 	// Filter out cards for lead-in moves (before the repertoire's start position).
 	// Only positions reachable from the effective start FEN(s) are in scope.

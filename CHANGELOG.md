@@ -78,6 +78,20 @@ Docker images are tagged per version. To stay on stable releases, pin your
 
 ### Changed
 
+- **Database migrated from SQLite to PostgreSQL** — the entire data layer has been
+  rewritten to use PostgreSQL (via the `postgres.js` driver) instead of SQLite
+  (`better-sqlite3`):
+  - All 12 table definitions converted from `sqliteTable` to `pgTable` with native
+    PostgreSQL types (`TIMESTAMP`, `BOOLEAN`, `DOUBLE PRECISION`, `SERIAL`)
+  - All ~35 server-side files converted from synchronous to async database calls
+  - 11 old SQLite migrations consolidated into 3 fresh PostgreSQL migrations
+  - Docker Compose now runs 3 services: app + postgres + stockfish (data stored in
+    a named `pgdata` volume instead of a mounted SQLite file)
+  - Dockerfile simplified — no longer needs `python3`, `make`, `g++`, or `libstdc++`
+    since `postgres.js` is pure JavaScript with no native compilation
+  - Lazy database connection pattern prevents build-time errors (postgres.js connects
+    eagerly, but SvelteKit evaluates server modules during `vite build`)
+
 - **Progress dashboard** — the dashboard now shows 8 widgets for the active
   repertoire:
   - **Due Now** — count of in-scope cards due for review, links to Drill mode
@@ -165,7 +179,7 @@ Docker images are tagged per version. To stay on stable releases, pin your
     alternative move and matching colored dots on the choice buttons
   - PGN annotations (`{like this}`) are preserved as move notes; engine-specific
     tags (`[%evp ...]`, `[%cal ...]`, `[%csl ...]`) are filtered out
-  - Batch insert via single SQLite transaction for atomicity
+  - Batch insert via single database transaction for atomicity
   - Import summary shows moves added, replaced, and duplicates skipped
   - "Import PGN" button in the Build mode sidebar header
   - `src/lib/pgn/parseVariations.ts` — variation tree parser + Chess.js replay
@@ -475,7 +489,7 @@ foundation that all future features are built on top of.
 ### Added
 
 - **SvelteKit project scaffold** with TypeScript, ESLint, and Prettier configured
-- **Database schema** using Drizzle ORM with SQLite (`better-sqlite3`):
+- **Database schema** using Drizzle ORM (originally SQLite, now PostgreSQL):
   - `user` — account credentials
   - `user_settings` — per-user preferences
   - `repertoire` — named opening repertoires (white or black)
@@ -492,10 +506,11 @@ foundation that all future features are built on top of.
   - Login screen shown to any unauthenticated visitor
   - All routes except `/login` and `/api/health` are protected
   - Session cookie stored in browser
-- **Docker Compose** setup with two services:
+- **Docker Compose** setup with three services:
   - `app` — SvelteKit application (Node.js, port 3000)
+  - `postgres` — PostgreSQL 17 database (internal network only)
   - `stockfish` — Stockfish chess engine sidecar (internal network only, port 3001)
-  - SQLite database mounted from host at `./data/db.sqlite` for easy backup
+  - Database stored in a named Docker volume (`pgdata`)
   - Resource limits on the Stockfish container (2 CPUs, 512 MB)
 - **Dockerfile** for the SvelteKit app using `@sveltejs/adapter-node`
 - **Health check endpoint** at `/api/health`:

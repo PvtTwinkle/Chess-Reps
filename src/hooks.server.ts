@@ -15,7 +15,7 @@
 import { redirect } from '@sveltejs/kit';
 import type { Handle } from '@sveltejs/kit';
 import { validateSession, SESSION_COOKIE_NAME } from '$lib/auth';
-import { db } from '$lib/db';
+import { db, dbReady } from '$lib/db';
 import { user } from '$lib/db/schema';
 import { eq } from 'drizzle-orm';
 
@@ -25,6 +25,10 @@ const PUBLIC_ROUTES = [
 	'/login', // the login form itself
 	'/api/health' // monitoring endpoint — must be publicly accessible
 ];
+
+// Ensure the database is fully initialised (migrations + default user)
+// before we handle any requests. This awaits the promise exported from db/index.ts.
+await dbReady;
 
 export const handle: Handle = async ({ event, resolve }) => {
 	// Start every request as unauthenticated. We will upgrade this below
@@ -36,15 +40,14 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 	if (token) {
 		// Look up the token in the session table.
-		const sessionData = validateSession(token);
+		const sessionData = await validateSession(token);
 
 		if (sessionData) {
 			// Session is valid — fetch the user record so we have the username.
-			const foundUser = db
+			const [foundUser] = await db
 				.select({ id: user.id, username: user.username })
 				.from(user)
-				.where(eq(user.id, sessionData.userId))
-				.get();
+				.where(eq(user.id, sessionData.userId));
 
 			if (foundUser) {
 				event.locals.user = foundUser;

@@ -19,7 +19,7 @@ import { db } from '$lib/db';
 import { repertoire, userSettings } from '$lib/db/schema';
 import { eq } from 'drizzle-orm';
 
-export const load: LayoutServerLoad = ({ locals, cookies }) => {
+export const load: LayoutServerLoad = async ({ locals, cookies }) => {
 	// When the user is not logged in (e.g. the /login page), return early
 	// with empty values so the nav doesn't try to render repertoire data.
 	if (!locals.user) {
@@ -27,12 +27,11 @@ export const load: LayoutServerLoad = ({ locals, cookies }) => {
 	}
 
 	// Fetch all repertoires for this user, oldest first.
-	const repertoires = db
+	const repertoires = await db
 		.select()
 		.from(repertoire)
 		.where(eq(repertoire.userId, locals.user.id))
-		.orderBy(repertoire.createdAt)
-		.all();
+		.orderBy(repertoire.createdAt);
 
 	// The active repertoire ID is persisted in a cookie so it survives
 	// navigation between pages without any extra server-side state.
@@ -58,11 +57,10 @@ export const load: LayoutServerLoad = ({ locals, cookies }) => {
 	// User settings (board theme, sound, engine depth, etc.).
 	// Returns null if the user has never changed any setting — consumers
 	// fall back to defaults in that case.
-	const settings = db
+	const [settings] = await db
 		.select()
 		.from(userSettings)
-		.where(eq(userSettings.userId, locals.user.id))
-		.get();
+		.where(eq(userSettings.userId, locals.user.id));
 
 	return {
 		user: locals.user,

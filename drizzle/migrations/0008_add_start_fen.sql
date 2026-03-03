@@ -1,1 +1,0 @@
-ALTER TABLE repertoire ADD COLUMN start_fen TEXT;

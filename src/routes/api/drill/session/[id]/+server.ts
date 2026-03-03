@@ -26,25 +26,24 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 	if (typeof cardsCorrect !== 'number') throw error(400, 'cardsCorrect must be a number');
 
 	// Load the session and verify it belongs to this user.
-	const sess = db
+	const [sess] = await db
 		.select()
 		.from(drillSession)
-		.where(and(eq(drillSession.id, sessionId), eq(drillSession.userId, locals.user.id)))
-		.get();
+		.where(and(eq(drillSession.id, sessionId), eq(drillSession.userId, locals.user.id)));
 
 	if (!sess) throw error(404, 'Session not found');
 
 	const now = new Date();
 
 	// Finalize the session.
-	db.update(drillSession)
+	await db
+		.update(drillSession)
 		.set({ completedAt: now, cardsReviewed, cardsCorrect })
-		.where(eq(drillSession.id, sessionId))
-		.run();
+		.where(eq(drillSession.id, sessionId));
 
 	// Find the next due card for this repertoire so the end screen can say
 	// "Next session: tomorrow at 2pm" or similar.
-	const nextResult = db
+	const [nextResult] = await db
 		.select({ nextDue: min(userRepertoireMove.due) })
 		.from(userRepertoireMove)
 		.where(
@@ -53,8 +52,7 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 				eq(userRepertoireMove.repertoireId, sess.repertoireId),
 				gt(userRepertoireMove.due, now)
 			)
-		)
-		.get();
+		);
 
 	const nextDueAt = nextResult?.nextDue ? nextResult.nextDue.toISOString() : null;
 

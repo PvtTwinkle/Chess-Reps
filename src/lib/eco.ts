@@ -13,7 +13,7 @@
 //   Najdorf Variation" even after a few more moves have been played.
 
 import { inArray } from 'drizzle-orm';
-import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
+import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { ecoOpening } from '$lib/db/schema';
 import type * as schema from '$lib/db/schema';
 
@@ -27,22 +27,21 @@ import type * as schema from '$lib/db/schema';
 //
 // Returns the ECO code and name for the first FEN that has a match, or null
 // if none of the provided FENs are in the ECO table.
-export function lookupEco(
-	db: BetterSQLite3Database<typeof schema>,
+export async function lookupEco(
+	db: PostgresJsDatabase<typeof schema>,
 	fens: string[]
-): { code: string; name: string } | null {
+): Promise<{ code: string; name: string } | null> {
 	if (fens.length === 0) return null;
 
 	// Fetch all matching rows in a single query — no N+1 lookups.
-	const matches = db
+	const matches = await db
 		.select({
 			code: ecoOpening.code,
 			name: ecoOpening.name,
 			fen: ecoOpening.fen
 		})
 		.from(ecoOpening)
-		.where(inArray(ecoOpening.fen, fens))
-		.all();
+		.where(inArray(ecoOpening.fen, fens));
 
 	if (matches.length === 0) return null;
 

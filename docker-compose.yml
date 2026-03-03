@@ -1,8 +1,9 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # Chess Reps — Docker Compose
 #
-# Two services:
+# Three services:
 #   app        — the SvelteKit application (Node.js HTTP server)
+#   postgres   — PostgreSQL database
 #   stockfish  — Stockfish chess engine, UCI over TCP on the internal network
 #
 # Quick start:
@@ -34,9 +35,10 @@ services:
     environment:
       # ── Required ────────────────────────────────────────────────────────────
 
-      # Full path to the SQLite file inside the container.
-      # Must match the target path in the volume mount below.
-      - DATABASE_URL=/app/data/db.sqlite
+      # PostgreSQL connection string.
+      # The hostname "postgres" resolves to the database container on the
+      # internal Docker network. Credentials must match the postgres service below.
+      - DATABASE_URL=postgresql://chess_reps:chess_reps_secret@postgres:5432/chess_reps
 
       # The canonical URL of this instance. SvelteKit uses this to validate
       # cross-site request forgery (CSRF) protection.
@@ -66,15 +68,11 @@ services:
       # connections. Leave commented out (defaults to false) for HTTP-only setups.
       # - SECURE_COOKIES=true
 
-    volumes:
-      # Mount the host ./data directory to /app/data inside the container.
-      # This is where the SQLite database file lives.
-      # The host path is relative to this docker-compose.yml file.
-      # Back up by copying ./data/db.sqlite from the host.
-      - ./data:/app/data
-
     depends_on:
-      - stockfish
+      postgres:
+        condition: service_healthy
+      stockfish:
+        condition: service_started
 
     healthcheck:
       test: ['CMD', 'wget', '-qO-', 'http://localhost:3000/api/health']
@@ -82,6 +80,29 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
+
+  # ── PostgreSQL ──────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:17-alpine
+    container_name: chess-reps-postgres
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: chess_reps
+      POSTGRES_USER: chess_reps
+      POSTGRES_PASSWORD: chess_reps_secret
+
+    volumes:
+      # Named volume for persistent database storage.
+      # Data survives container recreation and upgrades.
+      # Back up with: docker exec chess-reps-postgres pg_dump -U chess_reps chess_reps > backup.sql
+      - pgdata:/var/lib/postgresql/data
+
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U chess_reps']
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   # ── Stockfish sidecar ────────────────────────────────────────────────────────
   stockfish:
@@ -103,3 +124,6 @@ services:
         limits:
           cpus: '2.0'
           memory: 512M
+
+volumes:
+  pgdata:

@@ -11,7 +11,7 @@ import { eq, and, inArray } from 'drizzle-orm';
 import { computeGaps } from '$lib/gaps';
 import { getEffectiveStartFens } from '$lib/repertoire';
 
-export const GET: RequestHandler = ({ locals, url }) => {
+export const GET: RequestHandler = async ({ locals, url }) => {
 	if (!locals.user) throw error(401, 'Not authenticated');
 
 	const repertoireIdParam = url.searchParams.get('repertoireId');
@@ -21,20 +21,18 @@ export const GET: RequestHandler = ({ locals, url }) => {
 	if (isNaN(repertoireId)) throw error(400, 'repertoireId must be a number');
 
 	// Verify the repertoire exists and belongs to this user.
-	const rep = db
+	const [rep] = await db
 		.select()
 		.from(repertoire)
-		.where(and(eq(repertoire.id, repertoireId), eq(repertoire.userId, locals.user.id)))
-		.get();
+		.where(and(eq(repertoire.id, repertoireId), eq(repertoire.userId, locals.user.id)));
 
 	if (!rep) throw error(404, 'Repertoire not found');
 
 	// Load all user moves for this repertoire.
-	const moves = db
+	const moves = await db
 		.select()
 		.from(userMove)
-		.where(and(eq(userMove.repertoireId, repertoireId), eq(userMove.userId, locals.user.id)))
-		.all();
+		.where(and(eq(userMove.repertoireId, repertoireId), eq(userMove.userId, locals.user.id)));
 
 	// Identify opponent-turn positions and load matching book moves.
 	const opponentTurnChar = rep.color === 'WHITE' ? 'b' : 'w';
@@ -46,7 +44,7 @@ export const GET: RequestHandler = ({ locals, url }) => {
 
 	const relevantBookMoves =
 		opponentFens.length > 0
-			? db.select().from(bookMove).where(inArray(bookMove.fromFen, opponentFens)).all()
+			? await db.select().from(bookMove).where(inArray(bookMove.fromFen, opponentFens))
 			: [];
 
 	const startFens = getEffectiveStartFens(

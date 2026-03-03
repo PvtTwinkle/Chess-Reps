@@ -61,11 +61,10 @@ export const load: PageServerLoad = async ({ parent, locals }) => {
 	const userId = locals.user.id;
 
 	// ── User moves (needed for gap finder + scope filtering) ────────────
-	const moves = db
+	const moves = await db
 		.select()
 		.from(userMove)
-		.where(and(eq(userMove.repertoireId, activeRepertoireId), eq(userMove.userId, userId)))
-		.all();
+		.where(and(eq(userMove.repertoireId, activeRepertoireId), eq(userMove.userId, userId)));
 
 	// ── Gap Finder (existing logic) ────────────────────────────────────
 	let gaps: Gap[] = [];
@@ -79,7 +78,7 @@ export const load: PageServerLoad = async ({ parent, locals }) => {
 
 		const relevantBookMoves =
 			opponentFens.length > 0
-				? db.select().from(bookMove).where(inArray(bookMove.fromFen, opponentFens)).all()
+				? await db.select().from(bookMove).where(inArray(bookMove.fromFen, opponentFens))
 				: [];
 
 		const startFens = getEffectiveStartFens(
@@ -91,7 +90,7 @@ export const load: PageServerLoad = async ({ parent, locals }) => {
 	}
 
 	// ── SR cards for active repertoire ──────────────────────────────────
-	const allCards = db
+	const allCards = await db
 		.select()
 		.from(userRepertoireMove)
 		.where(
@@ -99,8 +98,7 @@ export const load: PageServerLoad = async ({ parent, locals }) => {
 				eq(userRepertoireMove.userId, userId),
 				eq(userRepertoireMove.repertoireId, activeRepertoireId)
 			)
-		)
-		.all();
+		);
 
 	// Scope-filter: only cards whose fromFen is reachable from start position.
 	const startFens = getEffectiveStartFens(
@@ -144,11 +142,10 @@ export const load: PageServerLoad = async ({ parent, locals }) => {
 	// We count backwards from today. A streak doesn't break until a full day
 	// is missed (i.e., if today has no session yet, but yesterday does, we
 	// start counting from yesterday).
-	const completedSessions = db
+	const completedSessions = await db
 		.select({ completedAt: drillSession.completedAt })
 		.from(drillSession)
-		.where(and(eq(drillSession.userId, userId), gt(drillSession.completedAt, new Date(0))))
-		.all();
+		.where(and(eq(drillSession.userId, userId), gt(drillSession.completedAt, new Date(0))));
 
 	// Build a set of YYYY-MM-DD date strings (in local time / UTC).
 	const sessionDays = new Set<string>();
@@ -176,7 +173,7 @@ export const load: PageServerLoad = async ({ parent, locals }) => {
 	}
 
 	// ── Accuracy Trend (last 14 completed sessions, across all repertoires) ─
-	const recentSessions: SessionSummary[] = db
+	const recentSessionRows = await db
 		.select({
 			cardsReviewed: drillSession.cardsReviewed,
 			cardsCorrect: drillSession.cardsCorrect,
@@ -185,8 +182,8 @@ export const load: PageServerLoad = async ({ parent, locals }) => {
 		.from(drillSession)
 		.where(and(eq(drillSession.userId, userId), gt(drillSession.completedAt, new Date(0))))
 		.orderBy(desc(drillSession.completedAt))
-		.limit(14)
-		.all()
+		.limit(14);
+	const recentSessions: SessionSummary[] = recentSessionRows
 		.filter((s) => s.completedAt !== null && s.cardsReviewed > 0)
 		.map((s) => ({
 			cardsReviewed: s.cardsReviewed,

@@ -25,14 +25,13 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	if (!pgn || typeof pgn !== 'string') throw error(400, 'pgn is required');
 
 	// Verify the repertoire belongs to this user.
-	const rep = db
+	const [rep] = await db
 		.select()
 		.from(repertoire)
-		.where(and(eq(repertoire.id, repertoireId), eq(repertoire.userId, locals.user.id)))
-		.get();
+		.where(and(eq(repertoire.id, repertoireId), eq(repertoire.userId, locals.user.id)));
 	if (!rep) throw error(404, 'Repertoire not found');
 
-	const saved = db
+	const [saved] = await db
 		.insert(reviewedGame)
 		.values({
 			userId: locals.user.id,
@@ -45,8 +44,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			reviewedAt: new Date(),
 			notes: typeof notes === 'string' && notes.trim() ? notes.trim() : null
 		})
-		.returning()
-		.get();
+		.returning();
 
 	return json({ id: saved.id });
 };

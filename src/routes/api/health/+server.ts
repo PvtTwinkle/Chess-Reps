@@ -4,10 +4,9 @@ import { db } from '$lib/db';
 import { user } from '$lib/db/schema';
 import { count } from 'drizzle-orm';
 
-export const GET: RequestHandler = () => {
+export const GET: RequestHandler = async () => {
 	// Verify the database is reachable by running a trivial query.
-	// This will throw if the database file is missing or migrations failed.
-	// Full health check implementation comes in Step 7.
-	const result = db.select({ count: count() }).from(user).get();
+	// This will throw if the database is unreachable or migrations failed.
+	const [result] = await db.select({ count: count() }).from(user);
 	return json({ status: 'ok', db: result !== undefined ? 'ok' : 'error' });
 };

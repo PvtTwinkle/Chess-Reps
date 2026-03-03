@@ -62,14 +62,13 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	const mode = body.mode ?? 'both';
 
 	// Load the user's stored preferences for depth and timeout.
-	const settings = db
+	const [settings] = await db
 		.select({
 			stockfishDepth: userSettings.stockfishDepth,
 			stockfishTimeout: userSettings.stockfishTimeout
 		})
 		.from(userSettings)
-		.where(eq(userSettings.userId, locals.user.id))
-		.get();
+		.where(eq(userSettings.userId, locals.user.id));
 
 	// Depth: use the request value if provided, otherwise the user's preference.
 	const rawDepth = body.depth ?? settings?.stockfishDepth ?? DEFAULT_DEPTH;
@@ -85,7 +84,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	// Find all known opening moves from this exact position.
 	// Skipped when mode is 'engine' (caller only wants Stockfish results).
 	const bookMoves =
-		mode !== 'engine' ? db.select().from(bookMove).where(eq(bookMove.fromFen, fen)).all() : [];
+		mode !== 'engine' ? await db.select().from(bookMove).where(eq(bookMove.fromFen, fen)) : [];
 
 	// ── 2. Stockfish analysis ─────────────────────────────────────────────────
 	// Request exactly numMoves PVs — the engine section is independent of the
@@ -107,7 +106,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	const toFens = bookMoves.map((bm) => bm.toFen).filter(Boolean) as string[];
 	const openingRows =
 		toFens.length > 0
-			? db.select().from(ecoOpening).where(inArray(ecoOpening.fen, toFens)).all()
+			? await db.select().from(ecoOpening).where(inArray(ecoOpening.fen, toFens))
 			: [];
 	const fenToOpeningName = new Map(openingRows.map((r) => [r.fen, r.name]));
 

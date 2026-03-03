@@ -37,11 +37,10 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	if (!san || typeof san !== 'string') throw error(400, 'san is required');
 
 	// Verify the repertoire belongs to this user.
-	const rep = db
+	const [rep] = await db
 		.select()
 		.from(repertoire)
-		.where(and(eq(repertoire.id, repertoireId), eq(repertoire.userId, user.id)))
-		.get();
+		.where(and(eq(repertoire.id, repertoireId), eq(repertoire.userId, user.id)));
 	if (!rep) throw error(404, 'Repertoire not found');
 
 	// Compute toFen server-side (never accepted from the client — prevents crafted
@@ -61,11 +60,10 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	}
 
 	if (isUserTurn) {
-		const existing = db
+		const [existing] = await db
 			.select()
 			.from(userMove)
-			.where(and(eq(userMove.repertoireId, repertoireId), eq(userMove.fromFen, fromFen)))
-			.get();
+			.where(and(eq(userMove.repertoireId, repertoireId), eq(userMove.fromFen, fromFen)));
 
 		if (existing) {
 			if (existing.san === san) {
@@ -85,14 +83,15 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			// The old toFen's subtree is orphaned but not deleted — the user can
 			// clean it up in Build mode if needed.
 			// Both writes are in a transaction so they succeed or roll back together.
-			db.transaction((tx) => {
-				tx.update(userMove)
+			await db.transaction(async (tx) => {
+				await tx
+					.update(userMove)
 					.set({ san, toFen, source: 'PERSONAL' })
-					.where(eq(userMove.id, existing.id))
-					.run();
+					.where(eq(userMove.id, existing.id));
 
 				// Update the SR card's SAN to match the new move.
-				tx.update(userRepertoireMove)
+				await tx
+					.update(userRepertoireMove)
 					.set({ san })
 					.where(
 						and(
@@ -100,16 +99,15 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 							eq(userRepertoireMove.repertoireId, repertoireId),
 							eq(userRepertoireMove.fromFen, fromFen)
 						)
-					)
-					.run();
+					);
 			});
 
-			const updated = db.select().from(userMove).where(eq(userMove.id, existing.id)).get()!;
+			const [updated] = await db.select().from(userMove).where(eq(userMove.id, existing.id));
 			return json(updated);
 		}
 	} else {
 		// Opponent's turn — multiple moves allowed, but no exact duplicates.
-		const existing = db
+		const [existing] = await db
 			.select()
 			.from(userMove)
 			.where(
@@ -118,8 +116,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 					eq(userMove.fromFen, fromFen),
 					eq(userMove.san, san)
 				)
-			)
-			.get();
+			);
 
 		if (existing) {
 			return json(existing);
@@ -129,8 +126,8 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	// Insert the new move and (for user's own moves) its SR card in a single
 	// transaction so both writes either succeed or roll back together.
 	// Opponent moves are not drilled.
-	const savedMove = db.transaction((tx) => {
-		const move = tx
+	const savedMove = await db.transaction(async (tx) => {
+		const [move] = await tx
 			.insert(userMove)
 			.values({
 				userId: user.id,
@@ -142,28 +139,25 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 				notes: null,
 				createdAt: new Date()
 			})
-			.returning()
-			.get();
+			.returning();
 
 		if (isUserTurn) {
-			tx.insert(userRepertoireMove)
-				.values({
-					userId: user.id,
-					repertoireId,
-					fromFen,
-					san,
-					due: new Date(),
-					state: 0, // New
-					reps: 0,
-					lapses: 0,
-					stability: null,
-					difficulty: null,
-					elapsedDays: null,
-					scheduledDays: null,
-					lastReview: null,
-					learningSteps: 0
-				})
-				.run();
+			await tx.insert(userRepertoireMove).values({
+				userId: user.id,
+				repertoireId,
+				fromFen,
+				san,
+				due: new Date(),
+				state: 0, // New
+				reps: 0,
+				lapses: 0,
+				stability: null,
+				difficulty: null,
+				elapsedDays: null,
+				scheduledDays: null,
+				lastReview: null,
+				learningSteps: 0
+			});
 		}
 
 		return move;

@@ -29,15 +29,14 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	if (!fromFen || typeof fromFen !== 'string') throw error(400, 'fromFen is required');
 
 	// Verify the repertoire belongs to this user.
-	const rep = db
+	const [rep] = await db
 		.select()
 		.from(repertoire)
-		.where(and(eq(repertoire.id, repertoireId), eq(repertoire.userId, locals.user.id)))
-		.get();
+		.where(and(eq(repertoire.id, repertoireId), eq(repertoire.userId, locals.user.id)));
 	if (!rep) throw error(404, 'Repertoire not found');
 
 	// Look up the SR card for this position.
-	const card = db
+	const [card] = await db
 		.select()
 		.from(userRepertoireMove)
 		.where(
@@ -46,21 +45,20 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 				eq(userRepertoireMove.repertoireId, repertoireId),
 				eq(userRepertoireMove.fromFen, fromFen)
 			)
-		)
-		.get();
+		);
 
 	const now = new Date();
 
 	if (card) {
 		// Card exists — apply Again rating via FSRS.
 		const updated = gradeCard(card, Rating.Again, now);
-		db.update(userRepertoireMove).set(updated).where(eq(userRepertoireMove.id, card.id)).run();
+		await db.update(userRepertoireMove).set(updated).where(eq(userRepertoireMove.id, card.id));
 		return json({ updated: true, due: updated.due });
 	}
 
 	// No SR card exists — find the corresponding userMove to get the SAN,
 	// then create a new card in an immediately-due state.
-	const moveRow = db
+	const [moveRow] = await db
 		.select()
 		.from(userMove)
 		.where(
@@ -69,32 +67,29 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 				eq(userMove.repertoireId, repertoireId),
 				eq(userMove.fromFen, fromFen)
 			)
-		)
-		.get();
+		);
 
 	if (!moveRow) {
 		// No move at this position — can't create a card, but it's not an error.
 		return json({ updated: false, reason: 'No move found for this position' });
 	}
 
-	db.insert(userRepertoireMove)
-		.values({
-			userId: locals.user.id,
-			repertoireId,
-			fromFen,
-			san: moveRow.san,
-			due: now,
-			state: 0, // New — will enter the learning phase on first drill
-			reps: 0,
-			lapses: 0,
-			stability: null,
-			difficulty: null,
-			elapsedDays: null,
-			scheduledDays: null,
-			lastReview: null,
-			learningSteps: 0
-		})
-		.run();
+	await db.insert(userRepertoireMove).values({
+		userId: locals.user.id,
+		repertoireId,
+		fromFen,
+		san: moveRow.san,
+		due: now,
+		state: 0, // New — will enter the learning phase on first drill
+		reps: 0,
+		lapses: 0,
+		stability: null,
+		difficulty: null,
+		elapsedDays: null,
+		scheduledDays: null,
+		lastReview: null,
+		learningSteps: 0
+	});
 
 	return json({ updated: true, due: now });
 };

@@ -11,15 +11,14 @@ import { eq } from 'drizzle-orm';
 // Returns an array of all repertoires belonging to the current user,
 // ordered by creation date (oldest first).
 
-export const GET: RequestHandler = ({ locals }) => {
+export const GET: RequestHandler = async ({ locals }) => {
 	if (!locals.user) throw error(401, 'Not authenticated');
 
-	const rows = db
+	const rows = await db
 		.select()
 		.from(repertoire)
 		.where(eq(repertoire.userId, locals.user.id))
-		.orderBy(repertoire.createdAt)
-		.all();
+		.orderBy(repertoire.createdAt);
 
 	return json(rows);
 };
@@ -46,7 +45,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		throw error(400, 'color must be "WHITE" or "BLACK"');
 	}
 
-	const created = db
+	const [created] = await db
 		.insert(repertoire)
 		.values({
 			userId: locals.user.id,
@@ -54,8 +53,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			color,
 			createdAt: new Date()
 		})
-		.returning()
-		.get();
+		.returning();
 
 	return json(created, { status: 201 });
 };

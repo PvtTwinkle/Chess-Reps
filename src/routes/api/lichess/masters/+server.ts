@@ -46,11 +46,10 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 	if (!fen) throw error(400, 'fen query parameter is required');
 
 	// ── 1. Check cache ────────────────────────────────────────────────────────
-	const cached = db
+	const [cached] = await db
 		.select({ responseJson: mastersCache.responseJson })
 		.from(mastersCache)
-		.where(eq(mastersCache.fen, fen))
-		.get();
+		.where(eq(mastersCache.fen, fen));
 
 	if (cached) {
 		return json(JSON.parse(cached.responseJson) as MastersResponse);
@@ -106,14 +105,14 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		// Only cache successful responses with data. Rate-limited and error
 		// responses are not cached so they'll be retried on the next request.
 		try {
-			db.insert(mastersCache)
+			await db
+				.insert(mastersCache)
 				.values({
 					fen,
 					responseJson: JSON.stringify(response),
 					fetchedAt: Math.floor(Date.now() / 1000)
 				})
-				.onConflictDoNothing()
-				.run();
+				.onConflictDoNothing();
 		} catch (cacheErr) {
 			// Cache write failure is non-fatal — log and continue.
 			console.warn('[masters] Cache write failed:', cacheErr);

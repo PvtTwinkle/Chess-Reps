@@ -14,12 +14,12 @@ import { redirect } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { deleteSession, SESSION_COOKIE_NAME } from '$lib/auth';
 
-export const POST: RequestHandler = ({ cookies }) => {
+export const POST: RequestHandler = async ({ cookies }) => {
 	const token = cookies.get(SESSION_COOKIE_NAME);
 
 	if (token) {
 		// Remove the session from the database so the token is immediately invalid.
-		deleteSession(token);
+		await deleteSession(token);
 
 		// Tell the browser to delete the cookie by clearing it.
 		// The path: '/' must match the path used when the cookie was set.

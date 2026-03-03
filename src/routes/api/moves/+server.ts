@@ -23,7 +23,7 @@ import { eq, and } from 'drizzle-orm';
 
 // ── GET ────────────────────────────────────────────────────────────────────────
 
-export const GET: RequestHandler = ({ locals, url }) => {
+export const GET: RequestHandler = async ({ locals, url }) => {
 	if (!locals.user) throw error(401, 'Not authenticated');
 
 	const repertoireIdParam = url.searchParams.get('repertoireId');
@@ -33,19 +33,17 @@ export const GET: RequestHandler = ({ locals, url }) => {
 	if (isNaN(repertoireId)) throw error(400, 'repertoireId must be a number');
 
 	// Verify this repertoire belongs to the requesting user before returning data.
-	const rep = db
+	const [rep] = await db
 		.select()
 		.from(repertoire)
-		.where(and(eq(repertoire.id, repertoireId), eq(repertoire.userId, locals.user.id)))
-		.get();
+		.where(and(eq(repertoire.id, repertoireId), eq(repertoire.userId, locals.user.id)));
 
 	if (!rep) throw error(404, 'Repertoire not found');
 
-	const moves = db
+	const moves = await db
 		.select()
 		.from(userMove)
-		.where(and(eq(userMove.userId, locals.user.id), eq(userMove.repertoireId, repertoireId)))
-		.all();
+		.where(and(eq(userMove.userId, locals.user.id), eq(userMove.repertoireId, repertoireId)));
 
 	return json(moves);
 };
@@ -76,11 +74,10 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	if (!san || typeof san !== 'string') throw error(400, 'san is required');
 
 	// Verify the repertoire exists and belongs to this user.
-	const rep = db
+	const [rep] = await db
 		.select()
 		.from(repertoire)
-		.where(and(eq(repertoire.id, repertoireId), eq(repertoire.userId, user.id)))
-		.get();
+		.where(and(eq(repertoire.id, repertoireId), eq(repertoire.userId, user.id)));
 
 	if (!rep) throw error(404, 'Repertoire not found');
 
@@ -107,11 +104,10 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	if (isUserTurn) {
 		// User can have at most one move per position.
 		// Check whether a move from this position already exists.
-		const existing = db
+		const [existing] = await db
 			.select()
 			.from(userMove)
-			.where(and(eq(userMove.repertoireId, repertoireId), eq(userMove.fromFen, fromFen)))
-			.get();
+			.where(and(eq(userMove.repertoireId, repertoireId), eq(userMove.fromFen, fromFen)));
 
 		if (existing) {
 			if (existing.san === san) {
@@ -124,7 +120,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		}
 	} else {
 		// Opponent's turn — multiple moves allowed, but no exact duplicates.
-		const existing = db
+		const [existing] = await db
 			.select()
 			.from(userMove)
 			.where(
@@ -133,8 +129,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 					eq(userMove.fromFen, fromFen),
 					eq(userMove.san, san)
 				)
-			)
-			.get();
+			);
 
 		if (existing) {
 			// Already exists — idempotent, return it.
@@ -146,8 +141,8 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	// transaction so both writes either succeed or roll back together.
 	// Opponent moves are NOT drilled — you need to know your own responses,
 	// not predict every move your opponent might make.
-	const savedMove = db.transaction((tx) => {
-		const move = tx
+	const savedMove = await db.transaction(async (tx) => {
+		const [move] = await tx
 			.insert(userMove)
 			.values({
 				userId: user.id,
@@ -159,30 +154,27 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 				notes: null,
 				createdAt: new Date()
 			})
-			.returning()
-			.get();
+			.returning();
 
 		// The card starts in "New" state (state=0) and is immediately due,
 		// meaning it will appear in the very next drill session.
 		if (isUserTurn) {
-			tx.insert(userRepertoireMove)
-				.values({
-					userId: user.id,
-					repertoireId,
-					fromFen,
-					san,
-					due: new Date(), // immediately due
-					state: 0, // 0 = New in the FSRS state machine
-					reps: 0,
-					lapses: 0,
-					stability: null,
-					difficulty: null,
-					elapsedDays: null,
-					scheduledDays: null,
-					lastReview: null,
-					learningSteps: 0
-				})
-				.run();
+			await tx.insert(userRepertoireMove).values({
+				userId: user.id,
+				repertoireId,
+				fromFen,
+				san,
+				due: new Date(), // immediately due
+				state: 0, // 0 = New in the FSRS state machine
+				reps: 0,
+				lapses: 0,
+				stability: null,
+				difficulty: null,
+				elapsedDays: null,
+				scheduledDays: null,
+				lastReview: null,
+				learningSteps: 0
+			});
 		}
 
 		return move;

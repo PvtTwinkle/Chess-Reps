@@ -53,27 +53,25 @@ export const PATCH: RequestHandler = async ({ locals, request }) => {
 	updates.updatedAt = new Date();
 
 	// Upsert: update if a row exists, insert a defaults row first if not.
-	const existing = db
+	const [existing] = await db
 		.select()
 		.from(userSettings)
-		.where(eq(userSettings.userId, locals.user.id))
-		.get();
+		.where(eq(userSettings.userId, locals.user.id));
 
 	if (existing) {
-		db.update(userSettings).set(updates).where(eq(userSettings.userId, locals.user.id)).run();
+		await db.update(userSettings).set(updates).where(eq(userSettings.userId, locals.user.id));
 	} else {
 		// updatedAt is required on insert but lives in the partial `updates` object.
 		// Provide it explicitly so Drizzle's types are satisfied.
-		db.insert(userSettings)
-			.values({ userId: locals.user.id, updatedAt: new Date(), ...updates })
-			.run();
+		await db
+			.insert(userSettings)
+			.values({ userId: locals.user.id, updatedAt: new Date(), ...updates });
 	}
 
-	const updated = db
+	const [updated] = await db
 		.select()
 		.from(userSettings)
-		.where(eq(userSettings.userId, locals.user.id))
-		.get();
+		.where(eq(userSettings.userId, locals.user.id));
 
 	return json({ updated: true, settings: updated });
 };

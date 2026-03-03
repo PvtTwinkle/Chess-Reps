@@ -28,18 +28,18 @@ export const actions: Actions = {
 		}
 
 		// Look up the user by username.
-		const foundUser = db.select().from(user).where(eq(user.username, username)).get();
+		const [foundUser] = await db.select().from(user).where(eq(user.username, username));
 
 		// We use the same error message whether the username is wrong or the password
 		// is wrong. This is intentional — telling an attacker which one is wrong
 		// helps them narrow down valid usernames, which is a security risk.
-		if (!foundUser || !bcrypt.compareSync(password, foundUser.passwordHash)) {
+		if (!foundUser || !(await bcrypt.compare(password, foundUser.passwordHash))) {
 			return fail(400, { error: 'Invalid username or password.' });
 		}
 
 		// Credentials are correct. Create a session in the database.
 		// createSession() returns the random UUID token to put in the cookie.
-		const token = createSession(foundUser.id);
+		const token = await createSession(foundUser.id);
 
 		// Set the session cookie in the browser.
 		//

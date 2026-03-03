@@ -3,11 +3,13 @@ node_modules
 
 # SvelteKit generated files — rebuilt inside the container
 .svelte-kit
+build
 
 # Git history — not needed in the image
 .git
+.github
 
-# SQLite database — mounted as a volume at runtime, never baked into the image
+# Database data directory — data lives in a Docker volume, not baked into the image
 data
 
 # Local environment file — secrets must never be baked into an image
@@ -17,6 +19,31 @@ data
 # Editor and OS noise
 .DS_Store
 Thumbs.db
+
+# Large data files used for offline tooling, not needed in the app
+*.pgn
+fens-all.tsv
+
+# Claude Code config — development tool, not needed in the image
+.claude
+CLAUDE.md
+
+# Documentation — not needed at runtime
+README.md
+CHANGELOG.md
+CONTRIBUTING.md
+chess-opening-trainer-brief-v3.md
+
+# Docker files — not needed inside the image
+Dockerfile
+Dockerfile.*
+docker-compose.yml
+
+# Dev tooling configs — not needed at runtime
+scripts
+.prettierrc
+.prettierignore
+eslint.config.js
 
 # Logs
 *.log

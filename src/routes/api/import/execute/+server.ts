@@ -22,30 +22,32 @@ import { repertoire, userMove, userRepertoireMove } from '$lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { fenKey } from '$lib/pgn/index';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type TxLike = { select: any; delete: any };
-
 // Recursively deletes all moves reachable from startFen in the given repertoire,
 // including their SR cards. Works within a Drizzle transaction.
 // Mirrors the deleteSubtree logic in DELETE /api/moves/[id].
-function deleteSubtreeInTx(
-	tx: TxLike,
+async function deleteSubtreeInTx(
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	tx: any,
 	userId: number,
 	repertoireId: number,
 	startFen: string
-): void {
-	const children = tx
+): Promise<void> {
+	const children = (await tx
 		.select()
 		.from(userMove)
-		.where(and(eq(userMove.repertoireId, repertoireId), eq(userMove.fromFen, startFen)))
-		.all() as { id: number; toFen: string; san: string }[];
+		.where(and(eq(userMove.repertoireId, repertoireId), eq(userMove.fromFen, startFen)))) as {
+		id: number;
+		toFen: string;
+		san: string;
+	}[];
 
 	for (const child of children) {
 		// Recurse into the child's subtree before deleting the child itself.
-		deleteSubtreeInTx(tx, userId, repertoireId, child.toFen);
+		await deleteSubtreeInTx(tx, userId, repertoireId, child.toFen);
 
 		// Delete the SR card for this move if one exists.
-		tx.delete(userRepertoireMove)
+		await tx
+			.delete(userRepertoireMove)
 			.where(
 				and(
 					eq(userRepertoireMove.userId, userId),
@@ -53,11 +55,10 @@ function deleteSubtreeInTx(
 					eq(userRepertoireMove.fromFen, startFen),
 					eq(userRepertoireMove.san, child.san)
 				)
-			)
-			.run();
+			);
 
 		// Delete the move row itself.
-		tx.delete(userMove).where(eq(userMove.id, child.id)).run();
+		await tx.delete(userMove).where(eq(userMove.id, child.id));
 	}
 }
 
@@ -93,11 +94,10 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	if (!Array.isArray(replacements)) throw error(400, 'replacements must be an array');
 
 	// Verify repertoire ownership
-	const rep = db
+	const [rep] = await db
 		.select()
 		.from(repertoire)
-		.where(and(eq(repertoire.id, repertoireId), eq(repertoire.userId, user.id)))
-		.get();
+		.where(and(eq(repertoire.id, repertoireId), eq(repertoire.userId, user.id)));
 	if (!rep) throw error(404, 'Repertoire not found');
 
 	const repColor = rep.color as 'WHITE' | 'BLACK';
@@ -152,7 +152,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	}
 
 	// Single transaction for all writes
-	const result = db.transaction((tx) => {
+	const result = await db.transaction(async (tx) => {
 		let inserted = 0;
 		let replaced = 0;
 		let skipped = 0;
@@ -160,11 +160,10 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		for (const vm of validatedMoves) {
 			if (vm.isUserTurn) {
 				// Check for existing move at this position
-				const existing = tx
+				const [existing] = await tx
 					.select()
 					.from(userMove)
-					.where(and(eq(userMove.repertoireId, repertoireId), eq(userMove.fromFen, vm.fromFen)))
-					.get();
+					.where(and(eq(userMove.repertoireId, repertoireId), eq(userMove.fromFen, vm.fromFen)));
 
 				if (existing) {
 					if (existing.san === vm.san) {
@@ -180,21 +179,22 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 						// When we change this move's san/toFen, children hanging off
 						// the OLD toFen become orphaned — unreachable from the tree
 						// root. We must remove them (and their SR cards) now.
-						deleteSubtreeInTx(tx, user.id, repertoireId, existing.toFen);
+						await deleteSubtreeInTx(tx, user.id, repertoireId, existing.toFen);
 
 						// User chose this PGN move over the existing one — replace
-						tx.update(userMove)
+						await tx
+							.update(userMove)
 							.set({
 								san: vm.san,
 								toFen: vm.toFen,
 								source: 'PGN_IMPORT',
 								...(vm.notes != null ? { notes: vm.notes } : {})
 							})
-							.where(eq(userMove.id, existing.id))
-							.run();
+							.where(eq(userMove.id, existing.id));
 
 						// Update the SR card's SAN to match
-						tx.update(userRepertoireMove)
+						await tx
+							.update(userRepertoireMove)
 							.set({ san: vm.san })
 							.where(
 								and(
@@ -202,8 +202,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 									eq(userRepertoireMove.repertoireId, repertoireId),
 									eq(userRepertoireMove.fromFen, vm.fromFen)
 								)
-							)
-							.run();
+							);
 
 						replaced++;
 					} else {
@@ -214,42 +213,38 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 				}
 
 				// No existing move — insert new move + SR card
-				tx.insert(userMove)
-					.values({
-						userId: user.id,
-						repertoireId,
-						fromFen: vm.fromFen,
-						toFen: vm.toFen,
-						san: vm.san,
-						source: 'PGN_IMPORT',
-						notes: vm.notes,
-						createdAt: new Date()
-					})
-					.run();
+				await tx.insert(userMove).values({
+					userId: user.id,
+					repertoireId,
+					fromFen: vm.fromFen,
+					toFen: vm.toFen,
+					san: vm.san,
+					source: 'PGN_IMPORT',
+					notes: vm.notes,
+					createdAt: new Date()
+				});
 
-				tx.insert(userRepertoireMove)
-					.values({
-						userId: user.id,
-						repertoireId,
-						fromFen: vm.fromFen,
-						san: vm.san,
-						due: new Date(),
-						state: 0, // New
-						reps: 0,
-						lapses: 0,
-						stability: null,
-						difficulty: null,
-						elapsedDays: null,
-						scheduledDays: null,
-						lastReview: null,
-						learningSteps: 0
-					})
-					.run();
+				await tx.insert(userRepertoireMove).values({
+					userId: user.id,
+					repertoireId,
+					fromFen: vm.fromFen,
+					san: vm.san,
+					due: new Date(),
+					state: 0, // New
+					reps: 0,
+					lapses: 0,
+					stability: null,
+					difficulty: null,
+					elapsedDays: null,
+					scheduledDays: null,
+					lastReview: null,
+					learningSteps: 0
+				});
 
 				inserted++;
 			} else {
 				// Opponent's turn — multiple moves allowed, no SR card
-				const existing = tx
+				const [existing] = await tx
 					.select()
 					.from(userMove)
 					.where(
@@ -258,26 +253,23 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 							eq(userMove.fromFen, vm.fromFen),
 							eq(userMove.san, vm.san)
 						)
-					)
-					.get();
+					);
 
 				if (existing) {
 					skipped++;
 					continue;
 				}
 
-				tx.insert(userMove)
-					.values({
-						userId: user.id,
-						repertoireId,
-						fromFen: vm.fromFen,
-						toFen: vm.toFen,
-						san: vm.san,
-						source: 'PGN_IMPORT',
-						notes: vm.notes,
-						createdAt: new Date()
-					})
-					.run();
+				await tx.insert(userMove).values({
+					userId: user.id,
+					repertoireId,
+					fromFen: vm.fromFen,
+					toFen: vm.toFen,
+					san: vm.san,
+					source: 'PGN_IMPORT',
+					notes: vm.notes,
+					createdAt: new Date()
+				});
 
 				inserted++;
 			}

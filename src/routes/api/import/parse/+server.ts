@@ -34,11 +34,10 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	if (!pgn || typeof pgn !== 'string') throw error(400, 'pgn is required');
 
 	// Verify repertoire ownership
-	const rep = db
+	const [rep] = await db
 		.select()
 		.from(repertoire)
-		.where(and(eq(repertoire.id, repertoireId), eq(repertoire.userId, user.id)))
-		.get();
+		.where(and(eq(repertoire.id, repertoireId), eq(repertoire.userId, user.id)));
 	if (!rep) throw error(404, 'Repertoire not found');
 
 	// Parse the PGN into edges
@@ -54,11 +53,10 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	}
 
 	// Load existing repertoire moves for conflict comparison
-	const existingMoves = db
+	const existingMoves = await db
 		.select({ fromFen: userMove.fromFen, san: userMove.san })
 		.from(userMove)
-		.where(and(eq(userMove.userId, user.id), eq(userMove.repertoireId, repertoireId)))
-		.all();
+		.where(and(eq(userMove.userId, user.id), eq(userMove.repertoireId, repertoireId)));
 
 	// Detect conflicts
 	const preview = detectConflicts(parsed.edges, existingMoves, parsed.errors);

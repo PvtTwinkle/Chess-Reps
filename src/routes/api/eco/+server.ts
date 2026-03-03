@@ -47,7 +47,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 	// Cap at 50 FENs — a typical opening is 15–20 moves deep, so this is
 	// generous while preventing abuse of the IN clause.
-	const result = lookupEco(db, fenList.slice(0, 50));
+	const result = await lookupEco(db, fenList.slice(0, 50));
 
 	return json(result);
 };

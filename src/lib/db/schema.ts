@@ -8,7 +8,17 @@
 //   1. Shared book tables  — opening theory bundled with the app (read-only at runtime)
 //   2. User tables         — personal repertoires, SR state, settings (never shared)
 
-import { index, integer, real, sqliteTable, text, unique } from 'drizzle-orm/sqlite-core';
+import {
+	boolean,
+	doublePrecision,
+	index,
+	integer,
+	pgTable,
+	serial,
+	text,
+	timestamp,
+	unique
+} from 'drizzle-orm/pg-core';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SHARED BOOK TABLES
@@ -19,7 +29,7 @@ import { index, integer, real, sqliteTable, text, unique } from 'drizzle-orm/sql
 // Every unique board position in the opening book, identified by its FEN string.
 // FEN (Forsyth-Edwards Notation) is a standard text format that fully describes
 // a chess position — piece placement, whose turn it is, castling rights, etc.
-export const bookPosition = sqliteTable('book_position', {
+export const bookPosition = pgTable('book_position', {
 	fen: text('fen').primaryKey()
 });
 
@@ -27,10 +37,10 @@ export const bookPosition = sqliteTable('book_position', {
 // Each row is one move: "from this position, this move leads to that position."
 // UNIQUE(from_fen, san) ensures a single (position, move) pair is stored only once,
 // even though hundreds of ECO lines share early moves like 1.e4 or 1.d4.
-export const bookMove = sqliteTable(
+export const bookMove = pgTable(
 	'book_move',
 	{
-		id: integer('id').primaryKey({ autoIncrement: true }),
+		id: serial('id').primaryKey(),
 		fromFen: text('from_fen').notNull(), // position before the move
 		toFen: text('to_fen').notNull(), // position after the move
 		san: text('san').notNull(), // move in Standard Algebraic Notation, e.g. "e4", "Nf3"
@@ -40,8 +50,6 @@ export const bookMove = sqliteTable(
 	(table) => ({
 		uniqueFromSan: unique().on(table.fromFen, table.san),
 		// Dedicated single-column index for "all moves from this position" lookups.
-		// The composite UNIQUE above covers (from_fen, san) but SQLite can use it for
-		// from_fen-only scans too; this explicit index makes that intent clear to Drizzle.
 		fromFenIdx: index('idx_book_move_from_fen').on(table.fromFen)
 	})
 );
@@ -53,7 +61,7 @@ export const bookMove = sqliteTable(
 // fen is the primary key because lookup is always by position, never by code.
 // The same ECO code can cover many distinct named positions (e.g. "B90" covers
 // the Najdorf plus a dozen sub-variations, each at a different FEN).
-export const ecoOpening = sqliteTable('eco_opening', {
+export const ecoOpening = pgTable('eco_opening', {
 	fen: text('fen').primaryKey(), // the FEN of the position this name applies to
 	code: text('code').notNull(), // e.g. "B90"
 	name: text('name').notNull() // e.g. "Sicilian Defense, Najdorf Variation"
@@ -68,7 +76,7 @@ export const ecoOpening = sqliteTable('eco_opening', {
 // Cached responses from the Lichess Masters Opening Explorer API.
 // Keyed by FEN so each position is fetched at most once. Master game stats
 // don't change meaningfully over time, so entries never expire.
-export const mastersCache = sqliteTable('masters_cache', {
+export const mastersCache = pgTable('masters_cache', {
 	fen: text('fen').primaryKey(),
 	responseJson: text('response_json').notNull(), // JSON string of MastersResponse
 	fetchedAt: integer('fetched_at').notNull() // unix timestamp (seconds)
@@ -82,11 +90,11 @@ export const mastersCache = sqliteTable('masters_cache', {
 // ─────────────────────────────────────────────────────────────────────────────
 
 // The login account. One row per user (one row total in a self-hosted instance).
-export const user = sqliteTable('user', {
-	id: integer('id').primaryKey({ autoIncrement: true }),
+export const user = pgTable('user', {
+	id: serial('id').primaryKey(),
 	username: text('username').notNull().unique(),
 	passwordHash: text('password_hash').notNull(), // bcrypt hash — plain text is never stored
-	createdAt: integer('created_at', { mode: 'timestamp' }).notNull()
+	createdAt: timestamp('created_at').notNull()
 });
 
 // Active login sessions. One row per logged-in browser session.
@@ -94,14 +102,14 @@ export const user = sqliteTable('user', {
 // On every request, the server reads the cookie, looks it up here,
 // and retrieves the associated user_id to identify who is logged in.
 // Sessions expire after 30 days. Logging out deletes the row immediately.
-export const session = sqliteTable(
+export const session = pgTable(
 	'session',
 	{
 		id: text('id').primaryKey(), // random UUID — this is what goes in the cookie
 		userId: integer('user_id')
 			.notNull()
 			.references(() => user.id),
-		expiresAt: integer('expires_at', { mode: 'timestamp' }).notNull() // 30 days from login
+		expiresAt: timestamp('expires_at').notNull() // 30 days from login
 	},
 	(table) => ({
 		// Looked up on every authenticated request to fetch the session owner.
@@ -110,8 +118,8 @@ export const session = sqliteTable(
 );
 
 // Per-user configuration. One row per user.
-export const userSettings = sqliteTable('user_settings', {
-	id: integer('id').primaryKey({ autoIncrement: true }),
+export const userSettings = pgTable('user_settings', {
+	id: serial('id').primaryKey(),
 	userId: integer('user_id')
 		.notNull()
 		.references(() => user.id),
@@ -119,29 +127,29 @@ export const userSettings = sqliteTable('user_settings', {
 	stockfishTimeout: integer('stockfish_timeout').notNull().default(10), // analysis timeout in seconds (3–30)
 	boardTheme: text('board_theme').notNull().default('blue'), // e.g. "blue", "green", "brown"
 	pieceSet: text('piece_set').notNull().default('cburnett'), // e.g. "cburnett", "merida", "alpha"
-	soundEnabled: integer('sound_enabled', { mode: 'boolean' }).notNull().default(true),
-	updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull()
+	soundEnabled: boolean('sound_enabled').notNull().default(true),
+	updatedAt: timestamp('updated_at').notNull()
 });
 
 // A named opening repertoire. Users can have multiple (e.g. "White - e4", "Black vs d4").
-export const repertoire = sqliteTable('repertoire', {
-	id: integer('id').primaryKey({ autoIncrement: true }),
+export const repertoire = pgTable('repertoire', {
+	id: serial('id').primaryKey(),
 	userId: integer('user_id')
 		.notNull()
 		.references(() => user.id),
 	name: text('name').notNull(), // e.g. "White - e4 lines"
 	color: text('color').notNull(), // "WHITE" or "BLACK" — which side the user plays
 	startFen: text('start_fen'), // custom start position FEN — null means "after user's first move" (default)
-	createdAt: integer('created_at', { mode: 'timestamp' }).notNull()
+	createdAt: timestamp('created_at').notNull()
 });
 
 // Every move the user has added to a repertoire.
 // This is the raw move record — what move was played and how it was sourced.
 // The spaced repetition state lives separately in user_repertoire_move.
-export const userMove = sqliteTable(
+export const userMove = pgTable(
 	'user_move',
 	{
-		id: integer('id').primaryKey({ autoIncrement: true }),
+		id: serial('id').primaryKey(),
 		userId: integer('user_id')
 			.notNull()
 			.references(() => user.id),
@@ -153,7 +161,7 @@ export const userMove = sqliteTable(
 		san: text('san').notNull(), // move in Standard Algebraic Notation
 		source: text('source').notNull(), // "BOOK" (from shared book), "PERSONAL", or "STOCKFISH"
 		notes: text('notes'), // optional user annotation on this move
-		createdAt: integer('created_at', { mode: 'timestamp' }).notNull()
+		createdAt: timestamp('created_at').notNull()
 	},
 	(table) => ({
 		repertoireIdIdx: index('idx_user_move_repertoire_id').on(table.repertoireId),
@@ -165,10 +173,10 @@ export const userMove = sqliteTable(
 // One row per drillable move. The FSRS algorithm uses these fields to decide
 // when to show each position again. Only the user's own moves are drilled
 // (not opponent moves — you don't need to memorise what your opponent plays).
-export const userRepertoireMove = sqliteTable(
+export const userRepertoireMove = pgTable(
 	'user_repertoire_move',
 	{
-		id: integer('id').primaryKey({ autoIncrement: true }),
+		id: serial('id').primaryKey(),
 		userId: integer('user_id')
 			.notNull()
 			.references(() => user.id),
@@ -180,15 +188,15 @@ export const userRepertoireMove = sqliteTable(
 
 		// FSRS spaced repetition fields — managed by the ts-fsrs library, not manually.
 		// These determine when this card is next due and how well it has been learned.
-		due: integer('due', { mode: 'timestamp' }), // when this card should next be reviewed
-		stability: real('stability'), // how well the memory has consolidated (higher = longer interval)
-		difficulty: real('difficulty'), // how hard the card is for this user (1–10)
+		due: timestamp('due'), // when this card should next be reviewed
+		stability: doublePrecision('stability'), // how well the memory has consolidated (higher = longer interval)
+		difficulty: doublePrecision('difficulty'), // how hard the card is for this user (1–10)
 		elapsedDays: integer('elapsed_days'), // days since last review
 		scheduledDays: integer('scheduled_days'), // days until next review was scheduled
 		reps: integer('reps'), // total number of successful reviews
 		lapses: integer('lapses'), // number of times the user forgot this card
 		state: integer('state'), // 0=New, 1=Learning, 2=Review, 3=Relearning
-		lastReview: integer('last_review', { mode: 'timestamp' }), // when it was last reviewed
+		lastReview: timestamp('last_review'), // when it was last reviewed
 		learningSteps: integer('learning_steps').notNull().default(0) // ts-fsrs v5: which step within learning/relearning phase
 	},
 	(table) => ({
@@ -200,10 +208,10 @@ export const userRepertoireMove = sqliteTable(
 );
 
 // A game the user has imported and reviewed for deviations from their repertoire.
-export const reviewedGame = sqliteTable(
+export const reviewedGame = pgTable(
 	'reviewed_game',
 	{
-		id: integer('id').primaryKey({ autoIncrement: true }),
+		id: serial('id').primaryKey(),
 		userId: integer('user_id')
 			.notNull()
 			.references(() => user.id),
@@ -214,8 +222,8 @@ export const reviewedGame = sqliteTable(
 		source: text('source').notNull(), // "MANUAL" (pasted) or "LICHESS" (imported)
 		lichessGameId: text('lichess_game_id'), // Lichess game ID, used to prevent duplicate imports
 		deviationFen: text('deviation_fen'), // the position where the user went off-book
-		playedAt: integer('played_at', { mode: 'timestamp' }), // when the original game was played
-		reviewedAt: integer('reviewed_at', { mode: 'timestamp' }).notNull(), // when the user reviewed it here
+		playedAt: timestamp('played_at'), // when the original game was played
+		reviewedAt: timestamp('reviewed_at').notNull(), // when the user reviewed it here
 		notes: text('notes')
 	},
 	(table) => ({
@@ -224,10 +232,10 @@ export const reviewedGame = sqliteTable(
 );
 
 // A completed drill session — used to power the dashboard stats and review history chart.
-export const drillSession = sqliteTable(
+export const drillSession = pgTable(
 	'drill_session',
 	{
-		id: integer('id').primaryKey({ autoIncrement: true }),
+		id: serial('id').primaryKey(),
 		userId: integer('user_id')
 			.notNull()
 			.references(() => user.id),
@@ -236,8 +244,8 @@ export const drillSession = sqliteTable(
 			.references(() => repertoire.id),
 		cardsReviewed: integer('cards_reviewed').notNull().default(0),
 		cardsCorrect: integer('cards_correct').notNull().default(0),
-		startedAt: integer('started_at', { mode: 'timestamp' }).notNull(),
-		completedAt: integer('completed_at', { mode: 'timestamp' }) // null if session was abandoned
+		startedAt: timestamp('started_at').notNull(),
+		completedAt: timestamp('completed_at') // null if session was abandoned
 	},
 	(table) => ({
 		repertoireIdIdx: index('idx_drill_session_repertoire_id').on(table.repertoireId)

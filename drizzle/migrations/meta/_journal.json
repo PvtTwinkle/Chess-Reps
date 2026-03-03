@@ -1,82 +1,26 @@
 {
 	"version": "7",
-	"dialect": "sqlite",
+	"dialect": "postgresql",
 	"entries": [
 		{
 			"idx": 0,
 			"version": "6",
 			"when": 1771865788871,
-			"tag": "0000_initial_schema",
+			"tag": "0000_create_tables",
 			"breakpoints": true
 		},
 		{
 			"idx": 1,
 			"version": "6",
-			"when": 1771867259368,
-			"tag": "0001_sessions",
+			"when": 1771865800000,
+			"tag": "0001_seed_book_moves",
 			"breakpoints": true
 		},
 		{
 			"idx": 2,
 			"version": "6",
-			"when": 1772006400000,
-			"tag": "0002_seed_book_moves",
-			"breakpoints": true
-		},
-		{
-			"idx": 3,
-			"version": "6",
-			"when": 1771973166214,
-			"tag": "0003_seed_eco_codes",
-			"breakpoints": true
-		},
-		{
-			"idx": 4,
-			"version": "6",
-			"when": 1740514200000,
-			"tag": "0004_learning_steps",
-			"breakpoints": true
-		},
-		{
-			"idx": 5,
-			"version": "6",
-			"when": 1772059800000,
-			"tag": "0005_remove_types",
-			"breakpoints": true
-		},
-		{
-			"idx": 6,
-			"version": "6",
-			"when": 1772107200000,
-			"tag": "0006_full_eco_dataset",
-			"breakpoints": true
-		},
-		{
-			"idx": 7,
-			"version": "6",
-			"when": 1772193600000,
-			"tag": "0007_add_indexes",
-			"breakpoints": true
-		},
-		{
-			"idx": 8,
-			"version": "6",
-			"when": 1772280000000,
-			"tag": "0008_add_start_fen",
-			"breakpoints": true
-		},
-		{
-			"idx": 9,
-			"version": "6",
-			"when": 1772366400000,
-			"tag": "0009_add_stockfish_timeout",
-			"breakpoints": true
-		},
-		{
-			"idx": 10,
-			"version": "6",
-			"when": 1772452800000,
-			"tag": "0010_masters_cache",
+			"when": 1771865900000,
+			"tag": "0002_seed_eco_data",
 			"breakpoints": true
 		}
 	]

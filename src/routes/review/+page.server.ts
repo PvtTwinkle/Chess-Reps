@@ -32,20 +32,18 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 	// All moves in the active repertoire — passed to the client so the Svelte
 	// component can call analyzeGame via the form action without a second round-trip.
 	// (The action re-queries these on submission; the load data is for the history list.)
-	const moves = db
+	const moves = await db
 		.select()
 		.from(userMove)
-		.where(and(eq(userMove.userId, userId), eq(userMove.repertoireId, activeRepertoireId)))
-		.all();
+		.where(and(eq(userMove.userId, userId), eq(userMove.repertoireId, activeRepertoireId)));
 
 	// Past reviewed games for this repertoire — displayed as a history list on the input screen.
-	const recentGames = db
+	const recentGames = await db
 		.select()
 		.from(reviewedGame)
 		.where(and(eq(reviewedGame.userId, userId), eq(reviewedGame.repertoireId, activeRepertoireId)))
 		.orderBy(desc(reviewedGame.reviewedAt))
-		.limit(20)
-		.all();
+		.limit(20);
 
 	return {
 		repertoire: activeRep,
@@ -66,11 +64,10 @@ export const actions: Actions = {
 			return fail(400, { error: 'No active repertoire selected' });
 		}
 
-		const activeRep = db
+		const [activeRep] = await db
 			.select()
 			.from(repertoire)
-			.where(and(eq(repertoire.id, activeRepertoireId), eq(repertoire.userId, locals.user.id)))
-			.get();
+			.where(and(eq(repertoire.id, activeRepertoireId), eq(repertoire.userId, locals.user.id)));
 		if (!activeRep) return fail(400, { error: 'Active repertoire not found' });
 
 		const form = await request.formData();
@@ -87,11 +84,10 @@ export const actions: Actions = {
 				: (activeRep.color as 'WHITE' | 'BLACK');
 
 		// Load all repertoire moves to pass to analyzeGame.
-		const moves = db
+		const moves = await db
 			.select()
 			.from(userMove)
-			.where(and(eq(userMove.userId, locals.user.id), eq(userMove.repertoireId, activeRep.id)))
-			.all();
+			.where(and(eq(userMove.userId, locals.user.id), eq(userMove.repertoireId, activeRep.id)));
 
 		let parsed;
 		try {

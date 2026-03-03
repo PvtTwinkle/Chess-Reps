@@ -3,27 +3,19 @@
 #
 # Multi-stage build. Two stages keep the final image small:
 #
-#   Stage 1 (builder) — installs ALL dependencies including build tools,
-#   compiles the better-sqlite3 native addon, and runs `vite build`.
+#   Stage 1 (builder) — installs all dependencies and runs `vite build`.
 #
 #   Stage 2 (runner) — copies only what is needed to run the app: the
-#   compiled build output, the production node_modules (with the pre-built
-#   native addon already inside), and the database migration files.
+#   compiled build output, the production node_modules, and the database
+#   migration files.
 #
-# Why two stages?
-#   better-sqlite3 is a native C++ Node.js addon. Compiling it requires Python,
-#   make, and a C++ compiler — roughly 200MB of build tools. Those tools are
-#   needed only at build time. Multi-stage builds let us discard them before
-#   creating the final image, resulting in a significantly smaller image.
+# No native compilation is needed — postgres.js (the PostgreSQL driver) is
+# pure JavaScript, so no build tools (python, make, g++) are required.
 # ─────────────────────────────────────────────────────────────────────────────
 
 
 # ── Stage 1: Build ────────────────────────────────────────────────────────────
 FROM node:22-alpine AS builder
-
-# Build tools required to compile better-sqlite3 from source.
-# These are NOT needed in the final runtime image.
-RUN apk add --no-cache python3 make g++
 
 WORKDIR /app
 
@@ -45,21 +37,16 @@ COPY . .
 RUN npm run build
 
 # Remove devDependencies in-place so we can copy a leaner node_modules to the
-# runner stage. Production deps only (better-sqlite3, drizzle-orm, bcryptjs).
+# runner stage. Production deps only (postgres, drizzle-orm, bcryptjs, etc.).
 RUN npm prune --omit=dev
 
 
 # ── Stage 2: Production runtime ───────────────────────────────────────────────
 FROM node:22-alpine AS runner
 
-# better-sqlite3's compiled .node file links against libstdc++ at runtime.
-# This is a small shared library — not the full compiler toolchain.
-RUN apk add --no-cache libstdc++
-
 WORKDIR /app
 
 # Copy the pruned production node_modules from the builder stage.
-# The compiled better-sqlite3 native binary is already inside here.
 COPY --from=builder /app/node_modules ./node_modules
 
 # Copy the compiled SvelteKit app.
@@ -72,11 +59,6 @@ COPY --from=builder /app/drizzle ./drizzle
 # Copy package.json. Node.js needs it to understand this is an ES module
 # project ("type": "module" in package.json).
 COPY --from=builder /app/package.json ./
-
-# Create the data directory where the SQLite file will live.
-# In production this is overwritten by the Docker volume mount, but it must
-# exist so the container starts cleanly even without a volume.
-RUN mkdir -p /app/data
 
 # Tell Node.js and SvelteKit this is a production environment.
 ENV NODE_ENV=production

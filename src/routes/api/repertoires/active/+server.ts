@@ -25,11 +25,10 @@ export const POST: RequestHandler = async ({ locals, request, cookies }) => {
 
 	// Verify the requested repertoire actually belongs to this user.
 	// Without this check, a user could set the cookie to any repertoire ID.
-	const rep = db
+	const [rep] = await db
 		.select()
 		.from(repertoire)
-		.where(and(eq(repertoire.id, id), eq(repertoire.userId, locals.user.id)))
-		.get();
+		.where(and(eq(repertoire.id, id), eq(repertoire.userId, locals.user.id)));
 
 	if (!rep) throw error(404, 'Repertoire not found');
 

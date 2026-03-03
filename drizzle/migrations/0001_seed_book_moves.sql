@@ -11,8 +11,9 @@ INSERT INTO book_move (from_fen, to_fen, san, annotation, contributor) VALUES (
     'e4',
     'Alapin Sicilian — move 1',
     'seed'
-);
+) ON CONFLICT DO NOTHING;
 --> statement-breakpoint
+
 -- 1... c5  (Sicilian Defence)
 INSERT INTO book_move (from_fen, to_fen, san, annotation, contributor) VALUES (
     'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1',
@@ -20,8 +21,9 @@ INSERT INTO book_move (from_fen, to_fen, san, annotation, contributor) VALUES (
     'c5',
     'Alapin Sicilian — move 1',
     'seed'
-);
+) ON CONFLICT DO NOTHING;
 --> statement-breakpoint
+
 -- 2. c3  (Alapin variation — white's defining move)
 INSERT INTO book_move (from_fen, to_fen, san, annotation, contributor) VALUES (
     'rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2',
@@ -29,8 +31,9 @@ INSERT INTO book_move (from_fen, to_fen, san, annotation, contributor) VALUES (
     'c3',
     'Alapin Sicilian — the Alapin move',
     'seed'
-);
+) ON CONFLICT DO NOTHING;
 --> statement-breakpoint
+
 -- 2... d5  (main line response — central counter-attack)
 INSERT INTO book_move (from_fen, to_fen, san, annotation, contributor) VALUES (
     'rnbqkbnr/pp1ppppp/8/2p5/4P3/2P5/PP1P1PPP/RNBQKBNR b KQkq - 0 2',
@@ -38,4 +41,4 @@ INSERT INTO book_move (from_fen, to_fen, san, annotation, contributor) VALUES (
     'd5',
     'Alapin Sicilian — main line',
     'seed'
-);
+) ON CONFLICT DO NOTHING;

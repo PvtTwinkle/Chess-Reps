@@ -24,15 +24,14 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	if (typeof repertoireId !== 'number') throw error(400, 'repertoireId must be a number');
 
 	// Verify the repertoire belongs to this user.
-	const rep = db
+	const [rep] = await db
 		.select()
 		.from(repertoire)
-		.where(and(eq(repertoire.id, repertoireId), eq(repertoire.userId, locals.user.id)))
-		.get();
+		.where(and(eq(repertoire.id, repertoireId), eq(repertoire.userId, locals.user.id)));
 
 	if (!rep) throw error(404, 'Repertoire not found');
 
-	const result = db
+	const [result] = await db
 		.insert(drillSession)
 		.values({
 			userId: locals.user.id,
@@ -41,8 +40,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			cardsCorrect: 0,
 			startedAt: new Date()
 		})
-		.returning({ id: drillSession.id })
-		.get();
+		.returning({ id: drillSession.id });
 
 	return json({ sessionId: result.id });
 };

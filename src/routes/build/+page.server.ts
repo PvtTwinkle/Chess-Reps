@@ -35,11 +35,12 @@ export const load: PageServerLoad = async ({ locals, parent, url }) => {
 	// existing lines are visible in the sidebar immediately, before any
 	// interaction. New moves are added to this list optimistically as the
 	// user plays them.
-	const moves = db
+	const moves = await db
 		.select()
 		.from(userMove)
-		.where(and(eq(userMove.userId, locals.user!.id), eq(userMove.repertoireId, activeRepertoireId)))
-		.all();
+		.where(
+			and(eq(userMove.userId, locals.user!.id), eq(userMove.repertoireId, activeRepertoireId))
+		);
 
 	// Optional: a comma-separated SAN list passed from the Explorer "Build from here"
 	// link. The client-side page replays these moves on first mount to jump straight

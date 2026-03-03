@@ -32,11 +32,10 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	}
 
 	// Load the card and verify it belongs to this user.
-	const card = db
+	const [card] = await db
 		.select()
 		.from(userRepertoireMove)
-		.where(and(eq(userRepertoireMove.id, cardId), eq(userRepertoireMove.userId, locals.user.id)))
-		.get();
+		.where(and(eq(userRepertoireMove.id, cardId), eq(userRepertoireMove.userId, locals.user.id)));
 
 	if (!card) throw error(404, 'Card not found');
 
@@ -45,7 +44,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	const updated = gradeCard(card, rating as Rating, now);
 
 	// Write the new state back to the database.
-	db.update(userRepertoireMove).set(updated).where(eq(userRepertoireMove.id, cardId)).run();
+	await db.update(userRepertoireMove).set(updated).where(eq(userRepertoireMove.id, cardId));
 
 	return json({ updated: true, due: updated.due });
 };

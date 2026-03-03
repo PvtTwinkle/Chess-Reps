@@ -3,8 +3,7 @@
 // A session is a row in the `session` table that links a random token (UUID)
 // to a user ID. The token is stored as a cookie in the browser.
 //
-// All functions here are synchronous because better-sqlite3 is synchronous.
-// There are no async/await patterns here — reads and writes happen immediately.
+// All functions here are async because the PostgreSQL driver is async.
 
 import crypto from 'crypto';
 import { db } from '$lib/db';
@@ -29,13 +28,13 @@ const SESSION_DURATION_DAYS = 30;
 // This is unpredictable enough that an attacker cannot guess it.
 // ─────────────────────────────────────────────────────────────────────────────
 
-export function createSession(userId: number): string {
+export async function createSession(userId: number): Promise<string> {
 	const token = crypto.randomUUID();
 
 	const expiresAt = new Date();
 	expiresAt.setDate(expiresAt.getDate() + SESSION_DURATION_DAYS);
 
-	db.insert(session).values({ id: token, userId, expiresAt }).run();
+	await db.insert(session).values({ id: token, userId, expiresAt });
 
 	return token;
 }
@@ -51,8 +50,8 @@ export function createSession(userId: number): string {
 // session table from accumulating stale rows over time.
 // ─────────────────────────────────────────────────────────────────────────────
 
-export function validateSession(token: string): { userId: number } | null {
-	const row = db.select().from(session).where(eq(session.id, token)).get();
+export async function validateSession(token: string): Promise<{ userId: number } | null> {
+	const [row] = await db.select().from(session).where(eq(session.id, token));
 
 	if (!row) {
 		// Token not found in the database — invalid or already deleted.
@@ -61,7 +60,7 @@ export function validateSession(token: string): { userId: number } | null {
 
 	if (row.expiresAt < new Date()) {
 		// Token exists but has passed its expiry date — delete and reject.
-		db.delete(session).where(eq(session.id, token)).run();
+		await db.delete(session).where(eq(session.id, token));
 		return null;
 	}
 
@@ -75,6 +74,6 @@ export function validateSession(token: string): { userId: number } | null {
 // is immediately invalid — even if the browser still has the cookie.
 // ─────────────────────────────────────────────────────────────────────────────
 
-export function deleteSession(token: string): void {
-	db.delete(session).where(eq(session.id, token)).run();
+export async function deleteSession(token: string): Promise<void> {
+	await db.delete(session).where(eq(session.id, token));
 }

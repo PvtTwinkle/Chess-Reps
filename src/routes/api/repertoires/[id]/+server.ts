@@ -25,11 +25,10 @@ export const PATCH: RequestHandler = async ({ locals, request, params }) => {
 	if (isNaN(id)) throw error(400, 'Invalid id');
 
 	// Ownership check.
-	const existing = db
+	const [existing] = await db
 		.select()
 		.from(repertoire)
-		.where(and(eq(repertoire.id, id), eq(repertoire.userId, locals.user.id)))
-		.get();
+		.where(and(eq(repertoire.id, id), eq(repertoire.userId, locals.user.id)));
 
 	if (!existing) throw error(404, 'Repertoire not found');
 
@@ -64,7 +63,11 @@ export const PATCH: RequestHandler = async ({ locals, request, params }) => {
 		throw error(400, 'At least one field (name, startFen) is required');
 	}
 
-	const updated = db.update(repertoire).set(updates).where(eq(repertoire.id, id)).returning().get();
+	const [updated] = await db
+		.update(repertoire)
+		.set(updates)
+		.where(eq(repertoire.id, id))
+		.returning();
 
 	return json(updated);
 };
@@ -79,29 +82,28 @@ export const PATCH: RequestHandler = async ({ locals, request, params }) => {
 // Deletion order matters because of foreign key constraints:
 // child rows (moves, sessions) must be deleted before the parent (repertoire).
 
-export const DELETE: RequestHandler = ({ locals, params }) => {
+export const DELETE: RequestHandler = async ({ locals, params }) => {
 	if (!locals.user) throw error(401, 'Not authenticated');
 
 	const id = parseInt(params.id);
 	if (isNaN(id)) throw error(400, 'Invalid id');
 
 	// Ownership check.
-	const existing = db
+	const [existing] = await db
 		.select()
 		.from(repertoire)
-		.where(and(eq(repertoire.id, id), eq(repertoire.userId, locals.user.id)))
-		.get();
+		.where(and(eq(repertoire.id, id), eq(repertoire.userId, locals.user.id)));
 
 	if (!existing) throw error(404, 'Repertoire not found');
 
-	db.transaction((tx) => {
+	await db.transaction(async (tx) => {
 		// Delete child rows first (foreign key references the repertoire row).
-		tx.delete(userMove).where(eq(userMove.repertoireId, id)).run();
-		tx.delete(userRepertoireMove).where(eq(userRepertoireMove.repertoireId, id)).run();
-		tx.delete(reviewedGame).where(eq(reviewedGame.repertoireId, id)).run();
-		tx.delete(drillSession).where(eq(drillSession.repertoireId, id)).run();
+		await tx.delete(userMove).where(eq(userMove.repertoireId, id));
+		await tx.delete(userRepertoireMove).where(eq(userRepertoireMove.repertoireId, id));
+		await tx.delete(reviewedGame).where(eq(reviewedGame.repertoireId, id));
+		await tx.delete(drillSession).where(eq(drillSession.repertoireId, id));
 		// Delete the repertoire itself last.
-		tx.delete(repertoire).where(eq(repertoire.id, id)).run();
+		await tx.delete(repertoire).where(eq(repertoire.id, id));
 	});
 
 	return json({ success: true });
