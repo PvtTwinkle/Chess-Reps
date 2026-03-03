@@ -15,6 +15,19 @@ Docker images are tagged per version. To stay on stable releases, pin your
 
 ### Added
 
+- **Game Review: enhanced DEVIATION cards** — deviation issues now show a structured
+  eval comparison (played move vs repertoire move with colored eval badges) and a
+  collapsible "Masters" section showing top Lichess Masters Database moves with
+  W/D/L bars and game counts for every issue type. The "Update repertoire" button
+  dynamically relabels to "Replace in repertoire" (blue) when the played move
+  evaluates better than the book move.
+
+### Fixed
+
+- **Game Review: reactive loop in analysis reset** — wrapped all `SvelteMap`/`SvelteSet`
+  `.clear()` calls in `untrack()` inside the form-sync `$effect` to prevent background
+  fetches from re-triggering the effect and resetting playback/button state.
+
 - **Lichess Masters Database tab** — Build Mode's candidate moves panel now has a
   third tab showing move popularity and win/draw/loss stats from master-level games:
   - Data sourced from the Lichess Opening Explorer Masters API (2.2M+ master games)

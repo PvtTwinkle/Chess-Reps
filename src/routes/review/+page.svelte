@@ -98,6 +98,23 @@
 	>();
 	let actionLoading = new SvelteMap<number, boolean>();
 
+	// ── Masters data for DEVIATION issues (lazy-loaded on expand) ───────────────
+
+	interface MastersMove {
+		san: string;
+		uci: string;
+		white: number;
+		draws: number;
+		black: number;
+		totalGames: number;
+		averageRating: number;
+	}
+
+	let deviationMasters = new SvelteMap<number, MastersMove[]>();
+	let deviationMastersLoading = new SvelteMap<number, boolean>();
+	let deviationMastersError = new SvelteMap<number, boolean>();
+	let deviationMastersExpanded = new SvelteSet<number>();
+
 	// ── Save state ──────────────────────────────────────────────────────────────
 
 	let saving = $state(false);
@@ -133,20 +150,28 @@
 			analysisHeaders = (form.headers as Record<string, string>) ?? {};
 			analysedPlayerColor = (form.playerColor as 'WHITE' | 'BLACK') ?? 'WHITE';
 
-			// Reset per-analysis state.
+			// Reset per-analysis state. Wrap reactive collection clears in
+			// untrack so they don't register as dependencies of this $effect
+			// (mutations from background fetches would otherwise re-trigger it).
 			currentPlyIdx = 0;
-			resolvedIssues.clear();
-			opponentMoveAdded.clear();
-			chainExtensions.clear();
-			userMoveEvals.clear();
 			notes = '';
 			savedId = null;
 			analysisError = null;
-			stockfishLoading.clear();
-			stockfishSuggestions.clear();
-			actionLoading.clear();
-			deviationEvals.clear();
-			deviationFetching.clear();
+			untrack(() => {
+				resolvedIssues.clear();
+				opponentMoveAdded.clear();
+				chainExtensions.clear();
+				userMoveEvals.clear();
+				stockfishLoading.clear();
+				stockfishSuggestions.clear();
+				actionLoading.clear();
+				deviationEvals.clear();
+				deviationFetching.clear();
+				deviationMasters.clear();
+				deviationMastersLoading.clear();
+				deviationMastersError.clear();
+				deviationMastersExpanded.clear();
+			});
 
 			// Auto-play from the start up to the first issue (or end of game if clean).
 			const loaded = form.analysis as GameAnalysis;
@@ -469,6 +494,45 @@
 		if (evalCp === null) return '';
 		const playerCp = analysedPlayerColor === 'BLACK' ? -evalCp : evalCp;
 		return ` (${playerCp >= 0 ? '+' : ''}${(playerCp / 100).toFixed(1)})`;
+	}
+
+	// Return a CSS class for an eval badge based on player-perspective centipawns.
+	function evalBadgeClass(cp: number): string {
+		const playerCp = analysedPlayerColor === 'BLACK' ? -cp : cp;
+		if (playerCp > 50) return 'eval-badge-good';
+		if (playerCp < -50) return 'eval-badge-bad';
+		return 'eval-badge-neutral';
+	}
+
+	// Fetch Lichess Masters top moves for a DEVIATION's position (lazy, cache-first).
+	async function fetchDeviationMasters(issue: GameIssue): Promise<void> {
+		if (deviationMasters.has(issue.ply) || deviationMastersLoading.get(issue.ply)) return;
+		deviationMastersLoading.set(issue.ply, true);
+		deviationMastersError.set(issue.ply, false);
+		try {
+			const res = await fetch(`/api/lichess/masters?fen=${encodeURIComponent(issue.fromFen)}`);
+			if (!res.ok) throw new Error('Masters fetch failed');
+			const data = await res.json();
+			if (data.rateLimited) {
+				deviationMastersError.set(issue.ply, true);
+			} else {
+				deviationMasters.set(issue.ply, ((data.moves as MastersMove[]) ?? []).slice(0, 5));
+			}
+		} catch {
+			deviationMastersError.set(issue.ply, true);
+		} finally {
+			deviationMastersLoading.set(issue.ply, false);
+		}
+	}
+
+	// Toggle Masters section visibility for a DEVIATION issue; lazy-fetch on first expand.
+	function toggleMasters(issue: GameIssue): void {
+		if (deviationMastersExpanded.has(issue.ply)) {
+			deviationMastersExpanded.delete(issue.ply);
+		} else {
+			deviationMastersExpanded.add(issue.ply);
+			fetchDeviationMasters(issue);
+		}
 	}
 
 	// Resolve an issue without any action (skip).
@@ -1265,15 +1329,31 @@
 									<div class="issue-details">
 										{#if issue.type === 'DEVIATION'}
 											{@const ev = deviationEvals.get(issue.ply)}
-											<span
-												>You played <strong>{issue.playedSan}</strong
-												>{#if ev?.played != null}&nbsp;<span class="move-eval"
-														>{formatEval(ev.played)}</span
-													>{/if}, repertoire has
-												<strong>{issue.repertoireSan}</strong>{#if ev?.correct != null}&nbsp;<span
-														class="move-eval">{formatEval(ev.correct)}</span
-													>{/if}</span
-											>
+											<!-- Eval comparison: two rows -->
+											<div class="eval-compare">
+												<div class="eval-row">
+													<span class="eval-label">Played</span>
+													<strong class="eval-san">{issue.playedSan}</strong>
+													{#if ev?.played != null}
+														<span class="eval-badge {evalBadgeClass(ev.played)}"
+															>{formatEval(ev.played)}</span
+														>
+													{:else}
+														<span class="eval-badge eval-loading">…</span>
+													{/if}
+												</div>
+												<div class="eval-row">
+													<span class="eval-label">Book</span>
+													<strong class="eval-san">{issue.repertoireSan}</strong>
+													{#if ev?.correct != null}
+														<span class="eval-badge {evalBadgeClass(ev.correct)}"
+															>{formatEval(ev.correct)}</span
+														>
+													{:else}
+														<span class="eval-badge eval-loading">…</span>
+													{/if}
+												</div>
+											</div>
 										{:else if issue.type === 'BEYOND_REPERTOIRE'}
 											<span
 												>You played <strong>{issue.playedSan}</strong> — no repertoire move here</span
@@ -1283,10 +1363,59 @@
 												>Opponent played <strong>{issue.playedSan}</strong> (not in your repertoire)</span
 											>
 										{/if}
+										<!-- Collapsible Masters section (all issue types) -->
+										<button
+											type="button"
+											class="masters-toggle"
+											onclick={() => toggleMasters(issue)}
+										>
+											{deviationMastersExpanded.has(issue.ply) ? '▾' : '▸'} Masters
+										</button>
+										{#if deviationMastersExpanded.has(issue.ply)}
+											{@const masters = deviationMasters.get(issue.ply)}
+											{@const mLoading = deviationMastersLoading.get(issue.ply)}
+											{@const mError = deviationMastersError.get(issue.ply)}
+											{#if mLoading}
+												<div class="masters-inline-loading">Loading masters…</div>
+											{:else if mError}
+												<div class="masters-inline-error">Masters unavailable</div>
+											{:else if masters && masters.length > 0}
+												<div class="masters-mini-list">
+													{#each masters as m (m.uci)}
+														{@const winPct = m.totalGames > 0 ? (m.white / m.totalGames) * 100 : 0}
+														{@const drawPct = m.totalGames > 0 ? (m.draws / m.totalGames) * 100 : 0}
+														{@const lossPct = m.totalGames > 0 ? (m.black / m.totalGames) * 100 : 0}
+														<div class="masters-mini-row">
+															<span
+																class="masters-mini-san"
+																class:masters-mini-highlight={m.san === issue.playedSan}
+																class:masters-mini-book={m.san === issue.repertoireSan}
+																>{m.san}</span
+															>
+															<div class="wdl-bar-mini">
+																<div class="wdl-w" style="width: {winPct}%"></div>
+																<div class="wdl-d" style="width: {drawPct}%"></div>
+																<div class="wdl-b" style="width: {lossPct}%"></div>
+															</div>
+															<span class="masters-mini-count">{m.totalGames.toLocaleString()}</span
+															>
+														</div>
+													{/each}
+												</div>
+											{:else if masters}
+												<div class="masters-inline-error">No master games here</div>
+											{/if}
+										{/if}
 									</div>
 
 									<div class="issue-actions">
 										{#if issue.type === 'DEVIATION'}
+											{@const devEv = deviationEvals.get(issue.ply)}
+											{@const playedBetter =
+												devEv?.played != null &&
+												devEv?.correct != null &&
+												(analysedPlayerColor === 'BLACK' ? -devEv.played : devEv.played) >
+													(analysedPlayerColor === 'BLACK' ? -devEv.correct : devEv.correct)}
 											<button
 												class="act-btn act-btn--warn"
 												onclick={() => handleFailCard(issue)}
@@ -1295,11 +1424,11 @@
 												Fail card
 											</button>
 											<button
-												class="act-btn act-btn--primary"
+												class="act-btn {playedBetter ? 'act-btn--primary' : 'act-btn--warn'}"
 												onclick={() => handleUpdateRepertoire(issue)}
 												disabled={isLoading}
 											>
-												Update repertoire
+												{playedBetter ? 'Replace in repertoire' : 'Update repertoire'}
 											</button>
 											<button
 												class="act-btn act-btn--ghost"
@@ -1920,6 +2049,145 @@
 		font-size: 0.7rem;
 		color: #666;
 		font-weight: 400;
+	}
+
+	/* ── Eval comparison (DEVIATION cards) ──────────────────────────────────── */
+
+	.eval-compare {
+		display: flex;
+		flex-direction: column;
+		gap: 0.25rem;
+	}
+
+	.eval-row {
+		display: flex;
+		align-items: center;
+		gap: 0.35rem;
+	}
+
+	.eval-label {
+		font-size: 0.65rem;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		color: #505060;
+		width: 2.8rem;
+		flex-shrink: 0;
+	}
+
+	.eval-san {
+		font-size: 0.82rem;
+		color: #ccc;
+		min-width: 2.5rem;
+	}
+
+	.eval-badge {
+		font-size: 0.7rem;
+		font-weight: 600;
+		font-variant-numeric: tabular-nums;
+		padding: 0.05rem 0.3rem;
+		border-radius: 3px;
+		margin-left: auto;
+	}
+
+	.eval-badge-good {
+		color: #a0c080;
+		background: rgba(160, 192, 128, 0.12);
+	}
+
+	.eval-badge-bad {
+		color: #c07070;
+		background: rgba(192, 112, 112, 0.12);
+	}
+
+	.eval-badge-neutral {
+		color: #707080;
+		background: rgba(112, 112, 128, 0.12);
+	}
+
+	.eval-loading {
+		color: #404050;
+	}
+
+	/* ── Masters toggle + mini-list ────────────────────────────────────────── */
+
+	.masters-toggle {
+		background: none;
+		border: none;
+		color: #506070;
+		font-size: 0.7rem;
+		font-family: inherit;
+		cursor: pointer;
+		padding: 0.15rem 0;
+		text-align: left;
+	}
+
+	.masters-toggle:hover {
+		color: #7090b0;
+	}
+
+	.masters-mini-list {
+		display: flex;
+		flex-direction: column;
+		gap: 0.2rem;
+		padding-left: 0.5rem;
+	}
+
+	.masters-mini-row {
+		display: flex;
+		align-items: center;
+		gap: 0.35rem;
+	}
+
+	.masters-mini-san {
+		font-size: 0.75rem;
+		font-weight: 600;
+		color: #909098;
+		min-width: 2.2rem;
+	}
+
+	.masters-mini-highlight {
+		color: #e2944a;
+	}
+
+	.masters-mini-book {
+		color: #5ccc5c;
+	}
+
+	.wdl-bar-mini {
+		display: flex;
+		height: 3px;
+		border-radius: 1.5px;
+		overflow: hidden;
+		flex: 1;
+		min-width: 60px;
+	}
+
+	.wdl-w {
+		background: #a0c080;
+	}
+
+	.wdl-d {
+		background: #707080;
+	}
+
+	.wdl-b {
+		background: #c07070;
+	}
+
+	.masters-mini-count {
+		font-size: 0.65rem;
+		color: #506070;
+		font-variant-numeric: tabular-nums;
+		min-width: 2rem;
+		text-align: right;
+	}
+
+	.masters-inline-loading,
+	.masters-inline-error {
+		font-size: 0.72rem;
+		color: #404050;
+		font-style: italic;
+		padding-left: 0.5rem;
 	}
 
 	.issue-actions {
