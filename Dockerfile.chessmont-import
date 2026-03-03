@@ -1,0 +1,21 @@
+# Chessmont PGN Import — one-shot container that parses master game PGN
+# into the chessmont_moves PostgreSQL table.
+#
+# Build + run:
+#   docker compose -f docker-compose.yml -f docker-compose.import.yml \
+#     run --rm chessmont-import
+#
+# The PGN file is bind-mounted read-only from the host.
+# Parsed data goes into the same PostgreSQL instance used by the app.
+
+FROM python:3.12-slim
+
+WORKDIR /app
+
+# python-chess: PGN parsing + FEN computation
+# psycopg2-binary: PostgreSQL driver (pre-built wheels, no compilation)
+RUN pip install --no-cache-dir python-chess psycopg2-binary
+
+COPY scripts/chessmont-import.py .
+
+ENTRYPOINT ["python", "chessmont-import.py"]
