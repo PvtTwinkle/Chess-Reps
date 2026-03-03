@@ -1,0 +1,4 @@
+# Only include what the import container needs.
+# Everything is excluded by default, then we whitelist.
+*
+!scripts/chessmont-import.py
