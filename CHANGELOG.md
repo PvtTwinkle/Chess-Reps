@@ -30,6 +30,12 @@ Docker images are tagged per version. To stay on stable releases, pin your
 
 ### Fixed
 
+- **CI migration smoke test failing** — the test script (`scripts/test-migrations.mjs`)
+  was still using `better-sqlite3` to run migrations in-memory, but all migrations are
+  now PostgreSQL SQL. Rewrote the script to use `postgres` (postgres.js) + `drizzle-orm/
+  postgres-js` and added a PostgreSQL 17 service container to the GitHub Actions workflow
+  so migrations run against a real database.
+
 ### Removed
 
 - **Explorer page** — removed the `/explorer` route entirely. Its read-only
