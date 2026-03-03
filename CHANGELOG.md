@@ -15,6 +15,12 @@ Docker images are tagged per version. To stay on stable releases, pin your
 
 ### Added
 
+- **Build Mode: collapsible repertoire tree view** — the sidebar now includes a full
+  tree of all repertoire moves rendered in PGN-style notation with collapsible branches.
+  Clicking any move navigates the board to that position. The current position is
+  highlighted in gold, and branches auto-expand to keep it visible. Tree root respects
+  the repertoire's configured start position.
+
 - **Game Review: enhanced DEVIATION cards** — deviation issues now show a structured
   eval comparison (played move vs repertoire move with colored eval badges) and a
   collapsible "Masters" section showing top Lichess Masters Database moves with

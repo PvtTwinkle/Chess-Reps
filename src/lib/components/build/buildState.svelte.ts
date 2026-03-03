@@ -628,7 +628,8 @@ export function createBuildState(params: CreateBuildStateParams) {
 		dismissError,
 		dismissTransposition,
 		setStartPosition,
-		clearStartPosition
+		clearStartPosition,
+		navigateToLine: replayLine
 	};
 }
 

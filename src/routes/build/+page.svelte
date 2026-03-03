@@ -34,6 +34,7 @@
 	import CandidateMoves from '$lib/components/CandidateMoves.svelte';
 	import OpeningName from '$lib/components/OpeningName.svelte';
 	import MoveList from '$lib/components/build/MoveList.svelte';
+	import MoveTree from '$lib/components/build/MoveTree.svelte';
 	import AnnotationModal from '$lib/components/build/AnnotationModal.svelte';
 	import ImportPgnModal from '$lib/components/build/ImportPgnModal.svelte';
 	import { createBuildState, STARTING_FEN, fenKey } from '$lib/components/build/buildState.svelte';
@@ -233,6 +234,14 @@
 			movePairs={s.movePairs}
 			currentIdx={s.navHistory.length - 1}
 			onNavigate={s.navigateToHistoryIdx}
+		/>
+
+		<!-- Full repertoire tree view -->
+		<MoveTree
+			moves={s.moves}
+			currentFen={s.currentFen}
+			startFen={s.startFen}
+			onNavigateToLine={s.navigateToLine}
 		/>
 
 		<!-- Moves from the current position -->
