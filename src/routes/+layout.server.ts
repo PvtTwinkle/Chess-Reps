@@ -19,6 +19,8 @@ import { db } from '$lib/db';
 import { repertoire, userSettings } from '$lib/db/schema';
 import { eq } from 'drizzle-orm';
 
+const REGISTRATION_MODE = process.env.REGISTRATION_MODE ?? 'invite';
+
 export const load: LayoutServerLoad = async ({ locals, cookies }) => {
 	// When the user is not logged in (e.g. the /login page), return early
 	// with empty values so the nav doesn't try to render repertoire data.
@@ -66,6 +68,7 @@ export const load: LayoutServerLoad = async ({ locals, cookies }) => {
 		user: locals.user,
 		repertoires,
 		activeRepertoireId,
-		settings: settings ?? null
+		settings: settings ?? null,
+		registrationMode: REGISTRATION_MODE
 	};
 };

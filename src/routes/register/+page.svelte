@@ -1,31 +1,24 @@
 <script lang="ts">
-	// `form` is automatically populated by SvelteKit after a form action runs.
-	// If the login fails, the action returns { error: '...' } via fail(),
-	// and SvelteKit puts that in `form` so we can display the error message.
-	import type { ActionData, PageData } from './$types';
+	import type { ActionData } from './$types';
 	import { base } from '$app/paths';
 
-	let { form, data }: { form: ActionData; data: PageData } = $props();
+	let { form }: { form: ActionData } = $props();
 </script>
 
 <svelte:head>
-	<title>Sign In — Chess Reps</title>
+	<title>Create Account — Chess Reps</title>
 </svelte:head>
 
-<div class="login-page">
-	<div class="login-card">
+<div class="register-page">
+	<div class="register-card">
 		<div class="logo">
 			<svg class="logo-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
 				<path d="M19 22H5v-2h14v2M13 2c-1.25 0-2.42.62-3.11 1.66L7 8l2 2 2.1-2.81a1 1 0 0 1 1.34-.28c.48.3.63.94.33 1.42L10.5 12H7.5c-.28 0-.5.22-.5.5v2c0 .28.22.5.5.5h5.1l-1.1 5h3l1.5-5.34c.5-1.76.16-3.62-.9-5.16l.9-1.5c1 .75 1.6 1.94 1.6 3.2V14h2V11.3c0-2.35-1.1-4.55-2.94-5.97L18 3.66C17.03 2.63 15.58 2 14 2h-1Z"/>
 			</svg>
 			<span class="logo-text">Chess Reps</span>
 		</div>
-		<h1>Sign in</h1>
+		<h1>Create account</h1>
 
-		<!--
-			method="POST" — submits to the default action in +page.server.ts.
-			No JavaScript required — the form works as plain HTML.
-		-->
 		<form method="POST">
 			{#if form?.error}
 				<p class="error" role="alert">{form.error}</p>
@@ -33,7 +26,17 @@
 
 			<div class="field">
 				<label for="username">Username</label>
-				<input id="username" type="text" name="username" required autocomplete="username" />
+				<input
+					id="username"
+					type="text"
+					name="username"
+					required
+					minlength="3"
+					maxlength="30"
+					pattern="[a-zA-Z0-9_-]+"
+					autocomplete="username"
+				/>
+				<span class="hint">3–30 characters. Letters, numbers, hyphens, underscores.</span>
 			</div>
 
 			<div class="field">
@@ -43,21 +46,33 @@
 					type="password"
 					name="password"
 					required
-					autocomplete="current-password"
+					minlength="8"
+					autocomplete="new-password"
+				/>
+				<span class="hint">At least 8 characters.</span>
+			</div>
+
+			<div class="field">
+				<label for="confirmPassword">Confirm password</label>
+				<input
+					id="confirmPassword"
+					type="password"
+					name="confirmPassword"
+					required
+					minlength="8"
+					autocomplete="new-password"
 				/>
 			</div>
 
-			<button type="submit">Sign in</button>
+			<button type="submit">Create account</button>
 		</form>
 
-		{#if data.registrationOpen}
-			<p class="register-link">No account? <a href="{base}/register">Create one</a></p>
-		{/if}
+		<p class="signin-link">Already have an account? <a href="{base}/login">Sign in</a></p>
 	</div>
 </div>
 
 <style>
-	.login-page {
+	.register-page {
 		min-height: 100vh;
 		display: flex;
 		align-items: center;
@@ -65,7 +80,7 @@
 		background: var(--color-base);
 	}
 
-	.login-card {
+	.register-card {
 		background: var(--color-surface);
 		border: 1px solid var(--color-border);
 		border-radius: var(--radius-lg);
@@ -137,6 +152,13 @@
 		box-shadow: 0 0 0 3px var(--color-gold-glow);
 	}
 
+	.hint {
+		display: block;
+		font-size: 11px;
+		color: var(--color-text-muted);
+		margin-top: var(--space-1);
+	}
+
 	.error {
 		background: rgba(248, 113, 113, 0.1);
 		border: 1px solid rgba(248, 113, 113, 0.3);
@@ -171,19 +193,19 @@
 		transform: scale(0.97);
 	}
 
-	.register-link {
+	.signin-link {
 		text-align: center;
 		margin-top: var(--space-6);
 		font-size: 13px;
 		color: var(--color-text-secondary);
 	}
 
-	.register-link a {
+	.signin-link a {
 		color: var(--color-gold);
 		text-decoration: none;
 	}
 
-	.register-link a:hover {
+	.signin-link a:hover {
 		text-decoration: underline;
 	}
 </style>

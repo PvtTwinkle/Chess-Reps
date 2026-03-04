@@ -7,13 +7,19 @@
 // If login succeeds: create a session, set a cookie, redirect to dashboard.
 // If login fails:    return an error message that the page can display.
 
-import type { Actions } from './$types';
+import type { Actions, PageServerLoad } from './$types';
 import { fail, redirect } from '@sveltejs/kit';
 import { db } from '$lib/db';
 import { user } from '$lib/db/schema';
 import { eq } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
 import { createSession, SESSION_COOKIE_NAME } from '$lib/auth';
+
+const REGISTRATION_MODE = process.env.REGISTRATION_MODE ?? 'invite';
+
+export const load: PageServerLoad = async () => {
+	return { registrationOpen: REGISTRATION_MODE === 'open' };
+};
 
 export const actions: Actions = {
 	default: async ({ request, cookies }) => {
@@ -35,6 +41,11 @@ export const actions: Actions = {
 		// helps them narrow down valid usernames, which is a security risk.
 		if (!foundUser || !(await bcrypt.compare(password, foundUser.passwordHash))) {
 			return fail(400, { error: 'Invalid username or password.' });
+		}
+
+		// Account disabled by admin — specific message since the user already knows their username.
+		if (!foundUser.enabled) {
+			return fail(403, { error: 'This account has been disabled.' });
 		}
 
 		// Credentials are correct. Create a session in the database.

@@ -14,15 +14,16 @@
 	// Mobile hamburger menu state
 	let mobileMenuOpen = $state(false);
 
-	// Navigation link definitions
-	const navLinks = [
+	// Navigation link definitions — Admin link only shown for admin users.
+	const navLinks = $derived([
 		{ href: `${base}/`, label: 'Dashboard' },
 		{ href: `${base}/build`, label: 'Build' },
 		{ href: `${base}/drill`, label: 'Drill' },
 		{ href: `${base}/puzzles`, label: 'Puzzles' },
 		{ href: `${base}/review`, label: 'Review' },
-		{ href: `${base}/settings`, label: 'Settings' }
-	];
+		{ href: `${base}/settings`, label: 'Settings' },
+		...(data.user?.role === 'admin' ? [{ href: `${base}/admin`, label: 'Admin' }] : [])
+	]);
 
 	// Determine if a nav link is the active page.
 	// Dashboard matches exact "/", others match by prefix.
@@ -53,7 +54,7 @@
 
 		<!-- Desktop nav links -->
 		<nav class="nav-links">
-			{#each navLinks as link}
+			{#each navLinks as link (link.href)}
 				<a
 					href={link.href}
 					class="nav-link"
@@ -91,7 +92,7 @@
 	<!-- Mobile slide-down drawer -->
 	{#if mobileMenuOpen}
 		<nav class="mobile-drawer">
-			{#each navLinks as link}
+			{#each navLinks as link (link.href)}
 				<a
 					href={link.href}
 					class="mobile-link"

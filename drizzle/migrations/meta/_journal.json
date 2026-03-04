@@ -36,6 +36,13 @@
 			"when": 1772800000000,
 			"tag": "0004_puzzle_tables",
 			"breakpoints": true
+		},
+		{
+			"idx": 5,
+			"version": "6",
+			"when": 1772900000000,
+			"tag": "0005_user_roles",
+			"breakpoints": true
 		}
 	]
 }

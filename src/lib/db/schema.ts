@@ -118,16 +118,17 @@ export const puzzle = pgTable(
 
 // ─────────────────────────────────────────────────────────────────────────────
 // USER TABLES
-// Personal data. Lives only on the user's own instance. Never shared.
-// Every table includes user_id even though only one user exists today —
-// this makes adding multi-user support later a UI problem, not a schema problem.
+// Personal data — each user has their own repertoires, moves, SR cards, etc.
+// Every table includes user_id for complete data isolation between users.
 // ─────────────────────────────────────────────────────────────────────────────
 
-// The login account. One row per user (one row total in a self-hosted instance).
+// The login account. One row per user.
 export const user = pgTable('user', {
 	id: serial('id').primaryKey(),
 	username: text('username').notNull().unique(),
 	passwordHash: text('password_hash').notNull(), // bcrypt hash — plain text is never stored
+	role: text('role').notNull().default('user'), // 'admin' or 'user'
+	enabled: boolean('enabled').notNull().default(true), // disabled users cannot log in
 	createdAt: timestamp('created_at').notNull()
 });
 

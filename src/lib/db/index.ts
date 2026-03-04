@@ -104,6 +104,7 @@ async function initDatabase(): Promise<void> {
 		await realDb.insert(user).values({
 			username,
 			passwordHash,
+			role: 'admin', // first user is always admin
 			createdAt: new Date()
 		});
 

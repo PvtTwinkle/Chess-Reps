@@ -14,16 +14,20 @@
 
 import { redirect } from '@sveltejs/kit';
 import type { Handle } from '@sveltejs/kit';
-import { validateSession, SESSION_COOKIE_NAME } from '$lib/auth';
+import { validateSession, deleteSession, SESSION_COOKIE_NAME } from '$lib/auth';
 import { db, dbReady } from '$lib/db';
 import { user } from '$lib/db/schema';
 import { eq } from 'drizzle-orm';
+
+// Who can register: 'open' = anyone, 'invite' = admin only (default).
+const REGISTRATION_MODE = process.env.REGISTRATION_MODE ?? 'invite';
 
 // Routes that anyone can access without being logged in.
 // Everything not on this list requires a valid session.
 const PUBLIC_ROUTES = [
 	'/login', // the login form itself
-	'/api/health' // monitoring endpoint — must be publicly accessible
+	'/api/health', // monitoring endpoint — must be publicly accessible
+	...(REGISTRATION_MODE === 'open' ? ['/register'] : [])
 ];
 
 // Ensure the database is fully initialised (migrations + default user)
@@ -43,14 +47,29 @@ export const handle: Handle = async ({ event, resolve }) => {
 		const sessionData = await validateSession(token);
 
 		if (sessionData) {
-			// Session is valid — fetch the user record so we have the username.
+			// Session is valid — fetch the user record so we have the username and role.
 			const [foundUser] = await db
-				.select({ id: user.id, username: user.username })
+				.select({
+					id: user.id,
+					username: user.username,
+					role: user.role,
+					enabled: user.enabled
+				})
 				.from(user)
 				.where(eq(user.id, sessionData.userId));
 
 			if (foundUser) {
-				event.locals.user = foundUser;
+				if (!foundUser.enabled) {
+					// Account has been disabled by an admin — immediately invalidate the session.
+					await deleteSession(token);
+					event.cookies.delete(SESSION_COOKIE_NAME, { path: '/' });
+				} else {
+					event.locals.user = {
+						id: foundUser.id,
+						username: foundUser.username,
+						role: foundUser.role
+					};
+				}
 			}
 		} else {
 			// The token exists in the browser but is not valid (expired or deleted).
@@ -72,10 +91,16 @@ export const handle: Handle = async ({ event, resolve }) => {
 		redirect(302, '/login');
 	}
 
-	// Authenticated user trying to visit /login → send to dashboard.
-	// This prevents the login page showing to someone already logged in.
-	if (event.locals.user && pathname === '/login') {
+	// Authenticated user trying to visit /login or /register → send to dashboard.
+	if (event.locals.user && (pathname === '/login' || pathname === '/register')) {
 		redirect(302, '/');
+	}
+
+	// Admin-only routes — non-admins get redirected to the dashboard.
+	if (pathname.startsWith('/admin') || pathname.startsWith('/api/admin')) {
+		if (!event.locals.user || event.locals.user.role !== 'admin') {
+			redirect(302, '/');
+		}
 	}
 
 	// All checks passed — continue to the actual page or API handler.

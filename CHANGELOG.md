@@ -13,6 +13,36 @@ Docker images are tagged per version. To stay on stable releases, pin your
 
 ## [Unreleased]
 
+### Added
+
+- **Multi-user account support** — the app now supports multiple user accounts with
+  role-based access control and complete data isolation:
+  - **Registration page** (`/register`) — username + password form with validation
+    (3–30 char usernames, 8+ char passwords, confirm password); only accessible when
+    `REGISTRATION_MODE=open`; rate-limited to 5 registrations per hour per IP
+  - **Admin panel** (`/admin`) — admin-only page for managing all user accounts:
+    - User list showing username, role badge, enabled status, and creation date
+    - Create new user (the only way to add accounts in invite mode)
+    - Enable/disable accounts (immediate session invalidation on disable)
+    - Promote/demote between admin and user roles
+    - Reset any user's password (invalidates all their sessions)
+    - Delete user with confirmation — cascade-deletes all user data (sessions,
+      repertoires, moves, SR cards, drill sessions, reviewed games, puzzle attempts,
+      settings) in a single transaction
+    - Safety checks: cannot disable/delete yourself, cannot remove the last admin
+  - **Role system** — `role` column on user table (`admin` or `user`); first user
+    (or `DEFAULT_USERNAME` user) is always admin; admins can promote other users
+  - **Account disable** — `enabled` column; disabled users are immediately locked
+    out (session invalidated on next request, login rejected with specific message)
+  - **Configurable registration** — `REGISTRATION_MODE` env var (`open` or `invite`,
+    default `invite`); in invite mode, only admins can create accounts
+  - Login page shows "No account? Create one" link when registration is open
+  - Admin nav link appears only for admin users
+  - `drizzle/migrations/0005_user_roles.sql` — adds `role` and `enabled` columns,
+    promotes the existing first user to admin
+  - Data isolation confirmed by full audit: all queries filter by `user_id` from
+    the authenticated session
+
 ### Changed
 
 - **Mobile and tablet responsive optimization** — complete mobile-first layout

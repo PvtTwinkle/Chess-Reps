@@ -12,7 +12,7 @@ declare global {
 		//
 		// null means the request is unauthenticated.
 		interface Locals {
-			user: { id: number; username: string } | null;
+			user: { id: number; username: string; role: string } | null;
 		}
 	}
 }

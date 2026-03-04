@@ -63,6 +63,12 @@ services:
       # Increase if you plan to upload large PGN files (default is 512kb).
       # Example: - BODY_SIZE_LIMIT=5242880  # 5 MB
 
+      # ── Registration ────────────────────────────────────────────────────────
+      # Controls who can create accounts:
+      #   "open"   — anyone can register at /register
+      #   "invite" — only the admin can create accounts via /admin (default)
+      - REGISTRATION_MODE=invite
+
       # Set to true when the app is accessed over HTTPS (e.g. behind a reverse
       # proxy with TLS). Ensures the session cookie is only sent over secure
       # connections. Leave commented out (defaults to false) for HTTP-only setups.
@@ -86,6 +92,21 @@ services:
     image: postgres:17-alpine
     container_name: chess-reps-postgres
     restart: unless-stopped
+
+    # Tuning for bulk data loading (chessmont import).
+    # Can be removed or reduced after the import is complete.
+    command:
+      - postgres
+      - -c
+      - shared_buffers=4GB
+      - -c
+      - wal_buffers=64MB
+      - -c
+      - max_wal_size=8GB
+      - -c
+      - checkpoint_completion_target=0.9
+      - -c
+      - effective_cache_size=16GB
 
     environment:
       POSTGRES_DB: chess_reps
