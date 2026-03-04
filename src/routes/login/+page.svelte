@@ -13,7 +13,12 @@
 
 <div class="login-page">
 	<div class="login-card">
-		<div class="logo">♟ Chess Reps</div>
+		<div class="logo">
+			<svg class="logo-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+				<path d="M19 22H5v-2h14v2M13 2c-1.25 0-2.42.62-3.11 1.66L7 8l2 2 2.1-2.81a1 1 0 0 1 1.34-.28c.48.3.63.94.33 1.42L10.5 12H7.5c-.28 0-.5.22-.5.5v2c0 .28.22.5.5.5h5.1l-1.1 5h3l1.5-5.34c.5-1.76.16-3.62-.9-5.16l.9-1.5c1 .75 1.6 1.94 1.6 3.2V14h2V11.3c0-2.35-1.1-4.55-2.94-5.97L18 3.66C17.03 2.63 15.58 2 14 2h-1Z"/>
+			</svg>
+			<span class="logo-text">Chess Reps</span>
+		</div>
 		<h1>Sign in</h1>
 
 		<!--
@@ -47,98 +52,117 @@
 </div>
 
 <style>
-	:global(body) {
-		margin: 0;
-		padding: 0;
-	}
-
 	.login-page {
 		min-height: 100vh;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		background: #1a1a2e;
-		font-family:
-			system-ui,
-			-apple-system,
-			sans-serif;
+		background: var(--color-base);
 	}
 
 	.login-card {
-		background: #16213e;
-		border: 1px solid #0f3460;
-		border-radius: 8px;
-		padding: 2.5rem;
+		background: var(--color-surface);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-lg);
+		box-shadow: var(--shadow-elevated);
+		padding: var(--space-10);
 		width: 100%;
-		max-width: 360px;
-		color: #e0e0e0;
+		max-width: 380px;
 	}
 
 	.logo {
+		display: flex;
+		align-items: center;
+		gap: var(--space-3);
+		margin-bottom: var(--space-2);
+	}
+
+	.logo-icon {
+		width: 28px;
+		height: 28px;
+		color: var(--color-gold);
+	}
+
+	.logo-text {
+		font-family: var(--font-display);
 		font-size: 1.5rem;
-		font-weight: 700;
-		color: #e2b714;
-		margin-bottom: 0.5rem;
+		color: var(--color-text-primary);
 	}
 
 	h1 {
-		font-size: 1.25rem;
-		font-weight: 600;
-		margin: 0 0 1.5rem 0;
-		color: #f0f0f0;
+		font-family: var(--font-body);
+		font-size: 13px;
+		font-weight: 500;
+		text-transform: uppercase;
+		letter-spacing: 0.1em;
+		margin: 0 0 var(--space-8) 0;
+		color: var(--color-text-secondary);
 	}
 
 	.field {
-		margin-bottom: 1rem;
+		margin-bottom: var(--space-5);
 	}
 
 	label {
 		display: block;
-		font-size: 0.875rem;
-		color: #a0a0b0;
-		margin-bottom: 0.35rem;
+		font-size: 11px;
+		font-weight: 500;
+		text-transform: uppercase;
+		letter-spacing: 0.1em;
+		color: var(--color-text-muted);
+		margin-bottom: var(--space-2);
 	}
 
 	input {
 		width: 100%;
 		box-sizing: border-box;
-		padding: 0.6rem 0.75rem;
-		background: #0f3460;
-		border: 1px solid #1a4a8a;
-		border-radius: 4px;
-		color: #f0f0f0;
-		font-size: 1rem;
+		padding: var(--space-3) var(--space-4);
+		background: var(--color-surface-alt);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-sm);
+		color: var(--color-text-primary);
+		font-family: var(--font-body);
+		font-size: 14px;
+		transition: border-color var(--dur-fast) var(--ease-snap);
 	}
 
 	input:focus {
-		outline: 2px solid #e2b714;
-		outline-offset: 1px;
+		outline: none;
+		border-color: var(--color-gold);
+		box-shadow: 0 0 0 3px var(--color-gold-glow);
 	}
 
 	.error {
-		background: #4a1a1a;
-		border: 1px solid #8a2020;
-		border-radius: 4px;
-		color: #ff8080;
-		padding: 0.6rem 0.75rem;
-		font-size: 0.875rem;
-		margin-bottom: 1rem;
+		background: rgba(248, 113, 113, 0.1);
+		border: 1px solid rgba(248, 113, 113, 0.3);
+		border-radius: var(--radius-sm);
+		color: var(--color-danger);
+		padding: var(--space-3) var(--space-4);
+		font-size: 13px;
+		margin-bottom: var(--space-4);
 	}
 
 	button {
 		width: 100%;
-		padding: 0.7rem;
-		background: #e2b714;
-		color: #1a1a2e;
+		padding: var(--space-3);
+		background: var(--color-gold);
+		color: var(--color-base);
 		border: none;
-		border-radius: 4px;
-		font-size: 1rem;
+		border-radius: var(--radius-md);
+		font-family: var(--font-body);
+		font-size: 14px;
 		font-weight: 600;
 		cursor: pointer;
-		margin-top: 0.5rem;
+		margin-top: var(--space-2);
+		transition: box-shadow var(--dur-fast) var(--ease-snap),
+			transform var(--dur-fast) var(--ease-snap);
 	}
 
 	button:hover {
-		background: #f0c820;
+		box-shadow: var(--glow-gold);
+	}
+
+	button:active {
+		transform: scale(0.97);
 	}
 </style>

@@ -322,31 +322,36 @@
 
 <style>
 	h1 {
-		margin: 0 0 0.75rem;
+		margin: 0 0 var(--space-4);
+		font-family: var(--font-display);
 		font-size: 1.5rem;
-		color: #f0f0f0;
+		color: var(--color-text-primary);
 	}
 
 	h2 {
-		margin: 0 0 0.75rem;
-		font-size: 1.1rem;
-		color: #c0c0d0;
-		border-bottom: 1px solid #2a2a3c;
-		padding-bottom: 0.4rem;
+		margin: 0 0 var(--space-4);
+		font-size: 11px;
+		font-weight: 500;
+		text-transform: uppercase;
+		letter-spacing: 0.12em;
+		color: var(--color-text-muted);
+		border-bottom: 1px solid var(--color-border);
+		padding-bottom: var(--space-3);
 	}
 
 	.settings-page {
 		max-width: 600px;
 		display: flex;
 		flex-direction: column;
-		gap: 1.5rem;
+		gap: var(--space-6);
 	}
 
 	.settings-section {
-		background: #1e1e2e;
-		border: 1px solid #2a2a3c;
-		border-radius: 8px;
-		padding: 1rem 1.25rem;
+		background: var(--color-surface);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-lg);
+		box-shadow: var(--shadow-surface);
+		padding: var(--space-6);
 		/* Isolate stacking context so Chessground's z-indexed children
 		   in the board preview can't escape and overlay other sections. */
 		position: relative;
@@ -354,7 +359,7 @@
 	}
 
 	.setting-row {
-		margin-bottom: 1rem;
+		margin-bottom: var(--space-5);
 	}
 
 	.setting-row:last-child {
@@ -363,22 +368,22 @@
 
 	.setting-label {
 		display: block;
-		font-size: 0.9rem;
-		color: #a0a0b0;
-		margin-bottom: 0.4rem;
+		font-size: 13px;
+		color: var(--color-text-secondary);
+		margin-bottom: var(--space-2);
 	}
 
 	.setting-hint {
-		margin: 0.3rem 0 0;
-		font-size: 0.78rem;
-		color: #606070;
+		margin: var(--space-1) 0 0;
+		font-size: 12px;
+		color: var(--color-text-muted);
 	}
 
 	/* ── Theme picker ──────────────────────────────────────────────── */
 
 	.theme-picker {
 		display: flex;
-		gap: 0.5rem;
+		gap: var(--space-2);
 		flex-wrap: wrap;
 	}
 
@@ -386,21 +391,21 @@
 		display: flex;
 		flex-direction: column;
 		align-items: center;
-		gap: 0.25rem;
-		padding: 0.4rem;
+		gap: var(--space-1);
+		padding: var(--space-2);
 		background: transparent;
 		border: 2px solid transparent;
-		border-radius: 6px;
+		border-radius: var(--radius-md);
 		cursor: pointer;
-		transition: border-color 0.15s;
+		transition: border-color var(--dur-fast) var(--ease-snap);
 	}
 
 	.theme-swatch:hover {
-		border-color: #505060;
+		border-color: var(--color-border);
 	}
 
 	.theme-swatch.selected {
-		border-color: #7aa2f7;
+		border-color: var(--color-gold);
 	}
 
 	.swatch-light,
@@ -419,24 +424,17 @@
 	}
 
 	.swatch-label {
-		font-size: 0.7rem;
-		color: #808090;
+		font-size: 11px;
+		color: var(--color-text-muted);
 	}
 
 	/* ── Board preview ─────────────────────────────────────────────── */
 
 	.board-preview {
 		width: 240px;
-		margin: 0.5rem 0 1rem;
-		/* Chessground coordinates use negative offsets (top: -20px, bottom: -4px)
-		   that overflow outside the board. Clip them so they don't cover the
-		   theme picker or other settings below. */
+		margin: var(--space-2) 0 var(--space-4);
 		overflow: hidden;
-		/* Non-interactive preview — prevent the board's absolutely-positioned
-		   overlay layers (shapes SVGs, squares) from stealing clicks. */
 		pointer-events: none;
-		/* Create a stacking context so the board's z-indexed children don't
-		   escape and overlay sibling sections. */
 		position: relative;
 		z-index: 0;
 	}
@@ -444,22 +442,25 @@
 	/* ── Toggle button ─────────────────────────────────────────────── */
 
 	.toggle-btn {
-		padding: 0.35rem 1rem;
-		border-radius: 4px;
-		border: 1px solid #3a3a4c;
-		background: #252536;
-		color: #808090;
-		font-size: 0.85rem;
+		padding: var(--space-2) var(--space-4);
+		border-radius: 999px;
+		border: 1px solid var(--color-border);
+		background: var(--color-surface-alt);
+		color: var(--color-text-muted);
+		font-family: var(--font-body);
+		font-size: 12px;
+		font-weight: 500;
 		cursor: pointer;
 		transition:
-			background 0.15s,
-			color 0.15s;
+			background var(--dur-fast) var(--ease-snap),
+			color var(--dur-fast) var(--ease-snap),
+			border-color var(--dur-fast) var(--ease-snap);
 	}
 
 	.toggle-btn.active {
-		background: #2d4a2d;
-		color: #50c878;
-		border-color: #50c878;
+		background: rgba(74, 222, 128, 0.1);
+		color: var(--color-success);
+		border-color: rgba(74, 222, 128, 0.3);
 	}
 
 	/* ── Slider ────────────────────────────────────────────────────── */
@@ -467,19 +468,19 @@
 	.slider-wrap {
 		display: flex;
 		align-items: center;
-		gap: 0.5rem;
+		gap: var(--space-3);
 	}
 
 	.slider-label {
-		font-size: 0.78rem;
-		color: #606070;
-		min-width: 1.5em;
+		font-size: 12px;
+		color: var(--color-text-muted);
+		min-width: 2em;
 		text-align: center;
 	}
 
 	input[type='range'] {
 		flex: 1;
-		accent-color: #7aa2f7;
+		accent-color: var(--color-gold);
 	}
 
 	/* ── Password form ─────────────────────────────────────────────── */
@@ -487,43 +488,52 @@
 	.password-form {
 		display: flex;
 		flex-direction: column;
-		gap: 0.5rem;
+		gap: var(--space-3);
 		max-width: 320px;
 	}
 
 	.password-form input {
-		padding: 0.5rem 0.75rem;
-		border: 1px solid #3a3a4c;
-		border-radius: 4px;
-		background: #252536;
-		color: #e0e0e0;
-		font-size: 0.9rem;
+		padding: var(--space-3) var(--space-4);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-sm);
+		background: var(--color-surface-alt);
+		color: var(--color-text-primary);
+		font-family: var(--font-body);
+		font-size: 13px;
+		transition: border-color var(--dur-fast) var(--ease-snap);
 	}
 
 	.password-form input::placeholder {
-		color: #606070;
+		color: var(--color-text-muted);
 	}
 
 	.password-form input:focus {
 		outline: none;
-		border-color: #7aa2f7;
+		border-color: var(--color-gold);
+		box-shadow: 0 0 0 3px var(--color-gold-glow);
 	}
 
 	.btn-primary {
-		padding: 0.5rem 1rem;
+		padding: var(--space-2) var(--space-4);
 		border: none;
-		border-radius: 4px;
-		background: #7aa2f7;
-		color: #1a1a2e;
+		border-radius: var(--radius-md);
+		background: var(--color-gold);
+		color: var(--color-base);
+		font-family: var(--font-body);
 		font-weight: 600;
-		font-size: 0.9rem;
+		font-size: 13px;
 		cursor: pointer;
-		transition: opacity 0.15s;
 		align-self: flex-start;
+		transition: box-shadow var(--dur-fast) var(--ease-snap),
+			transform var(--dur-fast) var(--ease-snap);
 	}
 
 	.btn-primary:hover:not(:disabled) {
-		opacity: 0.85;
+		box-shadow: var(--glow-gold);
+	}
+
+	.btn-primary:active:not(:disabled) {
+		transform: scale(0.97);
 	}
 
 	.btn-primary:disabled {
@@ -535,20 +545,20 @@
 
 	.status-msg {
 		display: block;
-		font-size: 0.78rem;
-		color: #50c878;
-		margin-top: 0.3rem;
+		font-size: 12px;
+		color: var(--color-success);
+		margin-top: var(--space-1);
 	}
 
 	.error-msg {
-		margin: 0.4rem 0 0;
-		font-size: 0.85rem;
-		color: #f7768e;
+		margin: var(--space-2) 0 0;
+		font-size: 13px;
+		color: var(--color-danger);
 	}
 
 	.success-msg {
-		margin: 0.4rem 0 0;
-		font-size: 0.85rem;
-		color: #50c878;
+		margin: var(--space-2) 0 0;
+		font-size: 13px;
+		color: var(--color-success);
 	}
 </style>
