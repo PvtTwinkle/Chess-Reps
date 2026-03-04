@@ -1,0 +1,55 @@
+/* ============================================================
+   Chess-Reps Design Tokens
+   Refined dark luxury — high-end chess club meets trading terminal
+   ============================================================ */
+
+:root {
+	/* ── Colors ───────────────────────────────────────────────── */
+	--color-base: #0f0f1a;
+	--color-surface: #1a1a2e;
+	--color-surface-alt: #1e1e35;
+	--color-border: #2a2a45;
+	--color-gold: #e2b714;
+	--color-gold-dim: #b8920f;
+	--color-gold-glow: rgba(226, 183, 20, 0.15);
+	--color-text-primary: #f0eeea;
+	--color-text-secondary: #8b8ba0;
+	--color-text-muted: #52526a;
+	--color-success: #4ade80;
+	--color-danger: #f87171;
+
+	/* ── Typography ───────────────────────────────────────────── */
+	--font-display: 'DM Serif Display', Georgia, serif;
+	--font-body: 'JetBrains Mono', 'Fira Code', monospace;
+
+	/* ── Spacing (4px base) ───────────────────────────────────── */
+	--space-1: 4px;
+	--space-2: 8px;
+	--space-3: 12px;
+	--space-4: 16px;
+	--space-5: 20px;
+	--space-6: 24px;
+	--space-8: 32px;
+	--space-10: 40px;
+	--space-12: 48px;
+	--space-16: 64px;
+
+	/* ── Shape ─────────────────────────────────────────────────── */
+	--radius-sm: 4px;
+	--radius-md: 8px;
+	--radius-lg: 12px;
+	--radius-xl: 16px;
+
+	/* ── Shadows & Glow ───────────────────────────────────────── */
+	--shadow-surface: 0 1px 3px rgba(0, 0, 0, 0.4), 0 4px 12px rgba(0, 0, 0, 0.3);
+	--shadow-elevated: 0 8px 24px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.4);
+	--shadow-gold: 0 0 0 1px var(--color-gold-glow), 0 4px 16px rgba(226, 183, 20, 0.1);
+	--glow-gold: 0 0 12px rgba(226, 183, 20, 0.3);
+
+	/* ── Motion ────────────────────────────────────────────────── */
+	--ease-snap: cubic-bezier(0.4, 0, 0.2, 1);
+	--ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+	--dur-fast: 120ms;
+	--dur-base: 220ms;
+	--dur-slow: 380ms;
+}

@@ -58,6 +58,8 @@
 </main>
 
 <style>
+	@import '$lib/styles/tokens.css';
+
 	:global(*) {
 		box-sizing: border-box;
 	}
@@ -65,12 +67,61 @@
 	:global(body) {
 		margin: 0;
 		padding: 0;
-		background: #1a1a2e;
-		color: #e0e0e0;
-		font-family:
-			system-ui,
-			-apple-system,
-			sans-serif;
+		background: var(--color-base);
+		color: var(--color-text-primary);
+		font-family: var(--font-body);
+		-webkit-font-smoothing: antialiased;
+		-moz-osx-font-smoothing: grayscale;
+	}
+
+	:global(::selection) {
+		background: var(--color-gold);
+		color: var(--color-base);
+	}
+
+	:global(:focus-visible) {
+		outline: 2px solid var(--color-gold);
+		outline-offset: 2px;
+	}
+
+	/* Scrollbar styling for Webkit browsers */
+	:global(::-webkit-scrollbar) {
+		width: 6px;
+		height: 6px;
+	}
+
+	:global(::-webkit-scrollbar-track) {
+		background: transparent;
+	}
+
+	:global(::-webkit-scrollbar-thumb) {
+		background: var(--color-border);
+		border-radius: 3px;
+	}
+
+	:global(::-webkit-scrollbar-thumb:hover) {
+		background: var(--color-text-muted);
+	}
+
+	/* Respect reduced motion preference */
+	@media (prefers-reduced-motion: reduce) {
+		:global(*) {
+			animation-duration: 0.01ms !important;
+			animation-iteration-count: 1 !important;
+			transition-duration: 0.01ms !important;
+		}
+	}
+
+	/* Page entry animation */
+	@keyframes -global-fadeSlideIn {
+		from {
+			opacity: 0;
+			transform: translateY(12px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
 	}
 
 	.app-header {
