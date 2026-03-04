@@ -185,9 +185,10 @@
 	}
 </script>
 
+<div class="settings-page">
 <h1>Settings</h1>
 
-<div class="settings-page">
+<div class="settings-content">
 	<!-- ── Board Appearance ────────────────────────────────────────────── -->
 	<section class="settings-section">
 		<h2>Board Appearance</h2>
@@ -319,6 +320,7 @@
 		</div>
 	</section>
 </div>
+</div>
 
 <style>
 	h1 {
@@ -341,6 +343,10 @@
 
 	.settings-page {
 		max-width: 600px;
+		margin: 0 auto;
+	}
+
+	.settings-content {
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-6);

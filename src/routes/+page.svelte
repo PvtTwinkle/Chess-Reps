@@ -48,6 +48,7 @@
 {#if data.repertoires.length === 0}
 	<OnboardingWelcome />
 {:else}
+	<div class="page-wrapper">
 	<h1>Dashboard</h1>
 
 	<div class="widget-grid">
@@ -235,6 +236,7 @@
 			</div>
 		{/if}
 	</div>
+	</div>
 {/if}
 
 <style>
@@ -247,11 +249,15 @@
 
 	/* ── Widget Grid ──────────────────────────────────────────────────── */
 
+	.page-wrapper {
+		max-width: 720px;
+		margin: 0 auto;
+	}
+
 	.widget-grid {
 		display: grid;
 		grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
 		gap: var(--space-3);
-		max-width: 720px;
 	}
 
 	.widget {

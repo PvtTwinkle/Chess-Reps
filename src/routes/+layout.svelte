@@ -392,6 +392,8 @@
 	/* ── Main content area ────────────────────────────────────────────── */
 
 	.app-main {
+		max-width: 1200px;
+		margin: 0 auto;
 		padding: var(--space-6);
 		padding-top: calc(56px + var(--space-6));
 		animation: fadeSlideIn var(--dur-base) var(--ease-snap);

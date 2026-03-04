@@ -1581,6 +1581,8 @@
 		display: flex;
 		gap: var(--space-8);
 		align-items: flex-start;
+		max-width: 920px;
+		margin: 0 auto;
 	}
 
 	.board-col {

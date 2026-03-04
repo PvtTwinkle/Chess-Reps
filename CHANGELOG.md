@@ -13,6 +13,35 @@ Docker images are tagged per version. To stay on stable releases, pin your
 
 ## [Unreleased]
 
+### Changed
+
+- **UI redesign: refined dark luxury theme** — complete visual overhaul of all pages
+  and components into a high-contrast dark aesthetic with gold accents:
+  - **Design token system** (`src/lib/styles/tokens.css`) — 40+ CSS custom properties
+    for colors, typography, spacing, shape, shadows, and motion; all component styles
+    now reference tokens instead of hardcoded hex values
+  - **Typography** — DM Serif Display for headings, JetBrains Mono for body text and
+    data; loaded via Google Fonts with preconnect hints and `font-display=swap`
+  - **Color palette** — deep navy base (#0f0f1a), gold accents (#e2b714), muted
+    secondary text, semantic success/danger colors
+  - **Navigation bar** — fixed 56px header with backdrop blur, inline SVG knight logo,
+    monospace uppercase nav links with gold active underline, mobile hamburger drawer
+    at <768px
+  - **All pages restyled** — Login, Dashboard, Settings, Build, Drill, Puzzles, Review,
+    and Onboarding all converted to token-based styling
+  - **All components restyled** — RepertoireSelector, CandidateMoves, OpeningName,
+    MoveList, MoveTree, MoveTreeLine, AnnotationModal, ImportPgnModal,
+    ManageRepertoireModal
+  - **Consistent patterns** — card surfaces with border/shadow, terminal-style section
+    headers (monospace uppercase muted), gold primary buttons, focus-visible gold rings
+  - **Mobile responsive** — board pages (Build, Drill, Puzzles, Review) switch to
+    stacked layout below 768px; navigation collapses to hamburger menu
+  - **Page animations** — `fadeSlideIn` entry animation on page content with
+    `prefers-reduced-motion` respect
+  - **Centered layouts** — all page content centered with appropriate max-widths
+    (920px for board pages, 720px for dashboard, 600px for settings)
+  - Style-only changes — no game logic, routing, API, or database modifications
+
 ### Added
 
 - **Puzzle training mode** (`src/routes/puzzles/`) — practice tactics that match
