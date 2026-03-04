@@ -594,4 +594,62 @@
 		text-align: center;
 		margin: 0 0 var(--space-3);
 	}
+
+	/* ── Mobile touch targets ── --bp-md */
+	@media (max-width: 767px) {
+		.btn-ghost {
+			min-height: 44px;
+		}
+
+		.btn-primary {
+			min-height: 44px;
+		}
+
+		.btn-danger {
+			min-height: 44px;
+		}
+
+		.close-btn {
+			min-width: 44px;
+			min-height: 44px;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+		}
+
+		.rep-row {
+			flex-wrap: wrap;
+		}
+
+		.row-actions {
+			width: 100%;
+			justify-content: flex-end;
+		}
+	}
+
+	/* ── Full-screen modal on narrow phones ── --bp-sm */
+	@media (max-width: 559px) {
+		.modal {
+			position: fixed;
+			inset: 0;
+			width: 100%;
+			max-width: 100%;
+			max-height: 100%;
+			border-radius: 0;
+			padding-top: var(--space-8);
+		}
+
+		/* Drag handle affordance */
+		.modal::before {
+			content: '';
+			position: absolute;
+			top: var(--space-2);
+			left: 50%;
+			transform: translateX(-50%);
+			width: 36px;
+			height: 4px;
+			border-radius: 2px;
+			background: var(--color-border);
+		}
+	}
 </style>

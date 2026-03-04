@@ -881,4 +881,61 @@
 		border-color: var(--color-text-secondary);
 		color: var(--color-text-primary);
 	}
+
+	/* ── Mobile touch targets ── --bp-md */
+	@media (max-width: 767px) {
+		.choice-btn {
+			min-height: 44px;
+		}
+
+		.btn-primary {
+			min-height: 44px;
+		}
+
+		.btn-ghost {
+			min-height: 44px;
+		}
+	}
+
+	/* ── Full-screen modal on narrow phones ── --bp-sm */
+	@media (max-width: 559px) {
+		.modal {
+			position: fixed;
+			inset: 0;
+			width: 100%;
+			max-width: 100%;
+			max-height: 100%;
+			border-radius: 0;
+			padding-top: var(--space-8);
+		}
+
+		/* Drag handle affordance */
+		.modal::before {
+			content: '';
+			position: absolute;
+			top: var(--space-2);
+			left: 50%;
+			transform: translateX(-50%);
+			width: 36px;
+			height: 4px;
+			border-radius: 2px;
+			background: var(--color-border);
+		}
+
+		.close-btn {
+			min-width: 44px;
+			min-height: 44px;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+		}
+
+		.conflict-body {
+			flex-direction: column;
+		}
+
+		.conflict-board {
+			width: 100%;
+		}
+	}
 </style>

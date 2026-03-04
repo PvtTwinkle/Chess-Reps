@@ -15,6 +15,26 @@ Docker images are tagged per version. To stay on stable releases, pin your
 
 ### Changed
 
+- **Mobile and tablet responsive optimization** — complete mobile-first layout
+  overhaul across all board pages and modals:
+  - **Breakpoint tokens** added to `tokens.css` (`--bp-sm` 480px, `--bp-md` 768px,
+    `--bp-lg` 1024px, `--bp-xl` 1280px) as documented reference values
+  - **Three-breakpoint CSS Grid** on Build, Drill, and Review pages: stacked layout
+    on phones, 2-column grid (1fr + 260px sidebar) at 768px, wider sidebar (300px)
+    and max-width centering at 1024px
+  - **Compact CandidateMoves on mobile** — 44px touch targets, 2-column grid layout,
+    opening names hidden below 768px
+  - **Compact MoveList on mobile** — 36px min-height move buttons with centered text
+    below 768px
+  - **Touch target audit** — all modal buttons, close buttons, and interactive rows
+    enforce 44px minimum hit area on touch devices (ImportPgnModal, AnnotationModal,
+    ManageRepertoireModal)
+  - **Full-screen modals on narrow phones** (<560px) — modals expand to fill the
+    viewport with a drag-handle affordance bar
+  - **Board touch interaction** — `touch-action: none` on the board wrapper prevents
+    browser scroll/zoom hijacking during piece drags
+  - **Board coordinate labels** — shrunk to 9px on phones (<480px) to avoid overlap
+
 - **UI redesign: refined dark luxury theme** — complete visual overhaul of all pages
   and components into a high-contrast dark aesthetic with gold accents:
   - **Design token system** (`src/lib/styles/tokens.css`) — 40+ CSS custom properties

@@ -208,4 +208,44 @@
 	.modal-btn--save:active:not(:disabled) {
 		transform: scale(0.97);
 	}
+
+	/* ── Mobile touch targets ── --bp-md */
+	@media (max-width: 767px) {
+		.modal-btn {
+			min-height: 44px;
+		}
+
+		.modal-close {
+			min-width: 44px;
+			min-height: 44px;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+		}
+	}
+
+	/* ── Full-screen modal on narrow phones ── --bp-sm */
+	@media (max-width: 559px) {
+		.modal {
+			position: fixed;
+			inset: 0;
+			width: 100%;
+			max-width: 100%;
+			border-radius: 0;
+			padding-top: var(--space-8);
+		}
+
+		/* Drag handle affordance */
+		.modal::before {
+			content: '';
+			position: absolute;
+			top: var(--space-2);
+			left: 50%;
+			transform: translateX(-50%);
+			width: 36px;
+			height: 4px;
+			border-radius: 2px;
+			background: var(--color-border);
+		}
+	}
 </style>

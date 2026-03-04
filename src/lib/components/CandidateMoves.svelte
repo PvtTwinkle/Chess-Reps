@@ -238,6 +238,8 @@
 	function formatCount(n: number): string {
 		return n.toLocaleString();
 	}
+
+
 </script>
 
 <div class="section">
@@ -559,5 +561,28 @@
 
 	.wdl-label-black {
 		color: var(--color-danger);
+	}
+
+	/* ── Mobile compact mode ── --bp-md */
+	@media (max-width: 767px) {
+		.tab {
+			min-height: 44px;
+			padding: var(--space-3);
+			font-size: 13px;
+		}
+
+		.candidate-row {
+			min-height: 44px;
+			padding: var(--space-3);
+		}
+
+		.candidate-list {
+			display: grid;
+			grid-template-columns: 1fr 1fr;
+		}
+
+		.opening-name {
+			display: none;
+		}
 	}
 </style>

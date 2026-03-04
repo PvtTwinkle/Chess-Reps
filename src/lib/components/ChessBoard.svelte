@@ -262,5 +262,15 @@
 	.board-wrap {
 		width: 100%;
 		aspect-ratio: 1 / 1;
+		/* Prevent browser from hijacking touch events for scroll/zoom —
+		   Chessground handles its own touch events internally. */
+		touch-action: none;
+	}
+
+	/* Shrink coordinate labels on small phones — --bp-sm */
+	@media (max-width: 479px) {
+		.board-wrap :global(coords) {
+			font-size: 9px !important;
+		}
 	}
 </style>

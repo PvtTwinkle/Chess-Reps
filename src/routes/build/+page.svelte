@@ -391,28 +391,46 @@
 </div>
 
 <style>
-	/* ── Page layout ─────────────────────────────────────────────────────────── */
+	/* ── Page layout (mobile-first) ──────────────────────────────────────────── */
 
 	.page {
 		display: flex;
-		gap: var(--space-8);
-		align-items: flex-start;
-		max-width: 920px;
-		margin: 0 auto;
+		flex-direction: column;
+		gap: var(--space-4);
+		padding: var(--space-3);
 	}
 
 	.board-col {
-		width: 520px;
-		flex-shrink: 0;
+		width: 100%;
 	}
 
 	.sidebar {
-		flex: 1;
-		min-width: 220px;
-		max-width: 340px;
+		width: 100%;
+		max-width: 100%;
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-4);
+	}
+
+	/* Tablet (768px – 1023px) — --bp-md */
+	@media (min-width: 768px) {
+		.page {
+			display: grid;
+			grid-template-columns: 1fr 260px;
+			gap: var(--space-4);
+			align-items: start;
+			padding: 0;
+		}
+	}
+
+	/* Desktop (≥1024px) — --bp-lg */
+	@media (min-width: 1024px) {
+		.page {
+			grid-template-columns: 1fr 300px;
+			gap: var(--space-8);
+			max-width: 920px;
+			margin: 0 auto;
+		}
 	}
 
 	/* ── Repertoire header ───────────────────────────────────────────────────── */
@@ -909,19 +927,4 @@
 		cursor: default;
 	}
 
-	/* ── Mobile responsive ────────────────────────────────────────────── */
-
-	@media (max-width: 768px) {
-		.page {
-			flex-direction: column;
-		}
-
-		.board-col {
-			width: 100%;
-		}
-
-		.sidebar {
-			max-width: 100%;
-		}
-	}
 </style>

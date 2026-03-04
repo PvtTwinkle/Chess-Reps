@@ -52,4 +52,10 @@
 	--dur-fast: 120ms;
 	--dur-base: 220ms;
 	--dur-slow: 380ms;
+
+	/* ── Breakpoints (reference only — can't use in @media) ─── */
+	--bp-sm: 480px; /* large phones, landscape */
+	--bp-md: 768px; /* tablet portrait */
+	--bp-lg: 1024px; /* tablet landscape / small desktop */
+	--bp-xl: 1280px; /* desktop */
 }

@@ -110,4 +110,14 @@
 	.move-san--black {
 		color: var(--color-text-secondary);
 	}
+
+	/* ── Mobile compact mode ── --bp-md */
+	@media (max-width: 767px) {
+		.move-san {
+			min-height: 36px;
+			padding: var(--space-2);
+			display: inline-flex;
+			align-items: center;
+		}
+	}
 </style>
