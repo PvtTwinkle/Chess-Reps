@@ -134,6 +134,65 @@
 		}
 	}
 
+	// ── Game Import Accounts ────────────────────────────────────────────────
+	// eslint-disable-next-line svelte/prefer-writable-derived
+	let lichessUsername = $state('');
+	let lichessStatus = $state('');
+	let savingLichess = $state(false);
+
+	// eslint-disable-next-line svelte/prefer-writable-derived
+	let chesscomUsername = $state('');
+	let chesscomStatus = $state('');
+	let savingChesscom = $state(false);
+
+	$effect(() => {
+		lichessUsername = data.settings?.lichessUsername ?? '';
+	});
+
+	$effect(() => {
+		chesscomUsername = data.settings?.chesscomUsername ?? '';
+	});
+
+	async function saveLichessUsername() {
+		savingLichess = true;
+		lichessStatus = '';
+		try {
+			const res = await fetch('/api/settings', {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ lichessUsername: lichessUsername || null })
+			});
+			if (!res.ok) throw new Error('Failed to save');
+			await invalidateAll();
+			lichessStatus = 'Saved';
+			setTimeout(() => (lichessStatus = ''), 2000);
+		} catch {
+			lichessStatus = 'Error saving';
+		} finally {
+			savingLichess = false;
+		}
+	}
+
+	async function saveChesscomUsername() {
+		savingChesscom = true;
+		chesscomStatus = '';
+		try {
+			const res = await fetch('/api/settings', {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ chesscomUsername: chesscomUsername || null })
+			});
+			if (!res.ok) throw new Error('Failed to save');
+			await invalidateAll();
+			chesscomStatus = 'Saved';
+			setTimeout(() => (chesscomStatus = ''), 2000);
+		} catch {
+			chesscomStatus = 'Error saving';
+		} finally {
+			savingChesscom = false;
+		}
+	}
+
 	// ── Password Change ─────────────────────────────────────────────────────
 	let currentPassword = $state('');
 	let newPassword = $state('');
@@ -186,140 +245,187 @@
 </script>
 
 <div class="settings-page">
-<h1>Settings</h1>
+	<h1>Settings</h1>
 
-<div class="settings-content">
-	<!-- ── Board Appearance ────────────────────────────────────────────── -->
-	<section class="settings-section">
-		<h2>Board Appearance</h2>
+	<div class="settings-content">
+		<!-- ── Board Appearance ────────────────────────────────────────────── -->
+		<section class="settings-section">
+			<h2>Board Appearance</h2>
 
-		<div class="setting-row">
-			<span class="setting-label">Board Theme</span>
-			<div class="theme-picker">
-				{#each THEMES as theme (theme.name)}
-					<button
-						class="theme-swatch"
-						class:selected={selectedTheme === theme.name}
-						title={theme.label}
-						onclick={() => setTheme(theme.name)}
-					>
-						<span class="swatch-light" style="background:{theme.light}"></span>
-						<span class="swatch-dark" style="background:{theme.dark}"></span>
-						<span class="swatch-label">{theme.label}</span>
-					</button>
-				{/each}
+			<div class="setting-row">
+				<span class="setting-label">Board Theme</span>
+				<div class="theme-picker">
+					{#each THEMES as theme (theme.name)}
+						<button
+							class="theme-swatch"
+							class:selected={selectedTheme === theme.name}
+							title={theme.label}
+							onclick={() => setTheme(theme.name)}
+						>
+							<span class="swatch-light" style="background:{theme.light}"></span>
+							<span class="swatch-dark" style="background:{theme.dark}"></span>
+							<span class="swatch-label">{theme.label}</span>
+						</button>
+					{/each}
+				</div>
+				{#if themeStatus}
+					<span class="status-msg">{themeStatus}</span>
+				{/if}
 			</div>
-			{#if themeStatus}
-				<span class="status-msg">{themeStatus}</span>
-			{/if}
-		</div>
 
-		<!-- Board preview -->
-		<div class="board-preview">
-			<ChessBoard boardTheme={selectedTheme} interactive={false} />
-		</div>
-
-		<div class="setting-row">
-			<span class="setting-label">Sound Effects</span>
-			<button class="toggle-btn" class:active={soundEnabled} onclick={toggleSound}>
-				{soundEnabled ? 'On' : 'Off'}
-			</button>
-		</div>
-	</section>
-
-	<!-- ── Analysis ────────────────────────────────────────────────────── -->
-	<section class="settings-section">
-		<h2>Analysis</h2>
-
-		<div class="setting-row">
-			<label class="setting-label" for="depth-slider">
-				Stockfish Depth: <strong>{stockfishDepth}</strong>
-			</label>
-			<div class="slider-wrap">
-				<span class="slider-label">15</span>
-				<input
-					id="depth-slider"
-					type="range"
-					min="15"
-					max="30"
-					step="1"
-					value={stockfishDepth}
-					oninput={handleDepthChange}
-				/>
-				<span class="slider-label">30</span>
+			<!-- Board preview -->
+			<div class="board-preview">
+				<ChessBoard boardTheme={selectedTheme} interactive={false} />
 			</div>
-			<p class="setting-hint">Higher = stronger analysis but slower. 20 is a good default.</p>
-			{#if depthStatus}
-				<span class="status-msg">{depthStatus}</span>
-			{/if}
-		</div>
 
-		<div class="setting-row">
-			<label class="setting-label" for="timeout-slider">
-				Analysis Timeout: <strong>{stockfishTimeout}s</strong>
-			</label>
-			<div class="slider-wrap">
-				<span class="slider-label">3s</span>
-				<input
-					id="timeout-slider"
-					type="range"
-					min="3"
-					max="30"
-					step="1"
-					value={stockfishTimeout}
-					oninput={handleTimeoutChange}
-				/>
-				<span class="slider-label">30s</span>
-			</div>
-			<p class="setting-hint">
-				Max time to wait for engine results. Increase for deeper analysis at higher depths.
-			</p>
-			{#if timeoutStatus}
-				<span class="status-msg">{timeoutStatus}</span>
-			{/if}
-		</div>
-	</section>
-
-	<!-- ── Account ─────────────────────────────────────────────────────── -->
-	<section class="settings-section">
-		<h2>Account</h2>
-
-		<div class="setting-row">
-			<span class="setting-label">Change Password</span>
-
-			<div class="password-form">
-				<input
-					type="password"
-					placeholder="Current password"
-					autocomplete="current-password"
-					bind:value={currentPassword}
-				/>
-				<input
-					type="password"
-					placeholder="New password (min 8 characters)"
-					autocomplete="new-password"
-					bind:value={newPassword}
-				/>
-				<input
-					type="password"
-					placeholder="Confirm new password"
-					autocomplete="new-password"
-					bind:value={confirmPassword}
-				/>
-				<button class="btn-primary" onclick={changePassword} disabled={changingPassword}>
-					{changingPassword ? 'Changing...' : 'Change Password'}
+			<div class="setting-row">
+				<span class="setting-label">Sound Effects</span>
+				<button class="toggle-btn" class:active={soundEnabled} onclick={toggleSound}>
+					{soundEnabled ? 'On' : 'Off'}
 				</button>
 			</div>
+		</section>
 
-			{#if passwordError}
-				<p class="error-msg">{passwordError}</p>
-			{/if}
-			{#if passwordStatus}
-				<p class="success-msg">{passwordStatus}</p>
-			{/if}
-		</div>
-	</section>
-</div>
+		<!-- ── Analysis ────────────────────────────────────────────────────── -->
+		<section class="settings-section">
+			<h2>Analysis</h2>
+
+			<div class="setting-row">
+				<label class="setting-label" for="depth-slider">
+					Stockfish Depth: <strong>{stockfishDepth}</strong>
+				</label>
+				<div class="slider-wrap">
+					<span class="slider-label">15</span>
+					<input
+						id="depth-slider"
+						type="range"
+						min="15"
+						max="30"
+						step="1"
+						value={stockfishDepth}
+						oninput={handleDepthChange}
+					/>
+					<span class="slider-label">30</span>
+				</div>
+				<p class="setting-hint">Higher = stronger analysis but slower. 20 is a good default.</p>
+				{#if depthStatus}
+					<span class="status-msg">{depthStatus}</span>
+				{/if}
+			</div>
+
+			<div class="setting-row">
+				<label class="setting-label" for="timeout-slider">
+					Analysis Timeout: <strong>{stockfishTimeout}s</strong>
+				</label>
+				<div class="slider-wrap">
+					<span class="slider-label">3s</span>
+					<input
+						id="timeout-slider"
+						type="range"
+						min="3"
+						max="30"
+						step="1"
+						value={stockfishTimeout}
+						oninput={handleTimeoutChange}
+					/>
+					<span class="slider-label">30s</span>
+				</div>
+				<p class="setting-hint">
+					Max time to wait for engine results. Increase for deeper analysis at higher depths.
+				</p>
+				{#if timeoutStatus}
+					<span class="status-msg">{timeoutStatus}</span>
+				{/if}
+			</div>
+		</section>
+
+		<!-- ── Game Import ─────────────────────────────────────────────────── -->
+		<section class="settings-section">
+			<h2>Game Import</h2>
+
+			<div class="setting-row">
+				<label class="setting-label" for="lichess-username">Lichess Username</label>
+				<div class="username-input-row">
+					<input
+						id="lichess-username"
+						type="text"
+						placeholder="your_lichess_username"
+						bind:value={lichessUsername}
+						maxlength="25"
+						class="username-input"
+					/>
+					<button class="btn-save" onclick={saveLichessUsername} disabled={savingLichess}>
+						{savingLichess ? 'Saving...' : 'Save'}
+					</button>
+				</div>
+				<p class="setting-hint">Your Lichess username. Games must be public for import to work.</p>
+				{#if lichessStatus}
+					<span class="status-msg">{lichessStatus}</span>
+				{/if}
+			</div>
+
+			<div class="setting-row">
+				<label class="setting-label" for="chesscom-username">Chess.com Username</label>
+				<div class="username-input-row">
+					<input
+						id="chesscom-username"
+						type="text"
+						placeholder="your_chesscom_username"
+						bind:value={chesscomUsername}
+						maxlength="25"
+						class="username-input"
+					/>
+					<button class="btn-save" onclick={saveChesscomUsername} disabled={savingChesscom}>
+						{savingChesscom ? 'Saving...' : 'Save'}
+					</button>
+				</div>
+				<p class="setting-hint">Your Chess.com username. Only standard chess games are imported.</p>
+				{#if chesscomStatus}
+					<span class="status-msg">{chesscomStatus}</span>
+				{/if}
+			</div>
+		</section>
+
+		<!-- ── Account ─────────────────────────────────────────────────────── -->
+		<section class="settings-section">
+			<h2>Account</h2>
+
+			<div class="setting-row">
+				<span class="setting-label">Change Password</span>
+
+				<div class="password-form">
+					<input
+						type="password"
+						placeholder="Current password"
+						autocomplete="current-password"
+						bind:value={currentPassword}
+					/>
+					<input
+						type="password"
+						placeholder="New password (min 8 characters)"
+						autocomplete="new-password"
+						bind:value={newPassword}
+					/>
+					<input
+						type="password"
+						placeholder="Confirm new password"
+						autocomplete="new-password"
+						bind:value={confirmPassword}
+					/>
+					<button class="btn-primary" onclick={changePassword} disabled={changingPassword}>
+						{changingPassword ? 'Changing...' : 'Change Password'}
+					</button>
+				</div>
+
+				{#if passwordError}
+					<p class="error-msg">{passwordError}</p>
+				{/if}
+				{#if passwordStatus}
+					<p class="success-msg">{passwordStatus}</p>
+				{/if}
+			</div>
+		</section>
+	</div>
 </div>
 
 <style>
@@ -489,6 +595,63 @@
 		accent-color: var(--color-gold);
 	}
 
+	/* ── Username input ────────────────────────────────────────────── */
+
+	.username-input-row {
+		display: flex;
+		gap: var(--space-2);
+		align-items: center;
+		max-width: 320px;
+	}
+
+	.username-input {
+		flex: 1;
+		padding: var(--space-2) var(--space-3);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-sm);
+		background: var(--color-surface-alt);
+		color: var(--color-text-primary);
+		font-family: var(--font-body);
+		font-size: 13px;
+		transition: border-color var(--dur-fast) var(--ease-snap);
+	}
+
+	.username-input::placeholder {
+		color: var(--color-text-muted);
+	}
+
+	.username-input:focus {
+		outline: none;
+		border-color: var(--color-gold);
+		box-shadow: 0 0 0 3px var(--color-gold-glow);
+	}
+
+	.btn-save {
+		padding: var(--space-2) var(--space-3);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-sm);
+		background: var(--color-surface-alt);
+		color: var(--color-text-secondary);
+		font-family: var(--font-body);
+		font-size: 12px;
+		font-weight: 500;
+		cursor: pointer;
+		white-space: nowrap;
+		transition:
+			background var(--dur-fast) var(--ease-snap),
+			border-color var(--dur-fast) var(--ease-snap);
+	}
+
+	.btn-save:hover:not(:disabled) {
+		border-color: var(--color-gold);
+		color: var(--color-gold);
+	}
+
+	.btn-save:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+
 	/* ── Password form ─────────────────────────────────────────────── */
 
 	.password-form {
@@ -530,7 +693,8 @@
 		font-size: 13px;
 		cursor: pointer;
 		align-self: flex-start;
-		transition: box-shadow var(--dur-fast) var(--ease-snap),
+		transition:
+			box-shadow var(--dur-fast) var(--ease-snap),
 			transform var(--dur-fast) var(--ease-snap);
 	}
 

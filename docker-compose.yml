@@ -74,6 +74,14 @@ services:
       # connections. Leave commented out (defaults to false) for HTTP-only setups.
       # - SECURE_COOKIES=true
 
+      # ── Game Import ───────────────────────────────────────────────────────
+      # Auto-import interval in minutes. When set to a positive number, the
+      # app periodically fetches new games from Lichess and Chess.com for all
+      # users who have configured their platform usernames in Settings.
+      # Set to 0 (default) to disable auto-import — users can still import
+      # manually from the Review page's Import tab.
+      # - GAME_IMPORT_INTERVAL_MINUTES=60
+
     depends_on:
       postgres:
         condition: service_healthy

@@ -289,8 +289,8 @@
 		inset: 0;
 		background: rgba(0, 0, 0, 0.6);
 		display: flex;
-		align-items: center;
 		justify-content: center;
+		overflow-y: auto;
 		z-index: 1000;
 	}
 
@@ -304,6 +304,9 @@
 		overflow-y: auto;
 		padding: var(--space-6);
 		box-shadow: var(--shadow-elevated);
+		/* margin: auto centers vertically when shorter than viewport,
+		   and scrolls naturally from the top when taller. */
+		margin: auto;
 	}
 
 	.modal-header {

@@ -163,6 +163,10 @@ export const userSettings = pgTable('user_settings', {
 	boardTheme: text('board_theme').notNull().default('blue'), // e.g. "blue", "green", "brown"
 	pieceSet: text('piece_set').notNull().default('cburnett'), // e.g. "cburnett", "merida", "alpha"
 	soundEnabled: boolean('sound_enabled').notNull().default(true),
+	lichessUsername: text('lichess_username'), // Lichess username for game import
+	chesscomUsername: text('chesscom_username'), // Chess.com username for game import
+	lastLichessImport: timestamp('last_lichess_import'), // watermark: playedAt of most recent Lichess import
+	lastChesscomImport: timestamp('last_chesscom_import'), // watermark: playedAt of most recent Chess.com import
 	updatedAt: timestamp('updated_at').notNull()
 });
 
@@ -263,6 +267,39 @@ export const reviewedGame = pgTable(
 	},
 	(table) => ({
 		repertoireIdIdx: index('idx_reviewed_game_repertoire_id').on(table.repertoireId)
+	})
+);
+
+// A game fetched from Lichess or Chess.com, waiting to be reviewed.
+// This is the import queue. Games are promoted to reviewed_game when the user
+// completes a review. A separate table is needed because reviewed_game requires
+// repertoireId and reviewedAt to be NOT NULL, which imported-but-unreviewed games
+// cannot satisfy yet.
+export const importedGame = pgTable(
+	'imported_game',
+	{
+		id: serial('id').primaryKey(),
+		userId: integer('user_id')
+			.notNull()
+			.references(() => user.id),
+		pgn: text('pgn').notNull(), // full PGN from the platform
+		source: text('source').notNull(), // 'LICHESS' or 'CHESSCOM'
+		externalGameId: text('external_game_id').notNull(), // Lichess game ID or Chess.com game URL
+		playerColor: text('player_color').notNull(), // 'WHITE' or 'BLACK' — which side the user played
+		opponentName: text('opponent_name'),
+		opponentRating: integer('opponent_rating'),
+		playerRating: integer('player_rating'),
+		timeControl: text('time_control'), // e.g. "600+0", "180+2"
+		result: text('result'), // '1-0', '0-1', '1/2-1/2'
+		playedAt: timestamp('played_at'), // when the game was played on the platform
+		importedAt: timestamp('imported_at').notNull(), // when we fetched it
+		status: text('status').notNull().default('pending'), // 'pending', 'reviewed', 'skipped'
+		reviewedGameId: integer('reviewed_game_id').references(() => reviewedGame.id) // set when review is saved
+	},
+	(table) => ({
+		uniqueUserSourceGame: unique().on(table.userId, table.source, table.externalGameId),
+		userStatusIdx: index('idx_imported_game_user_status').on(table.userId, table.status),
+		userPlayedAtIdx: index('idx_imported_game_user_played_at').on(table.userId, table.playedAt)
 	})
 );
 

@@ -15,6 +15,24 @@ Docker images are tagged per version. To stay on stable releases, pin your
 
 ### Added
 
+- **Lichess & Chess.com game import** — automatically fetch recent games from your
+  online accounts and review them against your repertoires:
+  - Settings page fields for Lichess and Chess.com usernames
+  - Import tab on the Review page with "Import from Lichess" / "Import from Chess.com"
+    buttons that fetch up to 50 new games per click
+  - Imported games list with status tracking (pending, reviewed, skipped) and filter chips
+  - Smart repertoire matching — walks the game's opening moves to find the best-fitting
+    repertoire instead of using the active one blindly; handles multiple same-color
+    repertoires by comparing move depth
+  - Multi-repertoire picker modal when multiple repertoires match the same game
+  - Prompts user to create a repertoire when no matching one exists, with a direct link
+  - Deduplication via unique constraint on (user, source, game ID) — re-importing skips
+    already-fetched games
+  - Watermark-based incremental import — only fetches games newer than the last import
+  - Optional background auto-import via `GAME_IMPORT_INTERVAL_MINUTES` env var
+  - `imported_game` table with full game metadata (opponent, ratings, time control, result)
+  - Linked review flow — completing a review of an imported game updates its status
+
 - **Multi-user account support** — the app now supports multiple user accounts with
   role-based access control and complete data isolation:
   - **Registration page** (`/register`) — username + password form with validation
@@ -91,6 +109,12 @@ Docker images are tagged per version. To stay on stable releases, pin your
   - **Centered layouts** — all page content centered with appropriate max-widths
     (920px for board pages, 720px for dashboard, 600px for settings)
   - Style-only changes — no game logic, routing, API, or database modifications
+
+### Fixed
+
+- **Manage Repertoires modal** — modal content was clipped at the top when it exceeded
+  the viewport height; fixed by making the backdrop scrollable with `margin: auto`
+  centering on the modal panel
 
 ### Added
 

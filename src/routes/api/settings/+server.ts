@@ -46,6 +46,31 @@ export const PATCH: RequestHandler = async ({ locals, request }) => {
 		updates.boardTheme = body.boardTheme;
 	}
 
+	// Lichess username: alphanumeric + hyphens + underscores, max 25 chars.
+	// Empty string or null clears the username.
+	if (body.lichessUsername !== undefined) {
+		if (body.lichessUsername === null || body.lichessUsername === '') {
+			updates.lichessUsername = null;
+		} else if (typeof body.lichessUsername === 'string') {
+			const cleaned = body.lichessUsername.trim();
+			if (cleaned.length > 0 && cleaned.length <= 25 && /^[a-zA-Z0-9_-]+$/.test(cleaned)) {
+				updates.lichessUsername = cleaned;
+			}
+		}
+	}
+
+	// Chess.com username: same validation pattern.
+	if (body.chesscomUsername !== undefined) {
+		if (body.chesscomUsername === null || body.chesscomUsername === '') {
+			updates.chesscomUsername = null;
+		} else if (typeof body.chesscomUsername === 'string') {
+			const cleaned = body.chesscomUsername.trim();
+			if (cleaned.length > 0 && cleaned.length <= 25 && /^[a-zA-Z0-9_-]+$/.test(cleaned)) {
+				updates.chesscomUsername = cleaned;
+			}
+		}
+	}
+
 	if (Object.keys(updates).length === 0) {
 		throw error(400, 'No recognised settings fields provided');
 	}

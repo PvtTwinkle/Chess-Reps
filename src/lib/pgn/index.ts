@@ -75,6 +75,64 @@ export function fenKey(fen: string): string {
 	return fen.split(' ').slice(0, 4).join(' ');
 }
 
+// ─── computeMatchDepth ───────────────────────────────────────────────────────
+
+/**
+ * Count how many consecutive plies from the start of a game fall within a
+ * repertoire's move tree. Used to determine which repertoire best matches
+ * a game — higher depth = more opening overlap.
+ *
+ * Returns 0 if the repertoire doesn't cover the game's first move at all
+ * (e.g. a 1.e4 repertoire vs a 1.d4 game).
+ */
+export function computeMatchDepth(
+	gameMoves: ParsedGame['moves'],
+	repertoireMoves: RepertoireMoveRow[],
+	playerColor: 'WHITE' | 'BLACK'
+): number {
+	// Build lookup maps (same structure as analyzeGame).
+	const userMoveByFen = new Map<string, string>();
+	const opponentMovesByFen = new Map<string, Set<string>>();
+
+	for (const rm of repertoireMoves) {
+		const key = fenKey(rm.fromFen);
+		const fenTurn = rm.fromFen.split(' ')[1]; // 'w' or 'b'
+		const isUserTurn =
+			(playerColor === 'WHITE' && fenTurn === 'w') || (playerColor === 'BLACK' && fenTurn === 'b');
+
+		if (isUserTurn) {
+			userMoveByFen.set(key, rm.san);
+		} else {
+			if (!opponentMovesByFen.has(key)) opponentMovesByFen.set(key, new Set());
+			opponentMovesByFen.get(key)!.add(rm.san);
+		}
+	}
+
+	// Walk the game and count consecutive plies covered by the repertoire.
+	let depth = 0;
+
+	for (const move of gameMoves) {
+		const key = fenKey(move.before);
+		const fenTurn = move.before.split(' ')[1];
+		const isUserTurn =
+			(playerColor === 'WHITE' && fenTurn === 'w') || (playerColor === 'BLACK' && fenTurn === 'b');
+
+		if (isUserTurn) {
+			const expected = userMoveByFen.get(key);
+			if (!expected) break; // position not in repertoire — stop
+			depth++;
+			if (expected !== move.san) break; // user deviated — stop
+		} else {
+			const prepared = opponentMovesByFen.get(key);
+			if (!prepared) break; // position not in repertoire — stop
+			depth++;
+			if (!prepared.has(move.san)) break; // opponent surprise — stop
+		}
+	}
+
+	return depth;
+}
+
 // ─── parsePgn ─────────────────────────────────────────────────────────────────
 
 /**

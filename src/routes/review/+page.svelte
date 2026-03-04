@@ -48,6 +48,174 @@
 		playerColor = data.repertoire.color as 'WHITE' | 'BLACK';
 	});
 	let analysing = $state(false);
+
+	// ── Import tab state ────────────────────────────────────────────────────────
+
+	// Which tab is active in the input state: 'paste' or 'import'
+	// eslint-disable-next-line svelte/prefer-writable-derived
+	let inputTab = $state<'paste' | 'import'>('paste');
+
+	// Import fetch state
+	let importingLichess = $state(false);
+	let importingChesscom = $state(false);
+	let importResult = $state<{ imported: number; skipped: number; source: string } | null>(null);
+	let importError = $state<string | null>(null);
+
+	// Import list filter
+	let importFilter = $state<'all' | 'pending' | 'reviewed' | 'skipped'>('all');
+
+	// The imported game currently being reviewed (set when user clicks "Review")
+	let importedGameId = $state<number | null>(null);
+	// Override repertoire ID (when reviewing an imported game against a specific repertoire)
+	let overrideRepertoireId = $state<number | null>(null);
+
+	// Repertoire picker modal
+	let showRepPicker = $state(false);
+	let repPickerAnalyses = $state<
+		{ repertoireId: number; repertoireName: string; issueCount: number }[]
+	>([]);
+	let repPickerLoading = $state(false);
+	let repPickerGameId = $state<number | null>(null);
+
+	// Filtered imported games
+	const filteredImportedGames = $derived(
+		(data.importedGames ?? []).filter((g) => importFilter === 'all' || g.status === importFilter)
+	);
+
+	// Import functions
+	async function triggerImport(source: 'LICHESS' | 'CHESSCOM') {
+		importResult = null;
+		importError = null;
+
+		if (source === 'LICHESS') importingLichess = true;
+		else importingChesscom = true;
+
+		try {
+			const res = await fetch('/api/import/fetch', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ source })
+			});
+
+			const result = await res.json();
+
+			if (res.status === 429 && result.rateLimited) {
+				importError = `Rate limited by ${source === 'LICHESS' ? 'Lichess' : 'Chess.com'}. Try again in a minute.`;
+				return;
+			}
+
+			if (!res.ok) {
+				importError = result.message ?? `Import failed (${res.status})`;
+				return;
+			}
+
+			importResult = {
+				imported: result.imported,
+				skipped: result.skipped,
+				source: source === 'LICHESS' ? 'Lichess' : 'Chess.com'
+			};
+
+			// Refresh the imported games list
+			const { invalidateAll } = await import('$app/navigation');
+			await invalidateAll();
+		} catch {
+			importError = 'Network error. Check your connection.';
+		} finally {
+			if (source === 'LICHESS') importingLichess = false;
+			else importingChesscom = false;
+		}
+	}
+
+	async function skipImportedGame(gameId: number) {
+		await fetch(`/api/import/${gameId}`, {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ status: 'skipped' })
+		});
+		const { invalidateAll } = await import('$app/navigation');
+		await invalidateAll();
+	}
+
+	async function unskipImportedGame(gameId: number) {
+		await fetch(`/api/import/${gameId}`, {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ status: 'pending' })
+		});
+		const { invalidateAll } = await import('$app/navigation');
+		await invalidateAll();
+	}
+
+	async function startReviewImportedGame(gameId: number) {
+		repPickerLoading = true;
+		repPickerGameId = gameId;
+
+		try {
+			const res = await fetch(`/api/import/${gameId}/analyze`, { method: 'POST' });
+			if (!res.ok) {
+				importError = 'Failed to analyze game';
+				return;
+			}
+
+			const result = await res.json();
+
+			if (result.analyses.length === 0) {
+				importError = result.message ?? 'No matching repertoires found for this game.';
+				return;
+			}
+
+			if (result.analyses.length === 1) {
+				// Only one matching repertoire — go directly to review.
+				loadImportedGameForReview(
+					gameId,
+					result.game.pgn,
+					result.game.playerColor,
+					result.analyses[0].repertoireId
+				);
+			} else {
+				// Multiple repertoires — show picker.
+				repPickerAnalyses = result.analyses;
+				showRepPicker = true;
+			}
+		} catch {
+			importError = 'Network error analyzing game.';
+		} finally {
+			repPickerLoading = false;
+		}
+	}
+
+	function loadImportedGameForReview(
+		gameId: number,
+		pgn: string,
+		color: string,
+		repertoireId: number
+	) {
+		showRepPicker = false;
+		importedGameId = gameId;
+		overrideRepertoireId = repertoireId;
+		pgnText = pgn;
+		playerColor = color as 'WHITE' | 'BLACK';
+		inputTab = 'paste';
+
+		// Auto-submit the analyze form after a tick to let the textarea render.
+		setTimeout(() => {
+			const formEl = document.querySelector(
+				'form[action="?/analyzeGame"]'
+			) as HTMLFormElement | null;
+			if (formEl) formEl.requestSubmit();
+		}, 100);
+	}
+
+	// ── Prefilled game from URL ─────────────────────────────────────────────────
+	// When navigating from an external link with ?importedGameId=N, auto-fill the PGN.
+	$effect(() => {
+		if (data.prefilledGame && !analysis) {
+			const pg = data.prefilledGame;
+			untrack(() => {
+				loadImportedGameForReview(pg.id, pg.pgn, pg.playerColor, data.repertoire.id);
+			});
+		}
+	});
 	let analysisError = $state<string | null>(null);
 
 	// ── Analysis state ──────────────────────────────────────────────────────────
@@ -148,6 +316,13 @@
 			analysisHeaders = (form.headers as Record<string, string>) ?? {};
 			analysedPlayerColor = (form.playerColor as 'WHITE' | 'BLACK') ?? 'WHITE';
 
+			// Store the server-selected repertoire ID so saving targets the right
+			// repertoire (which may differ from the active one if the server
+			// auto-matched by opening moves).
+			if (form.repertoireId && typeof form.repertoireId === 'number') {
+				overrideRepertoireId = form.repertoireId;
+			}
+
 			// Reset per-analysis state. Wrap reactive collection clears in
 			// untrack so they don't register as dependencies of this $effect
 			// (mutations from background fetches would otherwise re-trigger it).
@@ -203,9 +378,10 @@
 			: undefined
 	);
 
-	// Board orientation — Black side at bottom for Black repertoires.
+	// Board orientation — use the analysed player color (which may differ from
+	// the active repertoire's color when the server auto-matched a different one).
 	const orientation = $derived<'white' | 'black'>(
-		data.repertoire.color === 'WHITE' ? 'white' : 'black'
+		analysedPlayerColor === 'WHITE' ? 'white' : 'black'
 	);
 
 	// FEN history for OpeningName (positions from newest to oldest, without currentFen).
@@ -573,7 +749,7 @@
 		actionLoading.set(issue.ply, true);
 		try {
 			await callApi('/api/review/fail-card', {
-				repertoireId: data.repertoire.id,
+				repertoireId: overrideRepertoireId ?? data.repertoire.id,
 				fromFen: issue.fromFen
 			});
 			resolveIssue(issue.ply);
@@ -589,12 +765,12 @@
 		try {
 			// Fail the card first (it's a deviation regardless of what we do with the repertoire).
 			await callApi('/api/review/fail-card', {
-				repertoireId: data.repertoire.id,
+				repertoireId: overrideRepertoireId ?? data.repertoire.id,
 				fromFen: issue.fromFen
 			});
 			// Replace the existing move in the repertoire with what the user played.
 			await callApi('/api/review/add-move', {
-				repertoireId: data.repertoire.id,
+				repertoireId: overrideRepertoireId ?? data.repertoire.id,
 				fromFen: issue.fromFen,
 				san: issue.playedSan,
 				forceReplace: true
@@ -612,7 +788,7 @@
 		actionLoading.set(issue.ply, true);
 		try {
 			await callApi('/api/review/add-move', {
-				repertoireId: data.repertoire.id,
+				repertoireId: overrideRepertoireId ?? data.repertoire.id,
 				fromFen: issue.fromFen,
 				san: issue.playedSan
 			});
@@ -637,7 +813,7 @@
 		actionLoading.set(issue.ply, true);
 		try {
 			await callApi('/api/review/add-move', {
-				repertoireId: data.repertoire.id,
+				repertoireId: overrideRepertoireId ?? data.repertoire.id,
 				fromFen: issue.fromFen,
 				san: issue.playedSan
 			});
@@ -659,7 +835,7 @@
 		actionLoading.set(issue.ply, true);
 		try {
 			await callApi('/api/review/add-move', {
-				repertoireId: data.repertoire.id,
+				repertoireId: overrideRepertoireId ?? data.repertoire.id,
 				fromFen: issue.toFen,
 				san: issue.userResponseSan
 			});
@@ -850,7 +1026,7 @@
 		actionLoading.set(issuePly, true);
 		try {
 			await callApi('/api/review/add-move', {
-				repertoireId: data.repertoire.id,
+				repertoireId: overrideRepertoireId ?? data.repertoire.id,
 				fromFen: leg.opponentFen,
 				san: leg.opponentSan
 			});
@@ -876,7 +1052,7 @@
 		actionLoading.set(issuePly, true);
 		try {
 			await callApi('/api/review/add-move', {
-				repertoireId: data.repertoire.id,
+				repertoireId: overrideRepertoireId ?? data.repertoire.id,
 				fromFen: leg.userFen,
 				san: leg.userSan
 			});
@@ -906,7 +1082,7 @@
 		actionLoading.set(issuePly, true);
 		try {
 			await callApi('/api/review/add-move', {
-				repertoireId: data.repertoire.id,
+				repertoireId: overrideRepertoireId ?? data.repertoire.id,
 				fromFen: leg.userFen,
 				san
 			});
@@ -947,7 +1123,7 @@
 		actionLoading.set(issue.ply, true);
 		try {
 			await callApi('/api/review/add-move', {
-				repertoireId: data.repertoire.id,
+				repertoireId: overrideRepertoireId ?? data.repertoire.id,
 				fromFen,
 				san
 			});
@@ -979,10 +1155,11 @@
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
-					repertoireId: data.repertoire.id,
+					repertoireId: overrideRepertoireId ?? data.repertoire.id,
 					pgn: parsedPgn,
 					deviationFen: analysis.firstDeviationFen,
-					notes: notes || null
+					notes: notes || null,
+					importedGameId: importedGameId ?? undefined
 				})
 			});
 			if (res.ok) {
@@ -1001,6 +1178,8 @@
 		savedId = null;
 		pgnText = '';
 		analysisError = null;
+		importedGameId = null;
+		overrideRepertoireId = null;
 	}
 </script>
 
@@ -1010,62 +1189,227 @@
 
 {#if pageState === 'input'}
 	<div class="input-page">
-		<div class="input-card">
-			<h2 class="input-title">Review a Game</h2>
-			<p class="input-subtitle">Paste a PGN to find where you deviated from your repertoire.</p>
-
-			<form
-				method="POST"
-				action="?/analyzeGame"
-				use:enhance={() => {
-					analysing = true;
-					analysisError = null;
-					return async ({ update }) => {
-						await update({ reset: false });
-						analysing = false;
-					};
-				}}
+		<!-- ── Tab bar ─────────────────────────────────────────────────────────── -->
+		<div class="input-tabs">
+			<button
+				class="input-tab"
+				class:input-tab--active={inputTab === 'paste'}
+				onclick={() => (inputTab = 'paste')}
 			>
-				<!-- Color selector -->
-				<div class="color-selector">
-					<span class="color-label">I played as:</span>
-					<label class="color-opt" class:selected={playerColor === 'WHITE'}>
-						<input type="radio" name="playerColor" value="WHITE" bind:group={playerColor} />
-						♙ White
-					</label>
-					<label class="color-opt" class:selected={playerColor === 'BLACK'}>
-						<input type="radio" name="playerColor" value="BLACK" bind:group={playerColor} />
-						♟ Black
-					</label>
-				</div>
+				Paste PGN
+			</button>
+			<button
+				class="input-tab"
+				class:input-tab--active={inputTab === 'import'}
+				onclick={() => (inputTab = 'import')}
+			>
+				Import Games
+			</button>
+		</div>
 
-				<textarea
-					name="pgn"
-					class="pgn-input"
-					rows="10"
-					placeholder="[Event &quot;Rapid game&quot;]
+		<!-- ── Tab 1: Paste PGN ───────────────────────────────────────────────── -->
+		{#if inputTab === 'paste'}
+			<div class="input-card">
+				<h2 class="input-title">Review a Game</h2>
+				<p class="input-subtitle">Paste a PGN to find where you deviated from your repertoire.</p>
+
+				<form
+					method="POST"
+					action="?/analyzeGame"
+					use:enhance={() => {
+						analysing = true;
+						analysisError = null;
+						return async ({ update }) => {
+							await update({ reset: false });
+							analysing = false;
+						};
+					}}
+				>
+					<!-- Color selector -->
+					<div class="color-selector">
+						<span class="color-label">I played as:</span>
+						<label class="color-opt" class:selected={playerColor === 'WHITE'}>
+							<input type="radio" name="playerColor" value="WHITE" bind:group={playerColor} />
+							♙ White
+						</label>
+						<label class="color-opt" class:selected={playerColor === 'BLACK'}>
+							<input type="radio" name="playerColor" value="BLACK" bind:group={playerColor} />
+							♟ Black
+						</label>
+					</div>
+
+					<!-- Hidden repertoire override (set when reviewing an imported game) -->
+					{#if overrideRepertoireId}
+						<input type="hidden" name="repertoireId" value={overrideRepertoireId} />
+					{/if}
+
+					<textarea
+						name="pgn"
+						class="pgn-input"
+						rows="10"
+						placeholder="[Event &quot;Rapid game&quot;]
 [White &quot;You&quot;]
 [Black &quot;Opponent&quot;]
 [Result &quot;1-0&quot;]
 
 1. e4 e5 2. Nf3 Nc6 ..."
-					bind:value={pgnText}
-					spellcheck="false"
-				></textarea>
+						bind:value={pgnText}
+						spellcheck="false"
+					></textarea>
 
-				{#if analysisError}
-					<div class="error-banner">{analysisError}</div>
+					{#if analysisError}
+						<div class="error-banner">
+							{analysisError}
+							{#if analysisError.includes('Create one first')}
+								<a href="/build" class="create-rep-link">Create a repertoire</a>
+							{/if}
+						</div>
+					{/if}
+
+					<button
+						type="submit"
+						class="btn btn--primary btn--full"
+						disabled={!pgnText.trim() || analysing}
+					>
+						{analysing ? 'Analysing…' : 'Analyse Game'}
+					</button>
+				</form>
+			</div>
+
+			<!-- ── Tab 2: Import Games ────────────────────────────────────────────── -->
+		{:else}
+			<div class="input-card">
+				<h2 class="input-title">Import Games</h2>
+				<p class="input-subtitle">Fetch recent games from Lichess or Chess.com.</p>
+
+				<!-- Import buttons -->
+				<div class="import-buttons">
+					<button
+						class="btn btn--import"
+						onclick={() => triggerImport('LICHESS')}
+						disabled={importingLichess || !data.importSettings?.lichessUsername}
+					>
+						{#if importingLichess}
+							Importing…
+						{:else if !data.importSettings?.lichessUsername}
+							Lichess (set username in Settings)
+						{:else}
+							Import from Lichess
+						{/if}
+					</button>
+					<button
+						class="btn btn--import"
+						onclick={() => triggerImport('CHESSCOM')}
+						disabled={importingChesscom || !data.importSettings?.chesscomUsername}
+					>
+						{#if importingChesscom}
+							Importing…
+						{:else if !data.importSettings?.chesscomUsername}
+							Chess.com (set username in Settings)
+						{:else}
+							Import from Chess.com
+						{/if}
+					</button>
+				</div>
+
+				<!-- Import result / error -->
+				{#if importResult}
+					<div class="import-result">
+						{importResult.imported} new game{importResult.imported !== 1 ? 's' : ''} imported from {importResult.source}.
+						{#if importResult.skipped > 0}
+							{importResult.skipped} already imported.
+						{/if}
+					</div>
+				{/if}
+				{#if importError}
+					<div class="error-banner">
+						{importError}
+						{#if importError.includes('Create one first')}
+							<a href="/build" class="create-rep-link">Create a repertoire</a>
+						{/if}
+					</div>
 				{/if}
 
-				<button
-					type="submit"
-					class="btn btn--primary btn--full"
-					disabled={!pgnText.trim() || analysing}
-				>
-					{analysing ? 'Analysing…' : 'Analyse Game'}
-				</button>
-			</form>
-		</div>
+				<!-- Filter chips -->
+				<div class="import-filters">
+					{#each ['all', 'pending', 'reviewed', 'skipped'] as f (f)}
+						<button
+							class="filter-chip"
+							class:filter-chip--active={importFilter === f}
+							onclick={() => (importFilter = f as typeof importFilter)}
+						>
+							{f.charAt(0).toUpperCase() + f.slice(1)}
+						</button>
+					{/each}
+				</div>
+
+				<!-- Imported games list -->
+				{#if filteredImportedGames.length === 0}
+					<p class="import-empty">
+						{importFilter === 'all'
+							? 'No imported games yet. Click a button above to fetch games.'
+							: `No ${importFilter} games.`}
+					</p>
+				{:else}
+					<div class="import-list">
+						{#each filteredImportedGames as game (game.id)}
+							<div class="import-item">
+								<div class="import-meta">
+									<span class="import-source import-source--{game.source.toLowerCase()}">
+										{game.source === 'LICHESS' ? 'Li' : 'CC'}
+									</span>
+									<span class="import-color">
+										{game.playerColor === 'WHITE' ? '♙' : '♟'}
+									</span>
+									<span class="import-opponent">
+										vs {game.opponentName ?? 'Unknown'}
+										{#if game.opponentRating}
+											<span class="import-rating">({game.opponentRating})</span>
+										{/if}
+									</span>
+									<span class="import-result-text">{game.result ?? ''}</span>
+									{#if game.playedAt}
+										<span class="import-date">
+											{new Date(game.playedAt).toLocaleDateString(undefined, {
+												month: 'short',
+												day: 'numeric'
+											})}
+										</span>
+									{/if}
+								</div>
+								<div class="import-actions">
+									{#if game.status === 'pending'}
+										<button
+											class="btn btn--sm btn--primary"
+											onclick={() => startReviewImportedGame(game.id)}
+											disabled={repPickerLoading && repPickerGameId === game.id}
+										>
+											{repPickerLoading && repPickerGameId === game.id ? 'Analyzing…' : 'Review'}
+										</button>
+										<button
+											class="btn btn--sm btn--ghost"
+											onclick={() => skipImportedGame(game.id)}
+										>
+											Skip
+										</button>
+									{:else if game.status === 'reviewed'}
+										<span class="import-badge import-badge--reviewed">Reviewed</span>
+									{:else}
+										<span class="import-badge import-badge--skipped">Skipped</span>
+										<button
+											class="btn btn--sm btn--ghost"
+											onclick={() => unskipImportedGame(game.id)}
+										>
+											Un-skip
+										</button>
+									{/if}
+								</div>
+							</div>
+						{/each}
+					</div>
+				{/if}
+			</div>
+		{/if}
 
 		<!-- Recent reviews history -->
 		{#if data.recentGames.length > 0}
@@ -1092,6 +1436,43 @@
 			</div>
 		{/if}
 	</div>
+
+	<!-- ── Repertoire Picker Modal ────────────────────────────────────────────── -->
+	{#if showRepPicker}
+		<!-- svelte-ignore a11y_click_events_have_key_events -->
+		<!-- svelte-ignore a11y_no_static_element_interactions -->
+		<div class="modal-overlay" onclick={() => (showRepPicker = false)}>
+			<div class="modal-card" onclick={(e) => e.stopPropagation()}>
+				<h3 class="modal-title">Choose Repertoire</h3>
+				<p class="modal-subtitle">
+					This game matches multiple repertoires. Pick one to review against.
+				</p>
+				<div class="rep-picker-list">
+					{#each repPickerAnalyses as a (a.repertoireId)}
+						<button
+							class="rep-picker-item"
+							onclick={() => {
+								const game = data.importedGames?.find((g) => g.id === repPickerGameId);
+								if (game) {
+									loadImportedGameForReview(game.id, game.pgn, game.playerColor, a.repertoireId);
+								}
+							}}
+						>
+							<span class="rep-picker-name">{a.repertoireName}</span>
+							<span class="rep-picker-issues">
+								{a.issueCount === 0
+									? 'Clean'
+									: `${a.issueCount} issue${a.issueCount !== 1 ? 's' : ''}`}
+							</span>
+						</button>
+					{/each}
+				</div>
+				<button class="btn btn--secondary btn--full" onclick={() => (showRepPicker = false)}>
+					Cancel
+				</button>
+			</div>
+		</div>
+	{/if}
 
 	<!-- ════════════════════════════════════════════════════════════════════════════
      STATE B — Analysis
@@ -1702,6 +2083,324 @@
 		border-radius: var(--radius-sm);
 		padding: var(--space-2) var(--space-3);
 		font-size: 0.82rem;
+	}
+
+	.error-banner :global(.create-rep-link) {
+		display: inline-block;
+		margin-top: var(--space-2);
+		color: var(--color-gold);
+		text-decoration: underline;
+		font-weight: 600;
+	}
+
+	.error-banner :global(.create-rep-link:hover) {
+		color: var(--color-text-primary);
+	}
+
+	/* ── Input tab bar ─────────────────────────────────────────────────────── */
+
+	.input-tabs {
+		display: flex;
+		gap: var(--space-1);
+		border-bottom: 1px solid var(--color-border);
+		margin-bottom: var(--space-2);
+	}
+
+	.input-tab {
+		padding: var(--space-2) var(--space-4);
+		border: none;
+		background: transparent;
+		color: var(--color-text-muted);
+		font-family: var(--font-body);
+		font-size: 0.85rem;
+		font-weight: 500;
+		cursor: pointer;
+		border-bottom: 2px solid transparent;
+		transition:
+			color var(--dur-fast) var(--ease-snap),
+			border-color var(--dur-fast) var(--ease-snap);
+	}
+
+	.input-tab:hover {
+		color: var(--color-text-secondary);
+	}
+
+	.input-tab--active {
+		color: var(--color-gold);
+		border-bottom-color: var(--color-gold);
+	}
+
+	/* ── Import tab ─────────────────────────────────────────────────────────── */
+
+	.import-buttons {
+		display: flex;
+		gap: var(--space-2);
+		flex-wrap: wrap;
+	}
+
+	.btn--import {
+		flex: 1;
+		min-width: 180px;
+		padding: var(--space-2) var(--space-3);
+		border-radius: var(--radius-md);
+		border: 1px solid var(--color-border);
+		background: var(--color-surface);
+		color: var(--color-text-secondary);
+		font-size: 0.82rem;
+		font-weight: 500;
+		cursor: pointer;
+		font-family: var(--font-body);
+		transition:
+			border-color var(--dur-fast) var(--ease-snap),
+			color var(--dur-fast) var(--ease-snap);
+	}
+
+	.btn--import:hover:not(:disabled) {
+		border-color: var(--color-gold);
+		color: var(--color-text-primary);
+	}
+
+	.btn--import:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+
+	.import-result {
+		padding: var(--space-2) var(--space-3);
+		background: rgba(92, 204, 92, 0.1);
+		border: 1px solid rgba(92, 204, 92, 0.25);
+		color: var(--color-success);
+		border-radius: var(--radius-sm);
+		font-size: 0.82rem;
+	}
+
+	.import-filters {
+		display: flex;
+		gap: var(--space-1);
+	}
+
+	.filter-chip {
+		padding: var(--space-1) var(--space-3);
+		border: 1px solid var(--color-border);
+		border-radius: 999px;
+		background: transparent;
+		color: var(--color-text-muted);
+		font-family: var(--font-body);
+		font-size: 0.72rem;
+		cursor: pointer;
+		transition:
+			border-color var(--dur-fast) var(--ease-snap),
+			color var(--dur-fast) var(--ease-snap);
+	}
+
+	.filter-chip:hover {
+		color: var(--color-text-secondary);
+	}
+
+	.filter-chip--active {
+		border-color: var(--color-gold);
+		color: var(--color-gold);
+		background: var(--color-gold-glow);
+	}
+
+	.import-empty {
+		color: var(--color-text-muted);
+		font-size: 0.82rem;
+		text-align: center;
+		padding: var(--space-6) 0;
+	}
+
+	.import-list {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-1);
+		max-height: 400px;
+		overflow-y: auto;
+	}
+
+	.import-item {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--space-2);
+		padding: var(--space-2) var(--space-3);
+		background: var(--color-base);
+		border-radius: var(--radius-sm);
+		font-size: 0.8rem;
+	}
+
+	.import-meta {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		flex: 1;
+		min-width: 0;
+		overflow: hidden;
+	}
+
+	.import-source {
+		font-size: 0.65rem;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		padding: 1px 4px;
+		border-radius: 3px;
+		flex-shrink: 0;
+	}
+
+	.import-source--lichess {
+		background: rgba(255, 255, 255, 0.08);
+		color: var(--color-text-muted);
+	}
+
+	.import-source--chesscom {
+		background: rgba(118, 150, 86, 0.2);
+		color: rgba(118, 150, 86, 0.9);
+	}
+
+	.import-color {
+		flex-shrink: 0;
+	}
+
+	.import-opponent {
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		color: var(--color-text-primary);
+	}
+
+	.import-rating {
+		color: var(--color-text-muted);
+		font-size: 0.75rem;
+	}
+
+	.import-result-text {
+		color: var(--color-text-muted);
+		flex-shrink: 0;
+		font-size: 0.75rem;
+	}
+
+	.import-date {
+		color: var(--color-text-muted);
+		flex-shrink: 0;
+		font-size: 0.75rem;
+	}
+
+	.import-actions {
+		display: flex;
+		align-items: center;
+		gap: var(--space-1);
+		flex-shrink: 0;
+	}
+
+	.btn--sm {
+		padding: 2px var(--space-2);
+		font-size: 0.72rem;
+		border-radius: var(--radius-sm);
+	}
+
+	.btn--ghost {
+		background: transparent;
+		border-color: var(--color-border);
+		color: var(--color-text-muted);
+	}
+
+	.btn--ghost:hover:not(:disabled) {
+		color: var(--color-text-secondary);
+		border-color: var(--color-text-muted);
+	}
+
+	.import-badge {
+		font-size: 0.65rem;
+		padding: 1px 6px;
+		border-radius: var(--radius-sm);
+		font-weight: 600;
+	}
+
+	.import-badge--reviewed {
+		background: rgba(92, 204, 92, 0.12);
+		color: var(--color-success);
+	}
+
+	.import-badge--skipped {
+		background: rgba(160, 160, 160, 0.12);
+		color: var(--color-text-muted);
+	}
+
+	/* ── Repertoire picker modal ───────────────────────────────────────────── */
+
+	.modal-overlay {
+		position: fixed;
+		inset: 0;
+		background: rgba(0, 0, 0, 0.6);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		z-index: 1000;
+		padding: var(--space-4);
+	}
+
+	.modal-card {
+		background: var(--color-surface);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-lg);
+		padding: var(--space-6);
+		max-width: 400px;
+		width: 100%;
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-4);
+	}
+
+	.modal-title {
+		font-size: 1.1rem;
+		font-weight: 700;
+		color: var(--color-text-primary);
+		font-family: var(--font-display);
+		margin: 0;
+	}
+
+	.modal-subtitle {
+		font-size: 0.82rem;
+		color: var(--color-text-secondary);
+		margin: 0;
+	}
+
+	.rep-picker-list {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-2);
+	}
+
+	.rep-picker-item {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: var(--space-3) var(--space-4);
+		background: var(--color-base);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-md);
+		cursor: pointer;
+		font-family: var(--font-body);
+		transition:
+			border-color var(--dur-fast) var(--ease-snap),
+			background var(--dur-fast) var(--ease-snap);
+	}
+
+	.rep-picker-item:hover {
+		border-color: var(--color-gold);
+		background: var(--color-gold-glow);
+	}
+
+	.rep-picker-name {
+		font-size: 0.85rem;
+		font-weight: 600;
+		color: var(--color-text-primary);
+	}
+
+	.rep-picker-issues {
+		font-size: 0.75rem;
+		color: var(--color-text-muted);
 	}
 
 	/* ── History section ────────────────────────────────────────────────────── */

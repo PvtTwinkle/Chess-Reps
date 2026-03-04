@@ -1,21 +1,23 @@
 // Review mode page server.
 //
 // LOAD: returns the active repertoire, all its moves, the 20 most recent
-//       reviewed games for the history list, and user settings.
+//       reviewed games for the history list, user settings, all imported games
+//       for the import tab, and all repertoires for multi-repertoire analysis.
+//       If ?importedGameId=N is in the URL, also loads that specific game for prefill.
 //
 // ACTION analyzeGame: receives a PGN + player color from the form submission,
-//   parses it, runs deviation analysis against the active repertoire, and
-//   returns the full GameAnalysis to the client. The game is NOT saved to the
+//   parses it, runs deviation analysis against the specified (or active) repertoire,
+//   and returns the full GameAnalysis to the client. The game is NOT saved to the
 //   database here — only when the user clicks "Save Review" (POST /api/review/save).
 
 import type { PageServerLoad, Actions } from './$types';
 import { fail, redirect } from '@sveltejs/kit';
 import { db } from '$lib/db';
-import { repertoire, userMove, reviewedGame } from '$lib/db/schema';
+import { repertoire, userMove, reviewedGame, importedGame, userSettings } from '$lib/db/schema';
 import { eq, and, desc } from 'drizzle-orm';
-import { parsePgn, analyzeGame } from '$lib/pgn';
+import { parsePgn, analyzeGame, computeMatchDepth } from '$lib/pgn';
 
-export const load: PageServerLoad = async ({ locals, parent }) => {
+export const load: PageServerLoad = async ({ locals, parent, url }) => {
 	const { activeRepertoireId, repertoires } = await parent();
 
 	if (!activeRepertoireId) {
@@ -45,10 +47,44 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 		.orderBy(desc(reviewedGame.reviewedAt))
 		.limit(20);
 
+	// All imported games for this user (all statuses) — displayed in the Import tab.
+	const importedGames = await db
+		.select()
+		.from(importedGame)
+		.where(eq(importedGame.userId, userId))
+		.orderBy(desc(importedGame.playedAt))
+		.limit(100);
+
+	// User settings — needed for platform username display in the import tab.
+	const [settings] = await db.select().from(userSettings).where(eq(userSettings.userId, userId));
+
+	// If the URL has ?importedGameId=N, load that specific imported game for prefill.
+	let prefilledGame = null;
+	const importedGameIdParam = url.searchParams.get('importedGameId');
+	if (importedGameIdParam) {
+		const igId = parseInt(importedGameIdParam);
+		if (!isNaN(igId)) {
+			const [ig] = await db
+				.select()
+				.from(importedGame)
+				.where(and(eq(importedGame.id, igId), eq(importedGame.userId, userId)));
+			if (ig) prefilledGame = ig;
+		}
+	}
+
 	return {
 		repertoire: activeRep,
 		moves,
-		recentGames
+		recentGames,
+		importedGames,
+		importSettings: settings
+			? {
+					lichessUsername: settings.lichessUsername,
+					chesscomUsername: settings.chesscomUsername
+				}
+			: null,
+		allRepertoires: repertoires,
+		prefilledGame
 	};
 };
 
@@ -56,39 +92,16 @@ export const actions: Actions = {
 	analyzeGame: async ({ locals, request, cookies }) => {
 		if (!locals.user) return fail(401, { error: 'Not authenticated' });
 
-		// Form actions don't have access to parent() — read the active repertoire
-		// from the cookie directly, matching the logic in +layout.server.ts.
-		const cookieVal = cookies.get('active_repertoire_id');
-		const activeRepertoireId = cookieVal ? parseInt(cookieVal) : null;
-		if (!activeRepertoireId || isNaN(activeRepertoireId)) {
-			return fail(400, { error: 'No active repertoire selected' });
-		}
-
-		const [activeRep] = await db
-			.select()
-			.from(repertoire)
-			.where(and(eq(repertoire.id, activeRepertoireId), eq(repertoire.userId, locals.user.id)));
-		if (!activeRep) return fail(400, { error: 'Active repertoire not found' });
-
 		const form = await request.formData();
 		const pgn = (form.get('pgn') as string | null)?.trim() ?? '';
 		const colorOverride = form.get('playerColor') as string | null;
+		// Optional explicit repertoire ID — used when reviewing an imported game
+		// against a specific repertoire (not necessarily the active one).
+		const repertoireIdOverride = form.get('repertoireId') as string | null;
 
 		if (!pgn) return fail(400, { error: 'PGN is required' });
 
-		// Allow the user to override which color they played.
-		// Falls back to the active repertoire's color if not specified.
-		const playerColor: 'WHITE' | 'BLACK' =
-			colorOverride === 'WHITE' || colorOverride === 'BLACK'
-				? colorOverride
-				: (activeRep.color as 'WHITE' | 'BLACK');
-
-		// Load all repertoire moves to pass to analyzeGame.
-		const moves = await db
-			.select()
-			.from(userMove)
-			.where(and(eq(userMove.userId, locals.user.id), eq(userMove.repertoireId, activeRep.id)));
-
+		// Parse PGN first — we need the moves to score repertoire matches.
 		let parsed;
 		try {
 			parsed = parsePgn(pgn);
@@ -96,13 +109,92 @@ export const actions: Actions = {
 			return fail(400, { error: (e as Error).message });
 		}
 
-		const analysis = analyzeGame(parsed, moves, playerColor);
+		// Determine player color. The user can override via the form; otherwise
+		// we infer from the explicit repertoire (import flow) or fall back later.
+		const playerColor: 'WHITE' | 'BLACK' =
+			colorOverride === 'WHITE' || colorOverride === 'BLACK' ? colorOverride : 'WHITE'; // overridden below if we find a repertoire
+
+		type RepRow = typeof repertoire.$inferSelect;
+		type MoveRow = (typeof userMove.$inferSelect)[];
+
+		let bestRep: RepRow | null = null;
+		let bestMoves: MoveRow = [];
+
+		if (repertoireIdOverride) {
+			// Import flow — use the explicitly specified repertoire.
+			const repId = parseInt(repertoireIdOverride);
+			if (isNaN(repId)) return fail(400, { error: 'Invalid repertoireId' });
+
+			const [rep] = await db
+				.select()
+				.from(repertoire)
+				.where(and(eq(repertoire.id, repId), eq(repertoire.userId, locals.user.id)));
+			if (!rep) return fail(400, { error: 'Repertoire not found' });
+			bestRep = rep;
+			bestMoves = await db
+				.select()
+				.from(userMove)
+				.where(and(eq(userMove.userId, locals.user.id), eq(userMove.repertoireId, rep.id)));
+		} else {
+			// Paste PGN flow — find the best matching repertoire based on opening.
+			// Get all repertoires for this user that match the player's color.
+			const allReps = await db
+				.select()
+				.from(repertoire)
+				.where(and(eq(repertoire.userId, locals.user.id), eq(repertoire.color, playerColor)));
+
+			if (allReps.length === 0) {
+				return fail(400, {
+					error: `No ${playerColor.toLowerCase()} repertoire found. Create one first.`
+				});
+			}
+
+			// Load moves for each repertoire and score by opening overlap.
+			const repData: { rep: (typeof allReps)[0]; moves: MoveRow; depth: number }[] = [];
+			for (const rep of allReps) {
+				const moves = await db
+					.select()
+					.from(userMove)
+					.where(and(eq(userMove.userId, locals.user.id), eq(userMove.repertoireId, rep.id)));
+				const depth = computeMatchDepth(parsed.moves, moves, playerColor);
+				repData.push({ rep, moves, depth });
+			}
+
+			// Pick the repertoire with the deepest opening match.
+			repData.sort((a, b) => b.depth - a.depth);
+			const best = repData[0];
+
+			if (best.depth > 0) {
+				bestRep = best.rep;
+				bestMoves = best.moves;
+			} else {
+				// No repertoire covers the game's opening at all — use the one
+				// with the most moves (most likely the user's primary repertoire).
+				const bySize = [...repData].sort((a, b) => b.moves.length - a.moves.length);
+				bestRep = bySize[0].rep;
+				bestMoves = bySize[0].moves;
+			}
+		}
+
+		if (!bestRep || !bestMoves) {
+			return fail(400, { error: 'No matching repertoire found' });
+		}
+
+		// Use the matched repertoire's color if the user didn't explicitly override.
+		const finalColor: 'WHITE' | 'BLACK' =
+			colorOverride === 'WHITE' || colorOverride === 'BLACK'
+				? colorOverride
+				: (bestRep.color as 'WHITE' | 'BLACK');
+
+		const analysis = analyzeGame(parsed, bestMoves, finalColor);
 
 		return {
 			analysis,
 			parsedPgn: parsed.pgn,
 			headers: parsed.headers,
-			playerColor
+			playerColor: finalColor,
+			repertoireId: bestRep.id,
+			repertoireName: bestRep.name
 		};
 	}
 };

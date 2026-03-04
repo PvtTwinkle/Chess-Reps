@@ -18,6 +18,7 @@ import { validateSession, deleteSession, SESSION_COOKIE_NAME } from '$lib/auth';
 import { db, dbReady } from '$lib/db';
 import { user } from '$lib/db/schema';
 import { eq } from 'drizzle-orm';
+import { startImportScheduler } from '$lib/server/import-scheduler';
 
 // Who can register: 'open' = anyone, 'invite' = admin only (default).
 const REGISTRATION_MODE = process.env.REGISTRATION_MODE ?? 'invite';
@@ -33,6 +34,9 @@ const PUBLIC_ROUTES = [
 // Ensure the database is fully initialised (migrations + default user)
 // before we handle any requests. This awaits the promise exported from db/index.ts.
 await dbReady;
+
+// Start the background import scheduler (no-op if GAME_IMPORT_INTERVAL_MINUTES=0).
+startImportScheduler();
 
 export const handle: Handle = async ({ event, resolve }) => {
 	// Start every request as unauthenticated. We will upgrade this below
