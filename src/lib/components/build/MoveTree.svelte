@@ -122,62 +122,62 @@
 	.section {
 		display: flex;
 		flex-direction: column;
-		gap: 0.5rem;
+		gap: var(--space-2);
 	}
 
 	.tree-toggle {
-		font-size: 0.7rem;
-		font-weight: 700;
-		letter-spacing: 0.08em;
+		font-size: 11px;
+		font-weight: 500;
+		letter-spacing: 0.12em;
 		text-transform: uppercase;
-		color: #505060;
+		color: var(--color-text-muted);
 		background: none;
 		border: none;
 		cursor: pointer;
 		padding: 0;
 		text-align: left;
 		user-select: none;
-		transition: color 0.12s;
-		font-family: inherit;
+		font-family: var(--font-body);
+		transition: color var(--dur-fast) var(--ease-snap);
 	}
 
 	.tree-toggle:hover {
-		color: #e2b714;
+		color: var(--color-gold);
 	}
 
 	.tree-container {
 		max-height: 300px;
 		overflow-y: auto;
-		font-size: 0.82rem;
-		line-height: 1.6;
-		padding: 0.25rem 0;
+		font-size: 12px;
+		line-height: 1.7;
+		padding: var(--space-1) 0;
 	}
 
 	.tree-empty {
-		color: #505060;
-		font-size: 0.8rem;
+		color: var(--color-text-muted);
+		font-size: 12px;
 		font-style: italic;
 	}
 
 	.branch-toggle {
 		background: none;
 		border: none;
-		color: #505060;
-		font-size: 0.65rem;
+		color: var(--color-text-muted);
+		font-size: 10px;
 		cursor: pointer;
-		padding: 0 0.15rem;
-		font-family: inherit;
-		transition: color 0.12s;
+		padding: 0 2px;
+		font-family: var(--font-body);
+		transition: color var(--dur-fast) var(--ease-snap);
 	}
 
 	.branch-toggle:hover {
-		color: #e2b714;
+		color: var(--color-gold);
 	}
 
 	.branch-indent {
 		display: block;
-		margin-left: 1rem;
-		padding-left: 0.5rem;
-		border-left: 1px solid #1a3a5c;
+		margin-left: var(--space-4);
+		padding-left: var(--space-3);
+		border-left: 1px solid var(--color-border);
 	}
 </style>

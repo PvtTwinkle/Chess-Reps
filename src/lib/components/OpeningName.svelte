@@ -63,26 +63,26 @@
 	.opening-name {
 		display: flex;
 		align-items: baseline;
-		gap: 0.35rem;
-		font-size: 0.8rem;
+		gap: var(--space-2);
+		font-size: 12px;
 		line-height: 1.3;
 		overflow: hidden;
 	}
 
 	.eco-code {
 		font-weight: 700;
-		color: #e2b714;
-		letter-spacing: 0.03em;
+		color: var(--color-gold);
+		letter-spacing: 0.04em;
 		flex-shrink: 0;
 	}
 
 	.eco-sep {
-		color: #404050;
+		color: var(--color-text-muted);
 		flex-shrink: 0;
 	}
 
 	.eco-name {
-		color: #909098;
+		color: var(--color-text-secondary);
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;

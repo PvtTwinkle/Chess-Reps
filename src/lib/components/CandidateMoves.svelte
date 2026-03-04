@@ -369,7 +369,7 @@
 	.section {
 		display: flex;
 		flex-direction: column;
-		gap: 0.5rem;
+		gap: var(--space-2);
 	}
 
 	/* ── Tab bar ─────────────────────────────────────────────────────────────── */
@@ -377,52 +377,53 @@
 	.tab-bar {
 		display: flex;
 		gap: 0;
-		border-bottom: 1px solid #1a2a3a;
+		border-bottom: 1px solid var(--color-border);
 	}
 
 	.tab {
 		flex: 1;
-		padding: 0.3rem 0.5rem;
+		padding: var(--space-2);
 		background: none;
 		border: none;
 		border-bottom: 2px solid transparent;
-		color: #505060;
-		font-size: 0.7rem;
-		font-weight: 700;
-		letter-spacing: 0.08em;
+		color: var(--color-text-muted);
+		font-family: var(--font-body);
+		font-size: 11px;
+		font-weight: 500;
+		letter-spacing: 0.1em;
 		text-transform: uppercase;
 		cursor: pointer;
 		transition:
-			color 0.12s,
-			border-color 0.12s;
-		margin-bottom: -1px; /* overlap the tab-bar border-bottom */
+			color var(--dur-fast) var(--ease-snap),
+			border-color var(--dur-fast) var(--ease-snap);
+		margin-bottom: -1px;
 	}
 
 	.tab:hover:not(:disabled) {
-		color: #8090a0;
+		color: var(--color-text-secondary);
 	}
 
 	.tab.active {
-		color: #7090c0;
-		border-bottom-color: #7090c0;
+		color: var(--color-gold);
+		border-bottom-color: var(--color-gold);
 	}
 
 	.tab:disabled {
-		color: #2a3040;
+		color: rgba(82, 82, 106, 0.4);
 		cursor: default;
 	}
 
 	/* ── Loading / empty states ──────────────────────────────────────────────── */
 
 	.loading {
-		font-size: 0.82rem;
-		color: #404050;
+		font-size: 12px;
+		color: var(--color-text-muted);
 		font-style: italic;
 	}
 
 	.empty-hint {
-		font-size: 0.82rem;
-		color: #404050;
+		font-size: 12px;
+		color: var(--color-text-muted);
 		font-style: italic;
 		margin: 0;
 	}
@@ -432,32 +433,31 @@
 	.candidate-list {
 		display: flex;
 		flex-direction: column;
-		gap: 0.15rem;
+		gap: 2px;
 	}
 
-	/* Each candidate is a full-width button laid out as a column */
 	.candidate-row {
 		display: flex;
 		flex-direction: column;
-		gap: 0.15rem;
+		gap: 2px;
 		width: 100%;
-		padding: 0.3rem 0.55rem;
-		background: #0a1828;
-		border: 1px solid #152535;
-		border-radius: 4px;
-		color: #c0c0d0;
-		font-size: 0.875rem;
-		font-family: inherit;
+		padding: var(--space-2) var(--space-3);
+		background: var(--color-surface-alt);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-sm);
+		color: var(--color-text-secondary);
+		font-family: var(--font-body);
+		font-size: 13px;
 		cursor: pointer;
 		text-align: left;
 		transition:
-			border-color 0.12s,
-			background 0.12s;
+			border-color var(--dur-fast) var(--ease-snap),
+			background var(--dur-fast) var(--ease-snap);
 	}
 
 	.candidate-row:hover:not(:disabled) {
-		border-color: #2a4a6a;
-		background: #0f1f35;
+		border-color: var(--color-gold-dim);
+		background: rgba(30, 30, 53, 0.8);
 	}
 
 	.candidate-row:disabled {
@@ -465,66 +465,59 @@
 		cursor: default;
 	}
 
-	/* The top line of a candidate: SAN on the left, eval on the right */
 	.candidate-main {
 		display: flex;
 		align-items: center;
-		gap: 0.4rem;
+		gap: var(--space-2);
 		width: 100%;
 	}
 
-	/* Move name — slightly bold so it reads well */
 	.candidate-san {
 		font-weight: 600;
+		color: var(--color-text-primary);
 		min-width: 2.5rem;
 	}
 
-	/* Pushes the eval score to the right edge of the row */
 	.spacer {
 		flex: 1;
 	}
 
-	/* Evaluation score */
 	.eval {
-		font-size: 0.8rem;
+		font-size: 12px;
 		font-weight: 600;
 		font-variant-numeric: tabular-nums;
 		flex-shrink: 0;
 	}
 
 	.eval-white {
-		color: #a0c080; /* greenish — white has an advantage */
+		color: var(--color-success);
 	}
 
 	.eval-black {
-		color: #c07070; /* reddish — black has an advantage */
+		color: var(--color-danger);
 	}
 
 	.eval-equal {
-		color: #707080; /* grey — roughly equal */
+		color: var(--color-text-muted);
 	}
 
-	/* Opening name or curator annotation — shown below the move in small italic text */
 	.opening-name {
-		font-size: 0.72rem;
-		color: #4a6080;
+		font-size: 11px;
+		color: var(--color-text-muted);
 		font-style: italic;
-		line-height: 1.2;
-		/* Allow long opening names (e.g. "Sicilian Defense, Najdorf Variation,
-		   English Attack") to wrap rather than overflow the button */
+		line-height: 1.3;
 		white-space: normal;
 	}
 
 	/* ── Masters tab — stats and W/D/L bar ──────────────────────────────────── */
 
 	.masters-games {
-		font-size: 0.75rem;
+		font-size: 11px;
 		font-variant-numeric: tabular-nums;
-		color: #506070;
+		color: var(--color-text-muted);
 		flex-shrink: 0;
 	}
 
-	/* Horizontal W/D/L bar — green (white wins), grey (draws), red (black wins) */
 	.wdl-bar {
 		display: flex;
 		height: 4px;
@@ -534,22 +527,21 @@
 	}
 
 	.wdl-white {
-		background: #a0c080;
+		background: var(--color-success);
 	}
 
 	.wdl-draw {
-		background: #707080;
+		background: var(--color-text-muted);
 	}
 
 	.wdl-black {
-		background: #c07070;
+		background: var(--color-danger);
 	}
 
-	/* Percentage labels below the bar */
 	.wdl-labels {
 		display: flex;
 		justify-content: space-between;
-		font-size: 0.65rem;
+		font-size: 10px;
 		font-variant-numeric: tabular-nums;
 	}
 
@@ -558,14 +550,14 @@
 	}
 
 	.wdl-label-white {
-		color: #a0c080;
+		color: var(--color-success);
 	}
 
 	.wdl-label-draw {
-		color: #707080;
+		color: var(--color-text-muted);
 	}
 
 	.wdl-label-black {
-		color: #c07070;
+		color: var(--color-danger);
 	}
 </style>

@@ -101,56 +101,56 @@
 	}
 
 	.tree-num {
-		color: #505060;
-		font-size: 0.75rem;
+		color: var(--color-text-muted);
+		font-size: 11px;
 		user-select: none;
-		margin-right: 0.1rem;
+		margin-right: 1px;
 	}
 
 	.tree-san {
 		background: none;
 		border: none;
-		color: #c0c0d0;
-		font-size: 0.82rem;
+		color: var(--color-text-primary);
+		font-family: var(--font-body);
+		font-size: 12px;
 		cursor: pointer;
-		padding: 0.05rem 0.2rem;
+		padding: 1px var(--space-1);
 		border-radius: 2px;
-		font-family: inherit;
 		transition:
-			background 0.12s,
-			color 0.12s;
+			background var(--dur-fast) var(--ease-snap),
+			color var(--dur-fast) var(--ease-snap);
 	}
 
 	.tree-san:hover {
-		background: #0f3460;
-		color: #f0f0f0;
+		background: var(--color-surface-alt);
+		color: var(--color-gold);
 	}
 
 	.tree-san.is-current {
-		background: #1a4a7a;
-		color: #e2b714;
+		background: var(--color-surface-alt);
+		color: var(--color-gold);
 		font-weight: 600;
 	}
 
 	.branch-toggle {
 		background: none;
 		border: none;
-		color: #505060;
-		font-size: 0.65rem;
+		color: var(--color-text-muted);
+		font-size: 10px;
 		cursor: pointer;
-		padding: 0 0.15rem;
-		font-family: inherit;
-		transition: color 0.12s;
+		padding: 0 2px;
+		font-family: var(--font-body);
+		transition: color var(--dur-fast) var(--ease-snap);
 	}
 
 	.branch-toggle:hover {
-		color: #e2b714;
+		color: var(--color-gold);
 	}
 
 	.branch-indent {
 		display: block;
-		margin-left: 1rem;
-		padding-left: 0.5rem;
-		border-left: 1px solid #1a3a5c;
+		margin-left: var(--space-4);
+		padding-left: var(--space-3);
+		border-left: 1px solid var(--color-border);
 	}
 </style>

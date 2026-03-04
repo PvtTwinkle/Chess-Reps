@@ -79,19 +79,20 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		z-index: 100;
+		z-index: 1000;
 	}
 
 	.modal {
-		background: #111827;
-		border: 1px solid #1a3a5c;
-		border-radius: 8px;
-		padding: 1.25rem;
+		background: var(--color-surface);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-lg);
+		box-shadow: var(--shadow-elevated);
+		padding: var(--space-6);
 		width: 360px;
 		max-width: calc(100vw - 2rem);
 		display: flex;
 		flex-direction: column;
-		gap: 0.75rem;
+		gap: var(--space-4);
 	}
 
 	.modal-header {
@@ -101,41 +102,44 @@
 	}
 
 	.modal-title {
-		font-size: 0.875rem;
-		color: #c0c0d0;
+		font-size: 13px;
+		color: var(--color-text-secondary);
 	}
 
 	.modal-close {
 		background: none;
 		border: none;
-		color: #505060;
-		font-size: 0.8rem;
+		color: var(--color-text-muted);
+		font-size: 12px;
 		cursor: pointer;
-		padding: 0.1rem 0.2rem;
+		padding: 2px 4px;
 		line-height: 1;
+		transition: color var(--dur-fast) var(--ease-snap);
 	}
 
 	.modal-close:hover {
-		color: #a0a0b0;
+		color: var(--color-text-primary);
 	}
 
 	.annotation-textarea {
 		width: 100%;
-		background: #0d1520;
-		border: 1px solid #1a3a5c;
-		border-radius: 4px;
-		color: #c0c0d0;
-		font-family: inherit;
-		font-size: 0.875rem;
-		line-height: 1.5;
-		padding: 0.5rem 0.65rem;
+		background: var(--color-surface-alt);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-sm);
+		color: var(--color-text-primary);
+		font-family: var(--font-body);
+		font-size: 13px;
+		line-height: 1.6;
+		padding: var(--space-3);
 		resize: vertical;
 		box-sizing: border-box;
+		transition: border-color var(--dur-fast) var(--ease-snap);
 	}
 
 	.annotation-textarea:focus {
 		outline: none;
-		border-color: #4a6a9a;
+		border-color: var(--color-gold);
+		box-shadow: 0 0 0 3px var(--color-gold-glow);
 	}
 
 	.annotation-textarea:disabled {
@@ -143,34 +147,35 @@
 	}
 
 	.annotation-char-count {
-		font-size: 0.72rem;
-		color: #404050;
+		font-size: 11px;
+		color: var(--color-text-muted);
 		text-align: right;
-		margin-top: -0.4rem;
+		margin-top: calc(-1 * var(--space-2));
 	}
 
 	.annotation-error {
-		font-size: 0.8rem;
-		color: #e06060;
+		font-size: 12px;
+		color: var(--color-danger);
 		margin: 0;
 	}
 
 	.modal-actions {
 		display: flex;
-		gap: 0.5rem;
+		gap: var(--space-2);
 		justify-content: flex-end;
 	}
 
 	.modal-btn {
-		padding: 0.4rem 1rem;
-		border-radius: 4px;
-		font-size: 0.875rem;
-		font-family: inherit;
+		padding: var(--space-2) var(--space-4);
+		border-radius: var(--radius-md);
+		font-family: var(--font-body);
+		font-size: 13px;
 		cursor: pointer;
 		transition:
-			border-color 0.12s,
-			background 0.12s,
-			color 0.12s;
+			border-color var(--dur-fast) var(--ease-snap),
+			background var(--dur-fast) var(--ease-snap),
+			color var(--dur-fast) var(--ease-snap),
+			box-shadow var(--dur-fast) var(--ease-snap);
 	}
 
 	.modal-btn:disabled {
@@ -180,24 +185,27 @@
 
 	.modal-btn--cancel {
 		background: none;
-		border: 1px solid #1a3a5c;
-		color: #a0a0b0;
+		border: 1px solid var(--color-border);
+		color: var(--color-text-secondary);
 	}
 
 	.modal-btn--cancel:hover:not(:disabled) {
-		border-color: #4a6a9a;
-		color: #d0d0e0;
+		border-color: var(--color-text-muted);
+		color: var(--color-text-primary);
 	}
 
 	.modal-btn--save {
-		background: #0f3460;
-		border: 1px solid #1a5090;
-		color: #c8d8f0;
+		background: var(--color-gold);
+		border: 1px solid var(--color-gold);
+		color: var(--color-base);
+		font-weight: 600;
 	}
 
 	.modal-btn--save:hover:not(:disabled) {
-		background: #1a4a7a;
-		border-color: #2a6aaa;
-		color: #e0eeff;
+		box-shadow: var(--glow-gold);
+	}
+
+	.modal-btn--save:active:not(:disabled) {
+		transform: scale(0.97);
 	}
 </style>

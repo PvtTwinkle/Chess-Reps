@@ -55,58 +55,59 @@
 	.section {
 		display: flex;
 		flex-direction: column;
-		gap: 0.5rem;
+		gap: var(--space-2);
 	}
 
 	.section-label {
-		font-size: 0.7rem;
-		font-weight: 700;
-		letter-spacing: 0.08em;
+		font-size: 11px;
+		font-weight: 500;
+		letter-spacing: 0.12em;
 		text-transform: uppercase;
-		color: #505060;
+		color: var(--color-text-muted);
 	}
 
 	.move-list {
 		display: flex;
 		flex-wrap: wrap;
 		align-items: baseline;
-		gap: 0.1rem 0.25rem;
-		font-size: 0.875rem;
+		gap: 1px var(--space-1);
+		font-size: 13px;
 	}
 
 	.move-num {
-		color: #505060;
-		font-size: 0.78rem;
+		color: var(--color-text-muted);
+		font-size: 12px;
 		user-select: none;
 	}
 
 	.move-san {
 		background: none;
 		border: none;
-		color: #c0c0d0;
-		font-size: 0.875rem;
+		color: var(--color-text-primary);
+		font-family: var(--font-body);
+		font-size: 13px;
 		cursor: pointer;
-		padding: 0.1rem 0.25rem;
+		padding: 1px var(--space-1);
 		border-radius: 3px;
 		transition:
-			background 0.1s,
-			color 0.1s;
-		font-family: inherit;
+			background var(--dur-fast) var(--ease-snap),
+			color var(--dur-fast) var(--ease-snap);
 	}
 
 	.move-san:hover {
-		background: #0f3460;
-		color: #f0f0f0;
+		background: var(--color-surface-alt);
+		color: var(--color-gold);
 	}
 
 	.move-san.is-current {
-		background: #1a4a7a;
-		color: #e2b714;
+		background: var(--color-surface-alt);
+		color: var(--color-gold);
 		font-weight: 600;
+		border-left: 2px solid var(--color-gold);
 	}
 
 	/* Black's moves are slightly dimmer to visually distinguish them. */
 	.move-san--black {
-		color: #909098;
+		color: var(--color-text-secondary);
 	}
 </style>
