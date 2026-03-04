@@ -15,6 +15,30 @@ Docker images are tagged per version. To stay on stable releases, pin your
 
 ### Added
 
+- **Puzzle training mode** (`src/routes/puzzles/`) — practice tactics that match
+  the openings in your active repertoire:
+  - Puzzles are sourced from the Lichess puzzle database (~4M puzzles) and stored
+    locally in PostgreSQL — no internet required at runtime
+  - Opening matching uses prefix-based normalization: if your repertoire includes
+    the Najdorf Variation, you'll see Najdorf puzzles (and sub-variations like
+    the Poisoned Pawn) but never Dragon or Sveshnikov puzzles
+  - Multi-move solving: the opponent's setup move auto-plays, then you solve the
+    tactic move by move with immediate correct/incorrect feedback
+  - Filters: opening family dropdown, rating range (min/max), and theme filter
+    (fork, pin, mate, etc.)
+  - Session stats: puzzles solved, accuracy percentage, and average rating
+  - Keyboard shortcuts: Space/Enter for next puzzle, H for hint (highlights the
+    source square of the correct piece)
+  - Sound feedback reuses existing move/capture/correct/incorrect audio cues
+  - Empty state guidance when no puzzles are imported or no puzzles match the
+    current repertoire's openings
+  - `drizzle/migrations/0004_puzzle_tables.sql` — `puzzle` and `puzzle_attempt`
+    tables with indexes on `opening_family`, `rating`, and `(user_id, puzzle_id)`
+  - `src/lib/puzzleMatching.ts` — opening name normalizer (keeps TypeScript and
+    Python import script in sync)
+  - `GET /api/puzzles/next` — returns one random matching puzzle, prefers unsolved
+  - `POST /api/puzzles/attempt` — records solve attempts with timing data
+
 - **Build Mode: collapsible repertoire tree view** — the sidebar now includes a full
   tree of all repertoire moves rendered in PGN-style notation with collapsible branches.
   Clicking any move navigates the board to that position. The current position is
@@ -33,7 +57,7 @@ Docker images are tagged per version. To stay on stable releases, pin your
 - **CI migration smoke test failing** — the test script (`scripts/test-migrations.mjs`)
   was still using `better-sqlite3` to run migrations in-memory, but all migrations are
   now PostgreSQL SQL. Rewrote the script to use `postgres` (postgres.js) + `drizzle-orm/
-  postgres-js` and added a PostgreSQL 17 service container to the GitHub Actions workflow
+postgres-js` and added a PostgreSQL 17 service container to the GitHub Actions workflow
   so migrations run against a real database.
 
 ### Removed

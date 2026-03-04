@@ -91,6 +91,31 @@ export const chessmontMoves = pgTable(
 	})
 );
 
+// Lichess puzzles filtered by opening and imported via the puzzle-import script.
+// Shared/read-only data — the app never writes to this table.
+// Data is NOT shipped with the app; users download the Lichess puzzle CSV
+// and run the import script themselves to populate this table.
+export const puzzle = pgTable(
+	'puzzle',
+	{
+		puzzleId: text('puzzle_id').primaryKey(), // Lichess puzzle ID, e.g. "00sHx"
+		fen: text('fen').notNull(), // starting position of the puzzle
+		moves: text('moves').notNull(), // space-separated UCI moves, e.g. "e2e4 d7d5 e4d5"
+		rating: integer('rating').notNull(), // puzzle difficulty rating
+		ratingDeviation: integer('rating_deviation').notNull(),
+		popularity: integer('popularity').notNull(), // -100 to 100
+		nbPlays: integer('nb_plays').notNull(), // total times played on Lichess
+		themes: text('themes'), // space-separated theme tags, e.g. "fork pin middlegame"
+		gameUrl: text('game_url'), // link to the source game on Lichess
+		openingTags: text('opening_tags').notNull(), // raw Lichess tags, e.g. "Sicilian_Defense Sicilian_Defense_Najdorf_Variation"
+		openingFamily: text('opening_family').notNull() // most specific tag, pre-normalized for matching
+	},
+	(table) => ({
+		openingFamilyIdx: index('idx_puzzle_opening_family').on(table.openingFamily),
+		ratingIdx: index('idx_puzzle_rating').on(table.rating)
+	})
+);
+
 // ─────────────────────────────────────────────────────────────────────────────
 // USER TABLES
 // Personal data. Lives only on the user's own instance. Never shared.
@@ -258,5 +283,26 @@ export const drillSession = pgTable(
 	},
 	(table) => ({
 		repertoireIdIdx: index('idx_drill_session_repertoire_id').on(table.repertoireId)
+	})
+);
+
+// A user's attempt at solving a Lichess puzzle. One row per attempt.
+// Tracks whether the user solved the puzzle and how long it took.
+export const puzzleAttempt = pgTable(
+	'puzzle_attempt',
+	{
+		id: serial('id').primaryKey(),
+		userId: integer('user_id')
+			.notNull()
+			.references(() => user.id),
+		puzzleId: text('puzzle_id')
+			.notNull()
+			.references(() => puzzle.puzzleId),
+		solved: boolean('solved').notNull(), // true if the user found all correct moves
+		timeMs: integer('time_ms'), // how long the attempt took in milliseconds
+		attemptedAt: timestamp('attempted_at').notNull()
+	},
+	(table) => ({
+		userPuzzleIdx: index('idx_puzzle_attempt_user_puzzle').on(table.userId, table.puzzleId)
 	})
 );

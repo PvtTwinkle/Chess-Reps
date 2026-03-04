@@ -27,6 +27,7 @@
 			<a href="{base}/">Dashboard</a>
 			<a href="{base}/build">Build</a>
 			<a href="{base}/drill">Drill</a>
+			<a href="{base}/puzzles">Puzzles</a>
 			<a href="{base}/review">Review</a>
 			<a href="{base}/settings">Settings</a>
 		</nav>
