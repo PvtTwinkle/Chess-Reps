@@ -684,8 +684,8 @@
 	}
 
 	.turn-dot.black {
-		background: #333;
-		border: 1px solid #666;
+		background: var(--color-base);
+		border: 1px solid var(--color-text-muted);
 	}
 
 	/* ── Puzzle info ──────────────────────────────────────────────────────────── */
@@ -986,5 +986,21 @@
 
 	.empty-state a {
 		color: var(--color-gold);
+	}
+
+	/* ── Mobile responsive ────────────────────────────────────────────── */
+
+	@media (max-width: 768px) {
+		.page {
+			flex-direction: column;
+		}
+
+		.board-col {
+			width: 100%;
+		}
+
+		.sidebar {
+			max-width: 100%;
+		}
 	}
 </style>

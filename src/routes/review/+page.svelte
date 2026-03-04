@@ -545,16 +545,16 @@
 	function getMoveColor(ply: number): string {
 		const issue = issueByPly.get(ply);
 		if (issue) {
-			if (issue.type === 'DEVIATION') return '#e2944a'; // orange
-			if (issue.type === 'BEYOND_REPERTOIRE') return '#4a90d9'; // blue
-			if (issue.type === 'OPPONENT_SURPRISE') return '#e06060'; // red
+			if (issue.type === 'DEVIATION') return 'var(--color-gold-dim)';
+			if (issue.type === 'BEYOND_REPERTOIRE') return 'var(--color-gold)';
+			if (issue.type === 'OPPONENT_SURPRISE') return 'var(--color-danger)';
 		}
-		if (ply > cutoffPly) return '#3a3a4a'; // dim — off-book
+		if (ply > cutoffPly) return 'var(--color-text-muted)'; // dim — off-book
 
 		const isUserPly =
 			(analysedPlayerColor === 'WHITE' && ply % 2 === 1) ||
 			(analysedPlayerColor === 'BLACK' && ply % 2 === 0);
-		return isUserPly ? '#5ccc5c' : '#9ab'; // green for user, light blue-gray for opponent
+		return isUserPly ? 'var(--color-success)' : 'var(--color-text-secondary)';
 	}
 
 	// ── Issue resolution actions ─────────────────────────────────────────────────
@@ -1656,7 +1656,7 @@
 		cursor: pointer;
 		padding: var(--space-2) var(--space-3);
 		border-radius: var(--radius-sm);
-		border: 1px solid #222;
+		border: 1px solid var(--color-border);
 		transition:
 			border-color var(--dur-fast) var(--ease-snap),
 			color var(--dur-fast) var(--ease-snap);
@@ -2367,5 +2367,21 @@
 	.btn--full {
 		width: 100%;
 		box-sizing: border-box;
+	}
+
+	/* ── Mobile responsive ────────────────────────────────────────────── */
+
+	@media (max-width: 768px) {
+		.page {
+			flex-direction: column;
+		}
+
+		.board-col {
+			width: 100%;
+		}
+
+		.sidebar {
+			max-width: 100%;
+		}
 	}
 </style>

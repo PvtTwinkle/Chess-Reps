@@ -394,6 +394,7 @@
 	.app-main {
 		padding: var(--space-6);
 		padding-top: calc(56px + var(--space-6));
+		animation: fadeSlideIn var(--dur-base) var(--ease-snap);
 	}
 
 	/* ── Responsive ───────────────────────────────────────────────────── */

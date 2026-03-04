@@ -1563,4 +1563,20 @@
 		font-size: 0.6rem;
 		opacity: 0.5;
 	}
+
+	/* ── Mobile responsive ────────────────────────────────────────────── */
+
+	@media (max-width: 768px) {
+		.page {
+			flex-direction: column;
+		}
+
+		.board-col {
+			width: 100%;
+		}
+
+		.sidebar {
+			max-width: 100%;
+		}
+	}
 </style>

@@ -363,7 +363,7 @@
 	}
 
 	.state-new {
-		background: #7aa2f7;
+		background: var(--color-gold);
 	}
 
 	.state-learning {

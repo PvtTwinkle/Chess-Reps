@@ -906,4 +906,20 @@
 		opacity: 0.35;
 		cursor: default;
 	}
+
+	/* ── Mobile responsive ────────────────────────────────────────────── */
+
+	@media (max-width: 768px) {
+		.page {
+			flex-direction: column;
+		}
+
+		.board-col {
+			width: 100%;
+		}
+
+		.sidebar {
+			max-width: 100%;
+		}
+	}
 </style>
