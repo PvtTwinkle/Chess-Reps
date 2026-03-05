@@ -1,5 +1,5 @@
 <!--
-	CandidateMoves — sidebar panel for Build Mode.
+	CandidateMoves — sidebar panel for Build Mode and Review Mode.
 
 	Shows suggested moves at the current board position, drawn from three
 	independent sources — each with its own loading state so results appear
@@ -13,9 +13,8 @@
 	are no book moves the Masters tab is activated automatically, then Engine.
 
 	When the user clicks a candidate, onSelectMove is called with the SAN of
-	that move. The parent (build page) handles playing it on the board through
-	the same handleMove path as a drag-and-drop move — so conflict detection,
-	auto-save, and undo history all work identically.
+	that move. When the user hovers over a candidate, onHoverMove is called
+	with the SAN (or null on mouse leave) so the parent can draw arrows.
 
 	The evaluation score (Engine tab) is always shown from white's perspective:
 	  +0.45 = white is 0.45 pawns better
@@ -46,11 +45,18 @@
 	interface Props {
 		currentFen: string;
 		onSelectMove: (san: string) => void;
+		onHoverMove?: (san: string | null) => void;
 		disabled?: boolean;
 		playerColor?: 'WHITE' | 'BLACK';
 	}
 
-	let { currentFen, onSelectMove, disabled = false, playerColor = 'WHITE' }: Props = $props();
+	let {
+		currentFen,
+		onSelectMove,
+		onHoverMove,
+		disabled = false,
+		playerColor = 'WHITE'
+	}: Props = $props();
 
 	// ── Book state ────────────────────────────────────────────────────────────
 	let bookCandidates = $state<Candidate[]>([]);
@@ -282,7 +288,13 @@
 		{:else}
 			<div class="candidate-list">
 				{#each bookCandidates as c (c.uci)}
-					<button class="candidate-row" onclick={() => onSelectMove(c.san)} {disabled}>
+					<button
+						class="candidate-row"
+						onclick={() => onSelectMove(c.san)}
+						onmouseenter={() => onHoverMove?.(c.san)}
+						onmouseleave={() => onHoverMove?.(null)}
+						{disabled}
+					>
 						<div class="candidate-main">
 							<span class="candidate-san">{c.san}</span>
 							<span class="spacer"></span>
@@ -314,7 +326,13 @@
 					{@const winPct = m.totalGames > 0 ? (m.white / m.totalGames) * 100 : 0}
 					{@const drawPct = m.totalGames > 0 ? (m.draws / m.totalGames) * 100 : 0}
 					{@const lossPct = m.totalGames > 0 ? (m.black / m.totalGames) * 100 : 0}
-					<button class="candidate-row" onclick={() => onSelectMove(m.san)} {disabled}>
+					<button
+						class="candidate-row"
+						onclick={() => onSelectMove(m.san)}
+						onmouseenter={() => onHoverMove?.(m.san)}
+						onmouseleave={() => onHoverMove?.(null)}
+						{disabled}
+					>
 						<div class="candidate-main">
 							<span class="candidate-san">{m.san}</span>
 							<span class="spacer"></span>
@@ -347,7 +365,13 @@
 	{:else}
 		<div class="candidate-list">
 			{#each engineCandidates as c (c.uci)}
-				<button class="candidate-row" onclick={() => onSelectMove(c.san)} {disabled}>
+				<button
+					class="candidate-row"
+					onclick={() => onSelectMove(c.san)}
+					onmouseenter={() => onHoverMove?.(c.san)}
+					onmouseleave={() => onHoverMove?.(null)}
+					{disabled}
+				>
 					<div class="candidate-main">
 						<span class="candidate-san">{c.san}</span>
 						<span class="spacer"></span>

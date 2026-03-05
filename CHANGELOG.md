@@ -13,6 +13,30 @@ Docker images are tagged per version. To stay on stable releases, pin your
 
 ## [Unreleased]
 
+### Changed
+
+- **Review mode: rewrite move suggestions** — replaced inline button lists for
+  OPPONENT_SURPRISE and BEYOND_REPERTOIRE issues with the same 3-tab
+  CandidateMoves panel used in build mode (Book / Masters / Engine). Hovering a
+  candidate move now draws a blue arrow on the board. New `ReviewIssuePicker`
+  wrapper component handles game-move highlighting, tab panel, and skip button.
+  DEVIATION cards remain compact (eval comparison + action buttons).
+
+- **Review mode: "Add to new repertoire" option** — when an opponent plays a
+  first move not in your repertoire, you can now create a new repertoire inline
+  and add the move to it. All subsequent moves in the review are saved to the
+  new repertoire.
+
+### Fixed
+
+- **Review mode: stale import list after save** — saving a review now calls
+  `invalidateAll()` so the import tab immediately reflects the updated game
+  status without requiring a page refresh.
+
+- **Review mode: stale hover arrows on re-review** — `hoveredFen` and
+  `hoveredSan` are now cleared when loading a new analysis or clicking
+  "Review another game", preventing leftover arrows from previous reviews.
+
 ### Added
 
 - **Dashboard: puzzle goal widget** — set a target number of puzzles to solve per
