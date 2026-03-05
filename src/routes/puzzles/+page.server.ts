@@ -28,7 +28,8 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 		return {
 			hasImportedPuzzles: false,
 			openingFamilies: [] as string[],
-			totalMatchingPuzzles: 0
+			totalMatchingPuzzles: 0,
+			availableThemes: [] as string[]
 		};
 	}
 
@@ -36,7 +37,8 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 		return {
 			hasImportedPuzzles: true,
 			openingFamilies: [] as string[],
-			totalMatchingPuzzles: 0
+			totalMatchingPuzzles: 0,
+			availableThemes: [] as string[]
 		};
 	}
 
@@ -45,7 +47,8 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 		return {
 			hasImportedPuzzles: true,
 			openingFamilies: [] as string[],
-			totalMatchingPuzzles: 0
+			totalMatchingPuzzles: 0,
+			availableThemes: [] as string[]
 		};
 	}
 
@@ -64,7 +67,8 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 		return {
 			hasImportedPuzzles: true,
 			openingFamilies: [] as string[],
-			totalMatchingPuzzles: 0
+			totalMatchingPuzzles: 0,
+			availableThemes: [] as string[]
 		};
 	}
 
@@ -86,7 +90,8 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 		return {
 			hasImportedPuzzles: true,
 			openingFamilies: [] as string[],
-			totalMatchingPuzzles: 0
+			totalMatchingPuzzles: 0,
+			availableThemes: [] as string[]
 		};
 	}
 
@@ -107,7 +112,8 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 		return {
 			hasImportedPuzzles: true,
 			openingFamilies: [] as string[],
-			totalMatchingPuzzles: 0
+			totalMatchingPuzzles: 0,
+			availableThemes: [] as string[]
 		};
 	}
 
@@ -140,9 +146,28 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 			)}])`
 		);
 
+	// Extract distinct theme tags from matching puzzles.
+	// Themes are stored as space-separated strings, so we use
+	// string_to_array + unnest to decompose them into individual tags.
+	const likePatternsForThemes = sql.join(
+		likePatterns.map((p) => sql`${p}`),
+		sql`, `
+	);
+	const themeRows = await db.execute(
+		sql`SELECT DISTINCT unnest(string_to_array(themes, ' ')) AS theme
+			FROM puzzle
+			WHERE themes IS NOT NULL
+			  AND ${puzzle.openingFamily} LIKE ANY(ARRAY[${likePatternsForThemes}])
+			ORDER BY theme`
+	);
+	const availableThemes = (themeRows as unknown as { theme: string }[])
+		.map((r) => r.theme)
+		.filter((t) => t.length > 0);
+
 	return {
 		hasImportedPuzzles: true,
 		openingFamilies,
-		totalMatchingPuzzles: matchCount.count
+		totalMatchingPuzzles: matchCount.count,
+		availableThemes
 	};
 };

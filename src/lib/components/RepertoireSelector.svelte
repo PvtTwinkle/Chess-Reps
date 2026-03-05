@@ -15,7 +15,7 @@
 
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
-	import ManageRepertoireModal from './ManageRepertoireModal.svelte';
+	import { manageRepertoiresOpen } from '$lib/stores/manageRepertoires';
 
 	// The shape of one repertoire row as returned by the server.
 	interface Repertoire {
@@ -36,7 +36,6 @@
 
 	// ── UI state ────────────────────────────────────────────────────────────────
 	let dropdownOpen = $state(false);
-	let manageOpen = $state(false);
 
 	// ── Request-in-flight guard (prevents double-clicks) ────────────────────────
 	let busy = $state(false);
@@ -123,7 +122,7 @@
 				class="dropdown-action"
 				onclick={() => {
 					dropdownOpen = false;
-					manageOpen = true;
+					manageRepertoiresOpen.set(true);
 				}}
 			>
 				⚙ Manage repertoires
@@ -132,8 +131,7 @@
 	{/if}
 </div>
 
-<!-- ── Management modal (separate component) ──────────────────────────────── -->
-<ManageRepertoireModal bind:open={manageOpen} {repertoires} />
+<!-- Modal is now rendered at the layout root level to avoid header stacking context. -->
 
 <style>
 	/* ── Selector button ────────────────────────────────────────────────────── */

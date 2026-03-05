@@ -75,6 +75,10 @@
 	let selectedFamilies = $state<string[]>([]);
 	let minRating = $state('');
 	let maxRating = $state('');
+	let selectedThemes = $state<string[]>([]);
+
+	// Hide tags toggle — session-only, not persisted
+	let hideThemes = $state(false);
 
 	// Session stats
 	let puzzlesSolved = $state(0);
@@ -102,6 +106,13 @@
 	function formatThemes(themes: string | null): string[] {
 		if (!themes) return [];
 		return themes.split(/\s+/).filter((t) => t.length > 0);
+	}
+
+	// Convert camelCase theme tags to display labels:
+	// "mateIn2" → "Mate In 2", "hangingPiece" → "Hanging Piece"
+	function formatThemeLabel(tag: string): string {
+		const spaced = tag.replace(/([A-Z])/g, ' $1').replace(/(\d+)/g, ' $1');
+		return spaced.charAt(0).toUpperCase() + spaced.slice(1);
 	}
 
 	// ── UCI move parsing ───────────────────────────────────────────────────────
@@ -141,6 +152,7 @@
 		params.set('families', families.join(','));
 		if (minRating) params.set('minRating', minRating);
 		if (maxRating) params.set('maxRating', maxRating);
+		if (selectedThemes.length > 0) params.set('themes', selectedThemes.join(','));
 
 		try {
 			const res = await fetch(`/api/puzzles/next?${params}`);
@@ -489,10 +501,22 @@
 					</div>
 					<div class="puzzle-opening">{formatFamily(currentPuzzle.openingFamily)}</div>
 					{#if currentPuzzle.themes}
-						<div class="puzzle-themes">
-							{#each formatThemes(currentPuzzle.themes) as theme (theme)}
-								<span class="theme-tag">{theme}</span>
-							{/each}
+						<div class="themes-row">
+							<button
+								class="hide-tags-btn"
+								class:tags-hidden={hideThemes}
+								onclick={() => (hideThemes = !hideThemes)}
+								title={hideThemes ? 'Show puzzle themes' : 'Hide puzzle themes'}
+							>
+								{hideThemes ? 'Show Tags' : 'Hide Tags'}
+							</button>
+							{#if !hideThemes}
+								<div class="puzzle-themes">
+									{#each formatThemes(currentPuzzle.themes) as theme (theme)}
+										<span class="theme-tag">{formatThemeLabel(theme)}</span>
+									{/each}
+								</div>
+							{/if}
 						</div>
 					{/if}
 					{#if currentPuzzle.gameUrl}
@@ -582,6 +606,33 @@
 						/>
 					</div>
 				</div>
+
+				{#if data.availableThemes.length > 0}
+					<div class="filter-group">
+						<span class="filter-label">Themes</span>
+						<div class="theme-checkboxes">
+							{#each data.availableThemes as theme (theme)}
+								<label class="theme-checkbox-label">
+									<input
+										type="checkbox"
+										value={theme}
+										checked={selectedThemes.includes(theme)}
+										onchange={(e) => {
+											const target = e.currentTarget;
+											if (target.checked) {
+												selectedThemes = [...selectedThemes, theme];
+											} else {
+												selectedThemes = selectedThemes.filter((t) => t !== theme);
+											}
+										}}
+									/>
+									<span>{formatThemeLabel(theme)}</span>
+								</label>
+							{/each}
+						</div>
+						<span class="filter-hint">Empty = all themes. Checked = match any.</span>
+					</div>
+				{/if}
 			</details>
 
 			<!-- Match info -->
@@ -741,6 +792,32 @@
 		background: var(--color-surface-alt);
 		padding: var(--space-1) var(--space-2);
 		border-radius: var(--radius-sm);
+	}
+
+	.themes-row {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-1);
+	}
+
+	.hide-tags-btn {
+		align-self: flex-end;
+		background: none;
+		border: none;
+		color: var(--color-text-muted);
+		font-family: var(--font-body);
+		font-size: 0.7rem;
+		cursor: pointer;
+		padding: 0;
+		transition: color var(--dur-fast) var(--ease-snap);
+	}
+
+	.hide-tags-btn:hover {
+		color: var(--color-text-secondary);
+	}
+
+	.hide-tags-btn.tags-hidden {
+		color: var(--color-gold);
 	}
 
 	.game-link {
@@ -947,6 +1024,32 @@
 
 	.rating-sep {
 		color: var(--color-text-muted);
+	}
+
+	/* ── Theme checkboxes ────────────────────────────────────────────────────── */
+
+	.theme-checkboxes {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--space-1) var(--space-3);
+		max-height: 200px;
+		overflow-y: auto;
+		padding: var(--space-1) 0;
+	}
+
+	.theme-checkbox-label {
+		display: flex;
+		align-items: center;
+		gap: var(--space-1);
+		font-size: 0.78rem;
+		color: var(--color-text-secondary);
+		cursor: pointer;
+		white-space: nowrap;
+	}
+
+	.theme-checkbox-label input[type='checkbox'] {
+		accent-color: var(--color-gold);
+		cursor: pointer;
 	}
 
 	/* ── Match info ───────────────────────────────────────────────────────────── */

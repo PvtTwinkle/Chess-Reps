@@ -17,6 +17,18 @@ import { repertoire, userMove, reviewedGame, importedGame, userSettings } from '
 import { eq, and, desc } from 'drizzle-orm';
 import { parsePgn, analyzeGame, computeMatchDepth } from '$lib/pgn';
 
+/** Format the first N half-moves as readable notation, e.g. "1. e4 e5 2. Nf3 Nc6". */
+function formatOpeningMoves(moves: { san: string }[], plies = 4): string {
+	const slice = moves.slice(0, plies);
+	let result = '';
+	for (let i = 0; i < slice.length; i++) {
+		if (i % 2 === 0) result += `${Math.floor(i / 2) + 1}. `;
+		result += slice[i].san;
+		if (i < slice.length - 1) result += ' ';
+	}
+	return result || '(empty game)';
+}
+
 export const load: PageServerLoad = async ({ locals, parent, url }) => {
 	const { activeRepertoireId, repertoires } = await parent();
 
@@ -109,6 +121,9 @@ export const actions: Actions = {
 			return fail(400, { error: (e as Error).message });
 		}
 
+		// Format the first 2 full moves for error messages.
+		const openingMoves = formatOpeningMoves(parsed.moves);
+
 		// Determine player color. The user can override via the form; otherwise
 		// we infer from the explicit repertoire (import flow) or fall back later.
 		const playerColor: 'WHITE' | 'BLACK' =
@@ -145,7 +160,7 @@ export const actions: Actions = {
 
 			if (allReps.length === 0) {
 				return fail(400, {
-					error: `No ${playerColor.toLowerCase()} repertoire found. Create one first.`
+					error: `No ${playerColor.toLowerCase()} repertoire found for this game (${openingMoves}). Create one first.`
 				});
 			}
 

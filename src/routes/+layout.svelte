@@ -5,6 +5,8 @@
 	import type { Snippet } from 'svelte';
 	import type { LayoutData } from './$types';
 	import RepertoireSelector from '$lib/components/RepertoireSelector.svelte';
+	import ManageRepertoireModal from '$lib/components/ManageRepertoireModal.svelte';
+	import { manageRepertoiresOpen } from '$lib/stores/manageRepertoires';
 
 	// `data` comes from +layout.server.ts and includes `user`, `repertoires`,
 	// and `activeRepertoireId`.
@@ -110,6 +112,14 @@
 <main class="app-main">
 	{@render children()}
 </main>
+
+<!-- Rendered outside the header so it's not trapped in the header's stacking context (z-index: 900). -->
+{#if data.user}
+	<ManageRepertoireModal
+		bind:open={$manageRepertoiresOpen}
+		repertoires={data.repertoires}
+	/>
+{/if}
 
 <style>
 	@import '$lib/styles/tokens.css';

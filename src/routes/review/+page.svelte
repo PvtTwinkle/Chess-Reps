@@ -28,6 +28,7 @@
 	import type { PageData } from './$types';
 	import type { GameAnalysis, GameIssue } from '$lib/pgn';
 	import { initSounds, setSoundEnabled, playMove, playCapture } from '$lib/sounds';
+	import { manageRepertoiresOpen } from '$lib/stores/manageRepertoires';
 	import type { DrawShape } from '@lichess-org/chessground/draw';
 	import type { Key } from '@lichess-org/chessground/types';
 	import { Chess } from 'chess.js';
@@ -1261,7 +1262,7 @@
 						<div class="error-banner">
 							{analysisError}
 							{#if analysisError.includes('Create one first')}
-								<a href="/build" class="create-rep-link">Create a repertoire</a>
+								<button type="button" class="create-rep-link" onclick={() => manageRepertoiresOpen.set(true)}>Create a repertoire</button>
 							{/if}
 						</div>
 					{/if}
@@ -1325,7 +1326,7 @@
 					<div class="error-banner">
 						{importError}
 						{#if importError.includes('Create one first')}
-							<a href="/build" class="create-rep-link">Create a repertoire</a>
+							<button type="button" class="create-rep-link" onclick={() => manageRepertoiresOpen.set(true)}>Create a repertoire</button>
 						{/if}
 					</div>
 				{/if}
@@ -2085,15 +2086,21 @@
 		font-size: 0.82rem;
 	}
 
-	.error-banner :global(.create-rep-link) {
+	.error-banner .create-rep-link {
 		display: inline-block;
 		margin-top: var(--space-2);
+		background: none;
+		border: none;
+		padding: 0;
+		font-family: inherit;
+		font-size: inherit;
 		color: var(--color-gold);
 		text-decoration: underline;
 		font-weight: 600;
+		cursor: pointer;
 	}
 
-	.error-banner :global(.create-rep-link:hover) {
+	.error-banner .create-rep-link:hover {
 		color: var(--color-text-primary);
 	}
 

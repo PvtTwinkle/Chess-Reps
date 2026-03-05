@@ -15,6 +15,15 @@ Docker images are tagged per version. To stay on stable releases, pin your
 
 ### Added
 
+- **Puzzle page: hide tags toggle** — small "Hide Tags" / "Show Tags" button in the
+  puzzle info card lets you hide theme tags while solving so they don't hint at the
+  tactic type. Session-only toggle, resets on page reload.
+
+- **Puzzle page: theme filter checkboxes** — new filter group in the Filters panel
+  with checkboxes for each available puzzle theme (fork, pin, mateIn2, etc.). Themes
+  are scoped to your repertoire's matching puzzles. Check one or more to filter;
+  empty = all themes. Uses the existing `themes` API parameter with OR-match logic.
+
 - **Lichess & Chess.com game import** — automatically fetch recent games from your
   online accounts and review them against your repertoires:
   - Settings page fields for Lichess and Chess.com usernames

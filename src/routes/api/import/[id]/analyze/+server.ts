@@ -11,6 +11,18 @@ import { importedGame, repertoire, userMove } from '$lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { parsePgn, analyzeGame, computeMatchDepth } from '$lib/pgn';
 
+/** Format the first N half-moves as readable notation, e.g. "1. e4 e5 2. Nf3 Nc6". */
+function formatOpeningMoves(moves: { san: string }[], plies = 4): string {
+	const slice = moves.slice(0, plies);
+	let result = '';
+	for (let i = 0; i < slice.length; i++) {
+		if (i % 2 === 0) result += `${Math.floor(i / 2) + 1}. `;
+		result += slice[i].san;
+		if (i < slice.length - 1) result += ' ';
+	}
+	return result || '(empty game)';
+}
+
 interface RepertoireAnalysis {
 	repertoireId: number;
 	repertoireName: string;
@@ -41,6 +53,10 @@ export const POST: RequestHandler = async ({ locals, params }) => {
 		throw error(400, `Invalid PGN: ${(e as Error).message}`);
 	}
 
+	// Format the first 2 full moves for error messages so the user knows
+	// which opening they need a repertoire for.
+	const openingMoves = formatOpeningMoves(parsed.moves);
+
 	// Find all repertoires matching the player color.
 	const color = game.playerColor as 'WHITE' | 'BLACK';
 	const matchingReps = await db
@@ -52,7 +68,7 @@ export const POST: RequestHandler = async ({ locals, params }) => {
 		return json({
 			game,
 			analyses: [] as RepertoireAnalysis[],
-			message: `No ${color.toLowerCase()} repertoires found. Create one first.`
+			message: `No ${color.toLowerCase()} repertoires found for this game (${openingMoves}). Create one first.`
 		});
 	}
 
@@ -89,7 +105,7 @@ export const POST: RequestHandler = async ({ locals, params }) => {
 		return json({
 			game,
 			analyses,
-			message: `None of your ${color.toLowerCase()} repertoires match this game's opening. Create one first.`
+			message: `None of your ${color.toLowerCase()} repertoires match this game's opening (${openingMoves}). Create one first.`
 		});
 	}
 
