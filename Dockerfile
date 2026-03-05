@@ -60,6 +60,11 @@ COPY --from=builder /app/drizzle ./drizzle
 # project ("type": "module" in package.json).
 COPY --from=builder /app/package.json ./
 
+# Remove system npm — the app is already built and doesn't need a package
+# manager at runtime. This also eliminates CVEs in npm's bundled dependencies
+# (tar, minimatch, glob) that are outside our control.
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
+
 # Tell Node.js and SvelteKit this is a production environment.
 ENV NODE_ENV=production
 
