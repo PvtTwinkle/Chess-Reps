@@ -238,8 +238,6 @@
 	function formatCount(n: number): string {
 		return n.toLocaleString();
 	}
-
-
 </script>
 
 <div class="section">

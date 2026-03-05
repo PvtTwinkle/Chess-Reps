@@ -29,10 +29,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	}
 
 	// Check uniqueness
-	const [existing] = await db
-		.select({ id: user.id })
-		.from(user)
-		.where(eq(user.username, username));
+	const [existing] = await db.select({ id: user.id }).from(user).where(eq(user.username, username));
 	if (existing) {
 		throw error(409, 'That username is already taken.');
 	}

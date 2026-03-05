@@ -11,7 +11,7 @@ import { redirect } from '@sveltejs/kit';
 import { db } from '$lib/db';
 import { userMove, ecoOpening, puzzle } from '$lib/db/schema';
 import { eq, and, inArray, sql, count } from 'drizzle-orm';
-import { normalizeOpening } from '$lib/puzzleMatching';
+import { normalizeOpening, removeParentNames } from '$lib/puzzleMatching';
 
 export const load: PageServerLoad = async ({ locals, parent }) => {
 	const { activeRepertoireId, repertoires } = await parent();
@@ -75,8 +75,33 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 		.where(inArray(ecoOpening.fen, toFens));
 
 	// Normalize ECO names for matching against puzzle opening_family column.
+	// Then remove broad parent names when a more specific child exists —
+	// e.g. if the user has "Scotch Game" and "Scotch Game: Scotch Gambit",
+	// only keep the Scotch Gambit so we don't match all Scotch variations.
 	const ecoNames = [...new Set(ecoMatches.map((e) => e.name))];
-	const normalizedNames = [...new Set(ecoNames.map(normalizeOpening))];
+	const allNormalized = [...new Set(ecoNames.map(normalizeOpening))];
+	const dedupedNames = removeParentNames(allNormalized);
+
+	if (dedupedNames.length === 0) {
+		return {
+			hasImportedPuzzles: true,
+			openingFamilies: [] as string[],
+			totalMatchingPuzzles: 0
+		};
+	}
+
+	// Verify each name actually exists as a puzzle opening_family.
+	// Early/transit ECO positions like "King's Pawn Game" (1.e4) have
+	// no exact match in the puzzle table — they only appear as prefixes
+	// of unrelated families (e.g. "kings pawn game wayward queen attack").
+	// Dropping names without exact matches prevents these transit positions
+	// from pulling in thousands of irrelevant puzzles.
+	const existCheck = await db
+		.selectDistinct({ family: puzzle.openingFamily })
+		.from(puzzle)
+		.where(inArray(puzzle.openingFamily, dedupedNames));
+	const existingFamilies = new Set(existCheck.map((r) => r.family));
+	const normalizedNames = dedupedNames.filter((n) => existingFamilies.has(n));
 
 	if (normalizedNames.length === 0) {
 		return {

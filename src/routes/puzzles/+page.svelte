@@ -136,6 +136,7 @@
 			return;
 		}
 
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- not reactive, used only in this function
 		const params = new URLSearchParams();
 		params.set('families', families.join(','));
 		if (minRating) params.set('minRating', minRating);
@@ -489,7 +490,7 @@
 					<div class="puzzle-opening">{formatFamily(currentPuzzle.openingFamily)}</div>
 					{#if currentPuzzle.themes}
 						<div class="puzzle-themes">
-							{#each formatThemes(currentPuzzle.themes) as theme}
+							{#each formatThemes(currentPuzzle.themes) as theme (theme)}
 								<span class="theme-tag">{theme}</span>
 							{/each}
 						</div>
@@ -554,7 +555,7 @@
 				<div class="filter-group">
 					<label class="filter-label" for="opening-filter">Opening</label>
 					<select id="opening-filter" class="filter-select" bind:value={selectedFamilies} multiple>
-						{#each data.openingFamilies as family}
+						{#each data.openingFamilies as family (family)}
 							<option value={family}>{formatFamily(family)}</option>
 						{/each}
 					</select>
@@ -919,10 +920,12 @@
 		display: flex;
 		gap: var(--space-2);
 		align-items: center;
+		min-width: 0;
 	}
 
 	.filter-input {
 		flex: 1;
+		min-width: 0;
 		background: var(--color-surface-alt);
 		color: var(--color-text-primary);
 		border: 1px solid var(--color-border);

@@ -926,5 +926,4 @@
 		opacity: 0.35;
 		cursor: default;
 	}
-
 </style>

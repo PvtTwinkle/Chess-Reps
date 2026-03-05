@@ -163,15 +163,19 @@
 						<button class="btn-primary" onclick={createUser} disabled={creating}>
 							{creating ? 'Creating...' : 'Create'}
 						</button>
-						<button class="btn-secondary" onclick={() => { showCreateForm = false; createError = ''; }}>
+						<button
+							class="btn-secondary"
+							onclick={() => {
+								showCreateForm = false;
+								createError = '';
+							}}
+						>
 							Cancel
 						</button>
 					</div>
 				</div>
 			{:else}
-				<button class="btn-primary" onclick={() => (showCreateForm = true)}>
-					+ New User
-				</button>
+				<button class="btn-primary" onclick={() => (showCreateForm = true)}> + New User </button>
 			{/if}
 		</section>
 
@@ -226,7 +230,13 @@
 										minlength="8"
 									/>
 									<button class="action-btn" onclick={resetUserPassword}>Set</button>
-									<button class="action-btn" onclick={() => { resetUserId = null; resetError = ''; }}>
+									<button
+										class="action-btn"
+										onclick={() => {
+											resetUserId = null;
+											resetError = '';
+										}}
+									>
 										Cancel
 									</button>
 									{#if resetError}
@@ -234,7 +244,14 @@
 									{/if}
 								</div>
 							{:else}
-								<button class="action-btn" onclick={() => { resetUserId = u.id; resetPassword = ''; resetError = ''; }}>
+								<button
+									class="action-btn"
+									onclick={() => {
+										resetUserId = u.id;
+										resetPassword = '';
+										resetError = '';
+									}}
+								>
 									Reset PW
 								</button>
 							{/if}
@@ -244,7 +261,9 @@
 								{#if confirmDeleteId === u.id}
 									<span class="confirm-delete">
 										Delete all data?
-										<button class="action-btn action-danger" onclick={() => deleteUser(u.id)}>Yes</button>
+										<button class="action-btn action-danger" onclick={() => deleteUser(u.id)}
+											>Yes</button
+										>
 										<button class="action-btn" onclick={() => (confirmDeleteId = null)}>No</button>
 									</span>
 								{:else}
@@ -383,7 +402,8 @@
 		font-weight: 600;
 		font-size: 13px;
 		cursor: pointer;
-		transition: box-shadow var(--dur-fast) var(--ease-snap),
+		transition:
+			box-shadow var(--dur-fast) var(--ease-snap),
 			transform var(--dur-fast) var(--ease-snap);
 	}
 
@@ -521,7 +541,8 @@
 		font-size: 11px;
 		cursor: pointer;
 		white-space: nowrap;
-		transition: border-color var(--dur-fast) var(--ease-snap),
+		transition:
+			border-color var(--dur-fast) var(--ease-snap),
 			color var(--dur-fast) var(--ease-snap);
 	}
 

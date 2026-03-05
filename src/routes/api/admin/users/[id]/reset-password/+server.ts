@@ -22,10 +22,7 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 	}
 
 	// Verify target exists
-	const [target] = await db
-		.select({ id: user.id })
-		.from(user)
-		.where(eq(user.id, targetId));
+	const [target] = await db.select({ id: user.id }).from(user).where(eq(user.id, targetId));
 	if (!target) throw error(404, 'User not found');
 
 	// Hash and update

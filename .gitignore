@@ -34,3 +34,10 @@ Jobava London Rare 3rd Moves.pgn
 # Chessmont Database Files
 chessmont.pgn
 fens-all.tsv
+
+# Lichess Puzzle Database File
+lichess_db_puzzle.csv
+
+# Import scripts — not shipped; users restore from pg_dump instead
+scripts/puzzle-import.py
+scripts/chessmont-import.py

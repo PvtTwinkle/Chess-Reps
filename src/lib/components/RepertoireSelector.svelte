@@ -213,7 +213,8 @@
 		font-size: 13px;
 		cursor: pointer;
 		text-align: left;
-		transition: background var(--dur-fast) var(--ease-snap),
+		transition:
+			background var(--dur-fast) var(--ease-snap),
 			color var(--dur-fast) var(--ease-snap);
 	}
 

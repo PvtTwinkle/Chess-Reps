@@ -26,3 +26,33 @@ export function normalizeOpening(name: string): string {
 	s = s.replace(/[,:'":]/g, '');
 	return s.toLowerCase().replace(/\s+/g, ' ').trim();
 }
+
+/**
+ * Remove broad parent names when a more specific child exists.
+ *
+ * Given ["scotch game", "scotch game scotch gambit", "sicilian defense",
+ * "sicilian defense alapin variation"], returns only the specific ones:
+ * ["scotch game scotch gambit", "sicilian defense alapin variation"].
+ *
+ * A name is considered a parent if another name in the set starts with
+ * it followed by a space (ensuring word-boundary matching, not just
+ * substring). This prevents "scotch game" from matching all Scotch
+ * variations when the user only plays the Scotch Gambit.
+ */
+export function removeParentNames(names: string[]): string[] {
+	// Sort shortest first so parents come before children.
+	const sorted = [...names].sort((a, b) => a.length - b.length);
+	const result: string[] = [];
+
+	for (const name of sorted) {
+		// Check if any longer name in the set starts with this name + space.
+		const isParent = sorted.some(
+			(other) => other.length > name.length && other.startsWith(name + ' ')
+		);
+		if (!isParent) {
+			result.push(name);
+		}
+	}
+
+	return result;
+}

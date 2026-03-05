@@ -116,6 +116,15 @@ Docker images are tagged per version. To stay on stable releases, pin your
   the viewport height; fixed by making the backdrop scrollable with `margin: auto`
   centering on the modal panel
 
+- **Puzzle matching over-broad on transit positions** — ECO names from early positions
+  (e.g. "King's Pawn Game" at 1.e4, "Scotch Game" at 3.d4) were matching thousands of
+  unrelated puzzle variations via prefix LIKE. Fixed with two-stage filtering: (1) remove
+  broad parent names when a more specific child exists in the repertoire, and (2) verify
+  each remaining name has an exact match in the puzzle table, dropping transit-only labels
+
+- **Puzzle filter rating inputs overflow** — the min/max rating number inputs escaped
+  the sidebar filter box on narrow viewports; fixed with `min-width: 0` on flex items
+
 ### Added
 
 - **Puzzle training mode** (`src/routes/puzzles/`) — practice tactics that match

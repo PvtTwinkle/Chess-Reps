@@ -23,6 +23,7 @@ Thumbs.db
 # Large data files used for offline tooling, not needed in the app
 *.pgn
 fens-all.tsv
+lichess_db_puzzle.csv
 
 # Claude Code config — development tool, not needed in the image
 .claude
