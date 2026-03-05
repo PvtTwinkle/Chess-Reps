@@ -179,6 +179,17 @@ how to contribute opening book moves.
 
 See [CHANGELOG.md](CHANGELOG.md) for version history.
 
+## Acknowledgments
+
+Chess Reps uses data from the following open-source projects:
+
+- **[Chessmont](https://www.kaggle.com/datasets/chessmontdb/chessmont-big-dataset)** — Master game database (CC BY-SA 4.0)
+- **[Lichess Puzzle Database](https://database.lichess.org/#puzzles)** — Tactical puzzles (CC0)
+- **[Lichess Chess Openings](https://github.com/lichess-org/chess-openings)** — ECO opening names (CC0)
+- **[Lichess](https://github.com/lichess-org/lila)** — Sound assets (AGPL v3+)
+
+See [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) for full attribution and license details.
+
 ## License
 
 MIT
