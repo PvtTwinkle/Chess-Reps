@@ -50,6 +50,7 @@
 
 	// ── Request-in-flight guard (prevents double-clicks) ────────────────────────
 	let busy = $state(false);
+	let errorMsg = $state('');
 
 	// White pawn for WHITE repertoires, black pawn for BLACK.
 	function colorIcon(color: string): string {
@@ -60,14 +61,20 @@
 	async function createRepertoire() {
 		if (!newName.trim() || busy) return;
 		busy = true;
+		errorMsg = '';
 
-		const res = await fetch('/api/repertoires', {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ name: newName.trim(), color: newColor })
-		});
+		try {
+			const res = await fetch('/api/repertoires', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ name: newName.trim(), color: newColor })
+			});
 
-		if (res.ok) {
+			if (!res.ok) {
+				errorMsg = 'Failed to create repertoire.';
+				return;
+			}
+
 			const created: Repertoire = await res.json();
 			// Automatically switch to the new repertoire — if you created it,
 			// you almost certainly want to start using it immediately.
@@ -78,11 +85,14 @@
 			});
 			newName = '';
 			newColor = 'WHITE';
-		}
 
-		await invalidateAll();
-		onchange();
-		busy = false;
+			await invalidateAll();
+			onchange();
+		} catch {
+			errorMsg = 'Network error — could not create repertoire.';
+		} finally {
+			busy = false;
+		}
 	}
 
 	// ── Start editing a repertoire name inline ───────────────────────────────────
@@ -101,16 +111,29 @@
 	async function saveRename(id: number) {
 		if (!editingName.trim() || busy) return;
 		busy = true;
-		await fetch(`/api/repertoires/${id}`, {
-			method: 'PATCH',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ name: editingName.trim() })
-		});
-		editingId = null;
-		editingName = '';
-		await invalidateAll();
-		onchange();
-		busy = false;
+		errorMsg = '';
+
+		try {
+			const res = await fetch(`/api/repertoires/${id}`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ name: editingName.trim() })
+			});
+
+			if (!res.ok) {
+				errorMsg = 'Failed to rename repertoire.';
+				return;
+			}
+
+			editingId = null;
+			editingName = '';
+			await invalidateAll();
+			onchange();
+		} catch {
+			errorMsg = 'Network error — could not rename repertoire.';
+		} finally {
+			busy = false;
+		}
 	}
 
 	// ── Delete flow — ask first, confirm to proceed ──────────────────────────────
@@ -126,11 +149,23 @@
 	async function confirmDelete(id: number) {
 		if (busy) return;
 		busy = true;
-		await fetch(`/api/repertoires/${id}`, { method: 'DELETE' });
-		confirmDeleteId = null;
-		await invalidateAll();
-		onchange();
-		busy = false;
+		errorMsg = '';
+
+		try {
+			const res = await fetch(`/api/repertoires/${id}`, { method: 'DELETE' });
+			if (!res.ok) {
+				errorMsg = 'Failed to delete repertoire.';
+				return;
+			}
+
+			confirmDeleteId = null;
+			await invalidateAll();
+			onchange();
+		} catch {
+			errorMsg = 'Network error — could not delete repertoire.';
+		} finally {
+			busy = false;
+		}
 	}
 
 	// ── Export a repertoire as PGN ────────────────────────────────────────────────
@@ -237,6 +272,10 @@
 					<p class="empty-hint">No repertoires yet — create one below.</p>
 				{/if}
 			</div>
+
+			{#if errorMsg}
+				<p class="error-msg">{errorMsg}</p>
+			{/if}
 
 			{#if exportMsg}
 				<p class="export-msg">{exportMsg}</p>
@@ -589,6 +628,13 @@
 	.btn-danger:disabled {
 		opacity: 0.45;
 		cursor: default;
+	}
+
+	.error-msg {
+		font-size: 0.8rem;
+		color: var(--color-danger);
+		text-align: center;
+		margin: 0 0 var(--space-3);
 	}
 
 	.export-msg {

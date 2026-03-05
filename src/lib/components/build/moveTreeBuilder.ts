@@ -6,12 +6,11 @@
  */
 
 import type { TreeNode } from './MoveTreeLine.svelte';
+import { fenKey } from '$lib/fen';
 
 const STARTING_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
-export function fenKey(fen: string): string {
-	return fen.split(' ').slice(0, 4).join(' ');
-}
+export { fenKey };
 
 interface MoveInput {
 	fromFen: string;

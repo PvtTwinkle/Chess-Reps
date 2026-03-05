@@ -56,6 +56,9 @@ export const PATCH: RequestHandler = async ({ locals, request, params }) => {
 		if (startFen !== null && (typeof startFen !== 'string' || startFen.trim() === '')) {
 			throw error(400, 'startFen must be a FEN string or null');
 		}
+		if (typeof startFen === 'string' && startFen.length > 100) {
+			throw error(400, 'startFen is too long');
+		}
 		updates.startFen = startFen;
 	}
 

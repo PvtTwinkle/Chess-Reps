@@ -9,6 +9,9 @@
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import { Chess } from 'chess.js';
 import { playMove, playCapture } from '$lib/sounds';
+import { fenKey } from '$lib/fen';
+
+export { fenKey };
 
 export const STARTING_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
@@ -34,13 +37,6 @@ export interface NavEntry {
 	san: string;
 	from: string;
 	to: string;
-}
-
-// Strip the half-move clock and full-move counter from a FEN string.
-// Two positions that differ only in these fields are the same board position
-// for repertoire purposes.
-export function fenKey(fen: string): string {
-	return fen.split(' ').slice(0, 4).join(' ');
 }
 
 // Given a FEN and a SAN move, use Chess.js to resolve the from/to squares.

@@ -42,6 +42,39 @@ Docker images are tagged per version. To stay on stable releases, pin your
 
 ### Fixed
 
+- **User deletion cascade** — admin user deletion now includes `imported_game` rows,
+  preventing orphaned records with dangling foreign keys.
+- **Drill session double-finalization** — wrapped session read+update in a database
+  transaction with a guard against already-finalized sessions, preventing double-counted
+  stats from rapid duplicate submissions.
+- **Drill stats validation** — `cardsReviewed` and `cardsCorrect` now validated as
+  non-negative integers with `cardsCorrect <= cardsReviewed` and a 10,000 ceiling.
+- **ECO name race condition** — added AbortController to the OpeningName fetch effect,
+  preventing stale responses from overwriting newer data during rapid navigation.
+- **N+1 orphan card sweep** — replaced per-card SELECT loop with a single NOT EXISTS
+  subquery when cleaning up orphaned SR cards after move deletion.
+- **LIKE wildcard injection** — puzzle family filter now escapes `%` and `_` in
+  user-supplied strings before building LIKE patterns.
+- **FEN length validation** — all endpoints accepting FEN strings now reject inputs
+  longer than 100 characters, preventing oversized strings reaching the database.
+- **Outdated cookie comment** — fixed misleading "session cookie" comment on the
+  active repertoire cookie (actually persists for 1 year).
+- **Repertoire modal error handling** — create, rename, and delete operations now
+  check response status and show inline error messages instead of silently failing
+  or leaving the UI in a stuck "busy" state.
+- **Repertoire selector error handling** — switching repertoires now re-opens the
+  dropdown on failure so the user sees their selection didn't persist.
+- **Trivy image scan** — added `ignore-unfixed: true` to skip CVEs with no available
+  patch (libc6, zlib1g on Debian 12).
+
+### Changed
+
+- **Deduplicated `fenKey()`** — consolidated five identical copies into a single
+  canonical export in `src/lib/fen.ts`. The masters endpoint's `normalizeFen()` alias
+  was also replaced.
+
+### Fixed (prior)
+
 - **Review: false repertoire matches** — `computeMatchDepth()` was incrementing
   depth before checking if the move actually matched, so unrelated repertoires
   (e.g. a d4 repertoire for an e4 game) appeared in the picker with depth 1.

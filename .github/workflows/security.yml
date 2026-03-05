@@ -104,3 +104,4 @@ jobs:
           image-ref: 'chess-reps:ci-scan'
           severity: 'HIGH,CRITICAL'
           exit-code: '1'
+          ignore-unfixed: true

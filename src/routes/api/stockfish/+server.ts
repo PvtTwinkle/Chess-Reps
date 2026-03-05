@@ -79,6 +79,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	const timeoutSec = settings?.stockfishTimeout ?? 10;
 
 	if (!fen || typeof fen !== 'string') throw error(400, 'fen is required');
+	if (fen.length > 100) throw error(400, 'fen is too long');
 
 	// ── 1. Book lookup ────────────────────────────────────────────────────────
 	// Find all known opening moves from this exact position.

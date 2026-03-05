@@ -9,6 +9,7 @@
 // the repertoire rows from the DB before calling analyzeGame.
 
 import { Chess } from 'chess.js';
+import { fenKey } from '$lib/fen';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -65,15 +66,9 @@ export interface RepertoireMoveRow {
 }
 
 // ─── FEN key helper ───────────────────────────────────────────────────────────
-
-/**
- * Strip the half-move clock and full-move counter from a FEN string.
- * Positions reached via different move orders compare equal if the first four
- * fields match (piece placement, active color, castling rights, en-passant).
- */
-export function fenKey(fen: string): string {
-	return fen.split(' ').slice(0, 4).join(' ');
-}
+// Canonical implementation lives in $lib/fen.ts — re-exported here for
+// backwards compatibility with existing imports.
+export { fenKey };
 
 // ─── computeMatchDepth ───────────────────────────────────────────────────────
 

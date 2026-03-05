@@ -56,13 +56,23 @@
 		}
 		busy = true;
 		dropdownOpen = false;
-		await fetch('/api/repertoires/active', {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ id })
-		});
-		await invalidateAll();
-		busy = false;
+		try {
+			const res = await fetch('/api/repertoires/active', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ id })
+			});
+			if (!res.ok) {
+				dropdownOpen = true;
+				return;
+			}
+			await invalidateAll();
+		} catch {
+			// Re-open dropdown so the user sees their selection didn't stick.
+			dropdownOpen = true;
+		} finally {
+			busy = false;
+		}
 	}
 
 	// Close the dropdown when the user clicks anywhere outside this component.

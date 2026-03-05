@@ -71,6 +71,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		throw error(400, 'repertoireId is required and must be a number');
 	}
 	if (!fromFen || typeof fromFen !== 'string') throw error(400, 'fromFen is required');
+	if (fromFen.length > 100) throw error(400, 'fromFen is too long');
 	if (!san || typeof san !== 'string') throw error(400, 'san is required');
 
 	// Verify the repertoire exists and belongs to this user.

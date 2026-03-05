@@ -6,11 +6,8 @@
 // and 1...e6 as responses, but the user only has lines after 1...e5,
 // then 1...c5 and 1...e6 are gaps.
 
-/** Strips halfmove clock and fullmove number from a FEN, leaving the 4 fields
- *  that define a unique board position for repertoire purposes. */
-export function fenKey(fen: string): string {
-	return fen.split(' ').slice(0, 4).join(' ');
-}
+import { fenKey } from '$lib/fen';
+export { fenKey };
 
 /** The standard starting position FEN. */
 export const STARTING_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';

@@ -43,7 +43,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 	// Validate that every element is a non-empty string.
 	// This is user-supplied data coming from the board position — sanitise it.
-	const fenList = fens.filter((f): f is string => typeof f === 'string' && f.length > 0);
+	const fenList = fens.filter(
+		(f): f is string => typeof f === 'string' && f.length > 0 && f.length <= 100
+	);
 
 	// Cap at 50 FENs — a typical opening is 15–20 moves deep, so this is
 	// generous while preventing abuse of the IN clause.

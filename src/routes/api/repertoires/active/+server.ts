@@ -32,7 +32,7 @@ export const POST: RequestHandler = async ({ locals, request, cookies }) => {
 
 	if (!rep) throw error(404, 'Repertoire not found');
 
-	// Store as a plain session cookie (no maxAge = expires when browser closes).
+	// Persist for 1 year so the active repertoire survives browser restarts.
 	// httpOnly keeps it out of client-side JS — only the server needs to read it.
 	cookies.set('active_repertoire_id', String(id), {
 		path: '/',

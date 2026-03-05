@@ -19,7 +19,7 @@ import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
 import { userMove, userRepertoireMove } from '$lib/db/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, notExists, sql } from 'drizzle-orm';
 
 // Recursively deletes all moves reachable from startFen in the given repertoire.
 // Depth-first: removes the deepest branches before their parents.
@@ -98,35 +98,31 @@ export const DELETE: RequestHandler = async ({ locals, params }) => {
 	// An SR card is orphaned if no userMove exists with the same
 	// (repertoireId, fromFen, san). This catches edge cases like FEN
 	// normalization mismatches from PGN transpositions.
-	const allCards = await db
-		.select({
-			id: userRepertoireMove.id,
-			fromFen: userRepertoireMove.fromFen,
-			san: userRepertoireMove.san
-		})
+	// Uses a single NOT EXISTS subquery instead of per-card lookups.
+	const orphanedCards = await db
+		.select({ id: userRepertoireMove.id })
 		.from(userRepertoireMove)
 		.where(
 			and(
 				eq(userRepertoireMove.userId, locals.user.id),
-				eq(userRepertoireMove.repertoireId, move.repertoireId)
+				eq(userRepertoireMove.repertoireId, move.repertoireId),
+				notExists(
+					db
+						.select({ one: sql`1` })
+						.from(userMove)
+						.where(
+							and(
+								eq(userMove.repertoireId, userRepertoireMove.repertoireId),
+								eq(userMove.fromFen, userRepertoireMove.fromFen),
+								eq(userMove.san, userRepertoireMove.san)
+							)
+						)
+				)
 			)
 		);
 
-	for (const card of allCards) {
-		const [matchingMove] = await db
-			.select({ id: userMove.id })
-			.from(userMove)
-			.where(
-				and(
-					eq(userMove.repertoireId, move.repertoireId),
-					eq(userMove.fromFen, card.fromFen),
-					eq(userMove.san, card.san)
-				)
-			);
-
-		if (!matchingMove) {
-			await db.delete(userRepertoireMove).where(eq(userRepertoireMove.id, card.id));
-		}
+	for (const card of orphanedCards) {
+		await db.delete(userRepertoireMove).where(eq(userRepertoireMove.id, card.id));
 	}
 
 	return json({ deleted: subtreeCount + 1 });

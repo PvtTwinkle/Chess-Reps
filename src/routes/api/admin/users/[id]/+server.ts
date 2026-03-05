@@ -15,7 +15,8 @@ import {
 	userRepertoireMove,
 	reviewedGame,
 	drillSession,
-	puzzleAttempt
+	puzzleAttempt,
+	importedGame
 } from '$lib/db/schema';
 import { eq, and, count } from 'drizzle-orm';
 
@@ -141,6 +142,7 @@ export const DELETE: RequestHandler = async ({ locals, params }) => {
 		await tx.delete(session).where(eq(session.userId, targetId));
 		await tx.delete(puzzleAttempt).where(eq(puzzleAttempt.userId, targetId));
 		await tx.delete(drillSession).where(eq(drillSession.userId, targetId));
+		await tx.delete(importedGame).where(eq(importedGame.userId, targetId));
 		await tx.delete(reviewedGame).where(eq(reviewedGame.userId, targetId));
 		await tx.delete(userRepertoireMove).where(eq(userRepertoireMove.userId, targetId));
 		await tx.delete(userMove).where(eq(userMove.userId, targetId));

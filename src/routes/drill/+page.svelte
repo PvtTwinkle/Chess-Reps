@@ -25,6 +25,7 @@
 <script lang="ts">
 	import ChessBoard from '$lib/components/ChessBoard.svelte';
 	import OpeningName from '$lib/components/OpeningName.svelte';
+	import { fenKey } from '$lib/fen';
 	import { SvelteMap } from 'svelte/reactivity';
 	import { untrack } from 'svelte';
 	import { onMount } from 'svelte';
@@ -357,12 +358,6 @@
 		if (move <= 5) return 'foundations';
 		if (move <= 15) return 'mainlines';
 		return 'deep';
-	}
-
-	// Strip the half-move clock and full-move counter from a FEN so that
-	// positions reached via different move orders compare equal.
-	function fenKey(fen: string): string {
-		return fen.split(' ').slice(0, 4).join(' ');
 	}
 
 	// Reconstruct the sequence of SAN moves from the starting position to

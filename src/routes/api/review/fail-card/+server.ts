@@ -27,6 +27,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 
 	if (typeof repertoireId !== 'number') throw error(400, 'repertoireId must be a number');
 	if (!fromFen || typeof fromFen !== 'string') throw error(400, 'fromFen is required');
+	if (fromFen.length > 100) throw error(400, 'fromFen is too long');
 
 	// Verify the repertoire belongs to this user.
 	const [rep] = await db

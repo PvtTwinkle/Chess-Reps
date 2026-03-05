@@ -13,6 +13,7 @@ import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
 import { chessmontMoves } from '$lib/db/schema';
 import { eq, desc } from 'drizzle-orm';
+import { fenKey } from '$lib/fen';
 
 /** Shape of each move returned to the client. */
 export interface MastersMove {
@@ -28,11 +29,6 @@ export interface MastersResponse {
 	totalGames: number; // aggregate across all moves at this position
 }
 
-/** Strip halfmove clock and fullmove number, keeping the 4 positional fields. */
-function normalizeFen(fen: string): string {
-	return fen.split(' ').slice(0, 4).join(' ');
-}
-
 const MAX_MOVES = 12;
 const EMPTY_RESPONSE: MastersResponse = { moves: [], totalGames: 0 };
 
@@ -41,8 +37,9 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 
 	const fen = url.searchParams.get('fen');
 	if (!fen) throw error(400, 'fen query parameter is required');
+	if (fen.length > 100) throw error(400, 'fen is too long');
 
-	const normalizedFen = normalizeFen(fen);
+	const normalizedFen = fenKey(fen);
 
 	const rows = await db
 		.select()

@@ -37,8 +37,9 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 	const colorParam = url.searchParams.get('color'); // 'WHITE' or 'BLACK'
 
 	// Build the WHERE conditions
-	// Prefix-match: each family becomes a LIKE 'family%' clause
-	const likePatterns = families.map((f) => `${f}%`);
+	// Prefix-match: each family becomes a LIKE 'family%' clause.
+	// Escape SQL LIKE wildcards (% and _) in user input before appending %.
+	const likePatterns = families.map((f) => `${f.replace(/%/g, '\\%').replace(/_/g, '\\_')}%`);
 	const conditions = [
 		sql`${puzzle.openingFamily} LIKE ANY(ARRAY[${sql.join(
 			likePatterns.map((p) => sql`${p}`),
