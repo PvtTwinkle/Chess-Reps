@@ -421,21 +421,29 @@
 {#if !data.hasImportedPuzzles}
 	<div class="empty-state">
 		<h2>No Puzzles Imported</h2>
-		<p>The puzzle database hasn't been imported yet. To get started:</p>
+		<p>The puzzle database hasn't been loaded yet. To get started:</p>
 		<ol>
+			<li>Make sure your containers are running: <code>docker compose up -d</code></li>
 			<li>
-				Download the puzzle CSV from <a
-					href="https://database.lichess.org/#puzzles"
-					target="_blank"
-					rel="noopener">database.lichess.org</a
-				>
+				Run the restore script:
+				<code>./scripts/data-restore.sh --puzzles-only</code>
 			</li>
-			<li>Decompress: <code>zstd -d lichess_db_puzzle.csv.zst</code></li>
-			<li>
-				Run the import script:
-				<code>python scripts/puzzle-import.py --csv-path ./lichess_db_puzzle.csv</code>
-			</li>
+			<li>Refresh this page</li>
 		</ol>
+		<p>
+			Or download <code>puzzles-dump.sql.gz</code> manually from the
+			<a
+				href="https://github.com/PvtTwinkle/Chess-Reps/releases?q=data-v"
+				target="_blank"
+				rel="noopener">GitHub Releases</a
+			> page and restore with:
+		</p>
+		<p>
+			<code
+				>gunzip -c puzzles-dump.sql.gz | docker exec -i chess-reps-postgres psql -U
+				chess_reps chess_reps</code
+			>
+		</p>
 	</div>
 {:else if data.openingFamilies.length === 0}
 	<div class="empty-state">

@@ -38,5 +38,8 @@ fens-all.tsv
 # Lichess Puzzle Database File
 lichess_db_puzzle.csv
 
+# Data dump files (distributed via GitHub Releases, not committed)
+*.sql.gz
+
 # Import scripts — not shipped; users restore from pg_dump instead
 scripts/puzzle-import.py

@@ -100,6 +100,45 @@ Log in with the username and password you set above.
 
 ---
 
+## Optional Data
+
+Chess Reps ships with ECO opening names and a small starter book, but two larger
+datasets are available as separate downloads:
+
+| Dataset              | Description                                                        | Approx. Size |
+| -------------------- | ------------------------------------------------------------------ | ------------ |
+| **Masters Database** | ~8.8M moves from master-level games (Chessmont, ELO >= 2500). Powers the "Masters" tab in Build Mode. | ~131 MB      |
+| **Lichess Puzzles**  | Opening-tagged tactical puzzles. Powers the Puzzles page.          | ~69 MB      |
+
+Without these datasets, the app works fine — the Masters tab falls back to Stockfish
+engine analysis, and the Puzzles page shows setup instructions.
+
+### One-Command Install
+
+After starting the app (`docker compose up -d`), run:
+
+```bash
+./scripts/data-restore.sh
+```
+
+This downloads the latest data from GitHub Releases and loads it into your database.
+
+### Manual Install
+
+1. Download `chessmont-moves-dump.sql.gz` and `puzzles-dump.sql.gz` from the
+   [latest data release](https://github.com/PvtTwinkle/Chess-Reps/releases?q=data-v).
+2. Restore each file:
+
+```bash
+gunzip -c chessmont-moves-dump.sql.gz | \
+  docker exec -i chess-reps-postgres psql -U chess_reps chess_reps
+
+gunzip -c puzzles-dump.sql.gz | \
+  docker exec -i chess-reps-postgres psql -U chess_reps chess_reps
+```
+
+---
+
 ## Environment Variables
 
 | Variable           | Required  | Description                                                                                                                           |
