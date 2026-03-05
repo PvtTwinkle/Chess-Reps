@@ -13,6 +13,12 @@ Docker images are tagged per version. To stay on stable releases, pin your
 
 ## [Unreleased]
 
+### Added
+
+- **Admin panel: rename users** — admins can now change any user's username
+  (including their own) from the admin page. Inline form with validation
+  (3–30 chars, alphanumeric/hyphens/underscores) and uniqueness checking.
+
 ### Changed
 
 - **Review mode: rewrite move suggestions** — replaced inline button lists for

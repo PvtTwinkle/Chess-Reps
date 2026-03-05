@@ -29,7 +29,7 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 
 	// Look up the target user
 	const [target] = await db
-		.select({ id: user.id, role: user.role, enabled: user.enabled })
+		.select({ id: user.id, username: user.username, role: user.role, enabled: user.enabled })
 		.from(user)
 		.where(eq(user.id, targetId));
 	if (!target) throw error(404, 'User not found');
@@ -68,6 +68,28 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 		}
 
 		await db.update(user).set({ role: body.role }).where(eq(user.id, targetId));
+	}
+
+	// Change username
+	if (typeof body.username === 'string') {
+		const newUsername = body.username.trim();
+		if (newUsername.length < 3 || newUsername.length > 30) {
+			throw error(400, 'Username must be 3–30 characters.');
+		}
+		if (!/^[a-zA-Z0-9_-]+$/.test(newUsername)) {
+			throw error(400, 'Username may only contain letters, numbers, hyphens, and underscores.');
+		}
+		// Check uniqueness (skip if unchanged)
+		if (newUsername !== target.username) {
+			const [existing] = await db
+				.select({ id: user.id })
+				.from(user)
+				.where(eq(user.username, newUsername));
+			if (existing) {
+				throw error(409, 'That username is already taken.');
+			}
+			await db.update(user).set({ username: newUsername }).where(eq(user.id, targetId));
+		}
 	}
 
 	// Return updated user

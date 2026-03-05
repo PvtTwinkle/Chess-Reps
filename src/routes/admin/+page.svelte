@@ -66,6 +66,34 @@
 		await invalidateAll();
 	}
 
+	// ── Rename User ────────────────────────────────────────────────────────
+	let renameUserId = $state<number | null>(null);
+	let renameUsername = $state('');
+	let renameError = $state('');
+
+	async function renameUser() {
+		if (!renameUserId) return;
+		renameError = '';
+		const trimmed = renameUsername.trim();
+		if (trimmed.length < 3 || trimmed.length > 30) {
+			renameError = 'Username must be 3–30 characters.';
+			return;
+		}
+		const res = await fetch(`/api/admin/users/${renameUserId}`, {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ username: trimmed })
+		});
+		if (!res.ok) {
+			const err = await res.json().catch(() => ({ message: 'Failed' }));
+			renameError = err.message ?? 'Failed to rename user';
+			return;
+		}
+		renameUserId = null;
+		renameUsername = '';
+		await invalidateAll();
+	}
+
 	// ── Reset Password ─────────────────────────────────────────────────────
 	let resetUserId = $state<number | null>(null);
 	let resetPassword = $state('');
@@ -217,6 +245,43 @@
 									onclick={() => toggleRole(u.id, u.role)}
 								>
 									{u.role === 'admin' ? 'Demote' : 'Promote'}
+								</button>
+							{/if}
+
+							<!-- Rename -->
+							{#if renameUserId === u.id}
+								<div class="inline-form">
+									<input
+										type="text"
+										placeholder="New username"
+										bind:value={renameUsername}
+										minlength="3"
+										maxlength="30"
+									/>
+									<button class="action-btn" onclick={renameUser}>Set</button>
+									<button
+										class="action-btn"
+										onclick={() => {
+											renameUserId = null;
+											renameError = '';
+										}}
+									>
+										Cancel
+									</button>
+									{#if renameError}
+										<span class="error-inline">{renameError}</span>
+									{/if}
+								</div>
+							{:else}
+								<button
+									class="action-btn"
+									onclick={() => {
+										renameUserId = u.id;
+										renameUsername = u.username;
+										renameError = '';
+									}}
+								>
+									Rename
 								</button>
 							{/if}
 
