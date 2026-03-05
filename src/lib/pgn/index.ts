@@ -120,13 +120,13 @@ export function computeMatchDepth(
 		if (isUserTurn) {
 			const expected = userMoveByFen.get(key);
 			if (!expected) break; // position not in repertoire — stop
-			depth++;
 			if (expected !== move.san) break; // user deviated — stop
+			depth++;
 		} else {
 			const prepared = opponentMovesByFen.get(key);
 			if (!prepared) break; // position not in repertoire — stop
-			depth++;
 			if (!prepared.has(move.san)) break; // opponent surprise — stop
+			depth++;
 		}
 	}
 

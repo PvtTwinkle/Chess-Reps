@@ -73,7 +73,7 @@
 	// Repertoire picker modal
 	let showRepPicker = $state(false);
 	let repPickerAnalyses = $state<
-		{ repertoireId: number; repertoireName: string; issueCount: number }[]
+		{ repertoireId: number; repertoireName: string; issueCount: number; matchDepth: number }[]
 	>([]);
 	let repPickerLoading = $state(false);
 	let repPickerGameId = $state<number | null>(null);
@@ -225,12 +225,14 @@
 	let parsedPgn = $state<string | null>(null);
 	let analysisHeaders = $state<Record<string, string>>({});
 	let analysedPlayerColor = $state<'WHITE' | 'BLACK'>('WHITE');
+	let analysisRepName = $state<string | null>(null);
 	let currentPlyIdx = $state(0); // 0 = starting position, N = position after ply N
 	let isAutoPlaying = $state(false);
 	let autoPlayTarget = $state<number | null>(null);
 	let resolvedIssues = new SvelteSet<number>(); // issue.ply values of resolved issues
 	let opponentMoveAdded = new SvelteSet<number>(); // OPPONENT_SURPRISE issues where phase 1 is done
 	let notes = $state('');
+	let actionError = new SvelteMap<number, string>(); // issue.ply → error message
 
 	// ── Chain extension state ────────────────────────────────────────────────────
 	// After a user adds their game response (OPPONENT_SURPRISE phase 2) or their
@@ -327,6 +329,7 @@
 			if (form.repertoireId && typeof form.repertoireId === 'number') {
 				overrideRepertoireId = form.repertoireId;
 			}
+			analysisRepName = (form.repertoireName as string) ?? null;
 
 			// Reset per-analysis state. Wrap reactive collection clears in
 			// untrack so they don't register as dependencies of this $effect
@@ -340,6 +343,7 @@
 				opponentMoveAdded.clear();
 				chainExtensions.clear();
 				actionLoading.clear();
+				actionError.clear();
 				deviationEvals.clear();
 				deviationFetching.clear();
 				deviationMasters.clear();
@@ -680,24 +684,30 @@
 
 	// ── Issue resolution actions ─────────────────────────────────────────────────
 
-	async function callApi(path: string, body: Record<string, unknown>): Promise<boolean> {
+	async function callApi(path: string, body: Record<string, unknown>): Promise<void> {
 		const res = await fetch(path, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify(body)
 		});
-		return res.ok;
+		if (!res.ok) {
+			const text = await res.text().catch(() => '');
+			throw new Error(text || `Request failed (${res.status})`);
+		}
 	}
 
 	// Case 1 — DEVIATION: mark FSRS card as failed.
 	async function handleFailCard(issue: GameIssue): Promise<void> {
 		actionLoading.set(issue.ply, true);
+		actionError.delete(issue.ply);
 		try {
 			await callApi('/api/review/fail-card', {
 				repertoireId: overrideRepertoireId ?? data.repertoire.id,
 				fromFen: issue.fromFen
 			});
 			resolveIssue(issue.ply);
+		} catch (e) {
+			actionError.set(issue.ply, (e as Error).message || 'Failed to update card');
 		} finally {
 			actionLoading.set(issue.ply, false);
 		}
@@ -707,6 +717,7 @@
 	// and also fail the SR card.
 	async function handleUpdateRepertoire(issue: GameIssue): Promise<void> {
 		actionLoading.set(issue.ply, true);
+		actionError.delete(issue.ply);
 		try {
 			// Fail the card first (it's a deviation regardless of what we do with the repertoire).
 			await callApi('/api/review/fail-card', {
@@ -721,6 +732,8 @@
 				forceReplace: true
 			});
 			resolveIssue(issue.ply);
+		} catch (e) {
+			actionError.set(issue.ply, (e as Error).message || 'Failed to update repertoire');
 		} finally {
 			actionLoading.set(issue.ply, false);
 		}
@@ -731,6 +744,7 @@
 	// CandidateMoves handles fetching book/masters/engine data automatically.
 	async function handleAddOpponentMove(issue: GameIssue): Promise<void> {
 		actionLoading.set(issue.ply, true);
+		actionError.delete(issue.ply);
 		try {
 			await callApi('/api/review/add-move', {
 				repertoireId: overrideRepertoireId ?? data.repertoire.id,
@@ -738,6 +752,8 @@
 				san: issue.playedSan
 			});
 			opponentMoveAdded.add(issue.ply);
+		} catch (e) {
+			actionError.set(issue.ply, (e as Error).message || 'Failed to add move');
 		} finally {
 			actionLoading.set(issue.ply, false);
 		}
@@ -749,6 +765,7 @@
 		const name = newRepName.trim();
 		if (!name) return;
 		actionLoading.set(issue.ply, true);
+		actionError.delete(issue.ply);
 		try {
 			// Create the new repertoire (same color as current analysis).
 			const repRes = await fetch('/api/repertoires', {
@@ -771,6 +788,8 @@
 			opponentMoveAdded.add(issue.ply);
 			newRepIssuePly = null;
 			newRepName = '';
+		} catch (e) {
+			actionError.set(issue.ply, (e as Error).message || 'Failed to create repertoire');
 		} finally {
 			actionLoading.set(issue.ply, false);
 		}
@@ -809,6 +828,7 @@
 		const leg = chainExtensions.get(issuePly);
 		if (!leg) return;
 		actionLoading.set(issuePly, true);
+		actionError.delete(issuePly);
 		try {
 			await callApi('/api/review/add-move', {
 				repertoireId: overrideRepertoireId ?? data.repertoire.id,
@@ -817,6 +837,8 @@
 			});
 			chainExtensions.set(issuePly, { ...leg, opponentAdded: true });
 			currentPlyIdx = leg.plyInGame; // advance board to position after opponent's move
+		} catch (e) {
+			actionError.set(issuePly, (e as Error).message || 'Failed to add move');
 		} finally {
 			actionLoading.set(issuePly, false);
 		}
@@ -837,6 +859,7 @@
 		const fromFen = issue.type === 'OPPONENT_SURPRISE' ? issue.toFen : issue.fromFen;
 		const gameSan = issue.type === 'OPPONENT_SURPRISE' ? issue.userResponseSan : issue.playedSan;
 		actionLoading.set(issue.ply, true);
+		actionError.delete(issue.ply);
 		try {
 			await callApi('/api/review/add-move', {
 				repertoireId: overrideRepertoireId ?? data.repertoire.id,
@@ -855,6 +878,8 @@
 				}
 			}
 			resolveIssue(issue.ply);
+		} catch (e) {
+			actionError.set(issue.ply, (e as Error).message || 'Failed to add move');
 		} finally {
 			actionLoading.set(issue.ply, false);
 		}
@@ -866,6 +891,7 @@
 		const leg = chainExtensions.get(issuePly);
 		if (!leg || !leg.userFen) return;
 		actionLoading.set(issuePly, true);
+		actionError.delete(issuePly);
 		try {
 			await callApi('/api/review/add-move', {
 				repertoireId: overrideRepertoireId ?? data.repertoire.id,
@@ -883,6 +909,8 @@
 			}
 			chainExtensions.delete(issuePly);
 			resolveIssue(issuePly);
+		} catch (e) {
+			actionError.set(issuePly, (e as Error).message || 'Failed to add move');
 		} finally {
 			actionLoading.set(issuePly, false);
 		}
@@ -1215,6 +1243,9 @@
 							}}
 						>
 							<span class="rep-picker-name">{a.repertoireName}</span>
+							<span class="rep-picker-match">
+								Matches first {Math.ceil(a.matchDepth / 2)} move{Math.ceil(a.matchDepth / 2) !== 1 ? 's' : ''}
+							</span>
 							<span class="rep-picker-issues">
 								{a.issueCount === 0
 									? 'Clean'
@@ -1303,14 +1334,14 @@
 		<div class="sidebar">
 			<!-- Repertoire identity -->
 			<div class="rep-header">
-				<span class="rep-icon">{data.repertoire.color === 'WHITE' ? '♙' : '♟'}</span>
-				<span class="rep-name">{data.repertoire.name}</span>
+				<span class="rep-icon">{analysedPlayerColor === 'WHITE' ? '♙' : '♟'}</span>
+				<span class="rep-name">{analysisRepName ?? data.repertoire.name}</span>
 				<span
 					class="color-badge"
-					class:badge-white={data.repertoire.color === 'WHITE'}
-					class:badge-black={data.repertoire.color === 'BLACK'}
+					class:badge-white={analysedPlayerColor === 'WHITE'}
+					class:badge-black={analysedPlayerColor === 'BLACK'}
 				>
-					{data.repertoire.color === 'WHITE' ? 'White' : 'Black'}
+					{analysedPlayerColor === 'WHITE' ? 'White' : 'Black'}
 				</span>
 			</div>
 
@@ -1637,6 +1668,9 @@
 										{/if}
 									{/if}
 								{/if}
+							{/if}
+							{#if actionError.has(issue.ply)}
+								<div class="action-error">{actionError.get(issue.ply)}</div>
 							{/if}
 						</div>
 					{/each}
@@ -2133,6 +2167,11 @@
 		color: var(--color-text-primary);
 	}
 
+	.rep-picker-match {
+		font-size: 0.7rem;
+		color: var(--color-text-secondary);
+	}
+
 	.rep-picker-issues {
 		font-size: 0.75rem;
 		color: var(--color-text-muted);
@@ -2623,6 +2662,12 @@
 		flex-wrap: wrap;
 		gap: var(--space-2);
 		padding: 0 var(--space-3) var(--space-3);
+	}
+
+	.action-error {
+		padding: var(--space-2) var(--space-3);
+		font-size: 0.73rem;
+		color: var(--color-danger);
 	}
 
 	/* Action buttons within issue cards */

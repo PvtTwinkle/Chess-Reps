@@ -39,6 +39,23 @@ Docker images are tagged per version. To stay on stable releases, pin your
 
 ### Fixed
 
+- **Review: false repertoire matches** — `computeMatchDepth()` was incrementing
+  depth before checking if the move actually matched, so unrelated repertoires
+  (e.g. a d4 repertoire for an e4 game) appeared in the picker with depth 1.
+- **Review: silent card action failures** — API errors from Fail card, Replace,
+  and Add to repertoire actions were swallowed silently, making buttons appear
+  frozen. Errors now display inline on the issue card.
+
+### Changed
+
+- **Review: repertoire picker context** — the picker now shows how many opening
+  moves each repertoire matches (e.g. "Matches first 4 moves") so users can
+  tell which repertoire actually covers the game.
+- **Review: sidebar shows analysis repertoire** — the sidebar header now displays
+  the repertoire being analyzed against, not just the active repertoire.
+
+### Previously Fixed
+
 - **ESLint errors** — removed unused `blackUser` variable in `lichess.ts`, unused
   `cookies` parameter in review page server action, and a stale eslint-disable
   comment in `review/+page.svelte`.
