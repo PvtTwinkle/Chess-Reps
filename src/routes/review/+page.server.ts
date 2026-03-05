@@ -101,7 +101,7 @@ export const load: PageServerLoad = async ({ locals, parent, url }) => {
 };
 
 export const actions: Actions = {
-	analyzeGame: async ({ locals, request, cookies }) => {
+	analyzeGame: async ({ locals, request }) => {
 		if (!locals.user) return fail(401, { error: 'Not authenticated' });
 
 		const form = await request.formData();

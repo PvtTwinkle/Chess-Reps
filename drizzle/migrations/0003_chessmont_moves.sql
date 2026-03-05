@@ -2,7 +2,7 @@
 -- Adds the chessmont_moves table for local master game statistics.
 -- Replaces the masters_cache table (Lichess API proxy cache).
 --
--- Data is populated by the chessmont-import script (separate Docker container),
+-- Data is populated via pg_dump restore from the pre-built Chessmont dataset,
 -- NOT by this migration. The table starts empty and the app handles that
 -- gracefully ("No master games from this position").
 --

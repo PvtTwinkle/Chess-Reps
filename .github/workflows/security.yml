@@ -1,0 +1,106 @@
+# Security scanning pipeline
+#
+# Runs on every push to main and every PR targeting main.
+# This is separate from ci.yml (which handles build + type-check + migrations)
+# so that security failures are clearly visible as their own check.
+#
+# Two parallel jobs:
+#   1. security-checks — fast scans that don't need a Docker build
+#   2. image-scan — builds the Docker image and scans it for CVEs
+
+name: Security
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ── Job 1: Fast security scans ─────────────────────────────────────────────
+  security-checks:
+    name: Security Scans
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          # Full history needed for Gitleaks to scan all commits
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # ── Secret scanning ────────────────────────────────────────────────────
+      - name: Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── Dependency audit ────────────────────────────────────────────────────
+      - name: npm audit
+        run: npm audit --omit=dev
+
+      # ── ESLint security rules ───────────────────────────────────────────────
+      - name: ESLint security check
+        run: npm run lint:security
+
+      # ── License compliance ──────────────────────────────────────────────────
+      - name: License compliance check
+        run: >-
+          npx license-checker
+          --excludePrivatePackages
+          --onlyAllow 'MIT;ISC;BSD-2-Clause;BSD-3-Clause;Apache-2.0;MPL-2.0;GPL-3.0-or-later;Python-2.0;Unlicense;CC0-1.0;CC-BY-3.0;CC-BY-4.0;(MIT OR WTFPL);(MIT AND CC-BY-3.0);(BSD-2-Clause OR MIT OR Apache-2.0)'
+
+      # ── Semgrep SAST ────────────────────────────────────────────────────────
+      - name: Semgrep SAST
+        uses: returntocorp/semgrep-action@v1
+        with:
+          config: >-
+            p/javascript
+            p/typescript
+
+      # ── Trivy filesystem scan ───────────────────────────────────────────────
+      - name: Trivy filesystem scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          severity: 'HIGH,CRITICAL'
+          exit-code: '1'
+
+      # ── Trivy config scan (Dockerfiles, docker-compose) ─────────────────────
+      - name: Trivy config scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'config'
+          scan-ref: '.'
+          severity: 'HIGH,CRITICAL'
+          exit-code: '1'
+
+  # ── Job 2: Docker image scan ────────────────────────────────────────────────
+  # Runs in parallel with security-checks. Builds the app image and scans it.
+  image-scan:
+    name: Docker Image Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t chess-reps:ci-scan .
+
+      - name: Trivy image scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'chess-reps:ci-scan'
+          severity: 'HIGH,CRITICAL'
+          exit-code: '1'

@@ -1,0 +1,77 @@
+# Pre-push security hooks
+#
+# These hooks run before `git push`, NOT before every commit.
+# This avoids slowing down the normal commit workflow while still
+# catching issues before code reaches the remote.
+#
+# Setup (one-time):
+#   pip install pre-commit
+#   pre-commit install --hook-type pre-push
+#
+# Run all hooks manually:
+#   pre-commit run --all-files --hook-stage pre-push
+
+repos:
+  # ── Gitleaks — scan Git history for hardcoded secrets ───────────────────────
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.22.1
+    hooks:
+      - id: gitleaks
+        stages: [pre-push]
+
+  # ── Local hooks (system-installed tools) ────────────────────────────────────
+  - repo: local
+    hooks:
+      # Semgrep — SAST (requires `semgrep` installed locally, see SECURITY-SETUP.md)
+      - id: semgrep
+        name: semgrep SAST
+        entry: semgrep --config p/javascript --config p/typescript --error .
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
+
+      # npm audit — check dependencies for known CVEs
+      - id: npm-audit
+        name: npm audit
+        entry: npm audit --omit=dev
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
+
+      # ESLint security rules (eslint-plugin-security + eslint-plugin-no-unsanitized)
+      - id: eslint-security
+        name: eslint security check
+        entry: npm run lint:security
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
+
+      # License compliance — only allow approved open-source licenses
+      - id: license-checker
+        name: license compliance check
+        entry: npx license-checker --excludePrivatePackages --onlyAllow 'MIT;ISC;BSD-2-Clause;BSD-3-Clause;Apache-2.0;MPL-2.0;GPL-3.0-or-later;Python-2.0;Unlicense;CC0-1.0;CC-BY-3.0;CC-BY-4.0;(MIT OR WTFPL);(MIT AND CC-BY-3.0);(BSD-2-Clause OR MIT OR Apache-2.0)'
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
+
+      # Trivy filesystem scan — vulnerability scan of source code and deps
+      - id: trivy-fs
+        name: trivy filesystem scan
+        entry: trivy fs --severity HIGH,CRITICAL --exit-code 1 .
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
+
+      # Trivy config scan — Dockerfile and docker-compose misconfiguration check
+      - id: trivy-config
+        name: trivy config scan
+        entry: trivy config --severity HIGH,CRITICAL --exit-code 1 .
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]

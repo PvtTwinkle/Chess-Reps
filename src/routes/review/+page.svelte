@@ -54,7 +54,6 @@
 	// ── Import tab state ────────────────────────────────────────────────────────
 
 	// Which tab is active in the input state: 'paste' or 'import'
-	// eslint-disable-next-line svelte/prefer-writable-derived
 	let inputTab = $state<'paste' | 'import'>('paste');
 
 	// Import fetch state

@@ -138,7 +138,6 @@ function parseLichessGame(raw: LichessNdjsonGame, username: string): LichessGame
 	// Determine which color the user played (case-insensitive match).
 	const userLower = username.toLowerCase();
 	const whiteUser = raw.players.white?.user?.name?.toLowerCase() ?? '';
-	const blackUser = raw.players.black?.user?.name?.toLowerCase() ?? '';
 	const playerColor: 'WHITE' | 'BLACK' = whiteUser === userLower ? 'WHITE' : 'BLACK';
 
 	// Opponent info

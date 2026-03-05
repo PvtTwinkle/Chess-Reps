@@ -15,6 +15,40 @@ Docker images are tagged per version. To stay on stable releases, pin your
 
 ### Added
 
+- **Security pipeline** — comprehensive pre-push and CI security scanning:
+  - Pre-push Git hooks via pre-commit: Gitleaks (secrets), Semgrep (SAST),
+    npm audit (CVEs), ESLint security plugins, license-checker, Trivy (fs + config)
+  - GitHub Actions `security.yml` workflow with all checks plus Docker image scanning
+  - New ESLint plugins: `eslint-plugin-security` and `eslint-plugin-no-unsanitized`
+  - `npm run lint:security` script for running security linting locally
+  - `SECURITY.md` documenting all tools and local run commands
+  - `SECURITY-SETUP.md` with setup instructions for Docker Bench and GitHub Secret Scanning
+
+### Changed
+
+- **Dockerfile hardening** — all Dockerfiles now run as non-root users (`node` for
+  the app, dedicated system users for stockfish). Stockfish sidecar pins package
+  versions (`stockfish=15.1-4`, `socat=1.7.4.4-2`).
+
+### Removed
+
+- **Chessmont import tooling** — deleted `Dockerfile.chessmont-import`,
+  `docker-compose.import.yml`, and `Dockerfile.chessmont-import.dockerignore`.
+  The dataset is distributed via pg_dump restore; these one-shot build containers
+  are no longer needed.
+
+### Fixed
+
+- **ESLint errors** — removed unused `blackUser` variable in `lichess.ts`, unused
+  `cookies` parameter in review page server action, and a stale eslint-disable
+  comment in `review/+page.svelte`.
+
+---
+
+## Previous
+
+### Added
+
 - **Admin panel: rename users** — admins can now change any user's username
   (including their own) from the admin page. Inline form with validation
   (3–30 chars, alphanumeric/hyphens/underscores) and uniqueness checking.
@@ -248,12 +282,7 @@ postgres-js` and added a PostgreSQL 17 service container to the GitHub Actions w
     by popularity; response includes W/D/L counts and total games per move
   - W/D/L horizontal bar per move showing white win %, draw %, and black win %
   - No rate limiting, debounce, or retry logic needed — queries are instant
-  - Import tooling provided for building the dataset from the Chessmont PGN:
-    - `scripts/chessmont-import.py` — Python multiprocessing parser with
-      COPY-based bulk loading and checkpoint/resume support
-    - `Dockerfile.chessmont-import` + `docker-compose.import.yml` — one-shot
-      Docker container for running the import
-    - `scripts/chessmont-export.sh` — pg_dump export for distributing pre-built data
+  - Pre-built dataset distributed via pg_dump export
   - Replaces the previous Lichess Masters API proxy (`/api/lichess/masters`) and
     its `masters_cache` table
 

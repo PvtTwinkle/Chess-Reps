@@ -26,11 +26,17 @@ FROM debian:bookworm-slim
 # The rm -rf /var/lib/apt/lists/* removes the package index after install
 # to reduce the final layer size.
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends stockfish socat && \
+    apt-get install -y --no-install-recommends stockfish=15.1-4 socat=1.7.4.4-2 && \
     rm -rf /var/lib/apt/lists/*
+
+# Create a non-root user for running the engine.
+RUN useradd --system --no-create-home stockfish
 
 # Document the port. The app connects here to speak UCI.
 EXPOSE 3001
+
+# Run as non-root.
+USER stockfish
 
 # Listen on TCP port 3001. For each incoming connection:
 #   - fork: handle connections in parallel (one child process per connection)

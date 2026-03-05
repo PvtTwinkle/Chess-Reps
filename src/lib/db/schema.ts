@@ -69,7 +69,7 @@ export const ecoOpening = pgTable('eco_opening', {
 });
 
 // Master game statistics from the Chessmont database (~21.5M master games, ELO >= 2500).
-// Populated by the chessmont-import script (separate Docker container).
+// Populated via pg_dump restore from the pre-built Chessmont dataset.
 // Read-only at runtime — the app only queries this table, never writes to it.
 //
 // FENs are normalized to 4 fields (position + side + castling + en-passant),

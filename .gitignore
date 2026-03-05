@@ -40,4 +40,3 @@ lichess_db_puzzle.csv
 
 # Import scripts — not shipped; users restore from pg_dump instead
 scripts/puzzle-import.py
-scripts/chessmont-import.py

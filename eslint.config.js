@@ -2,6 +2,8 @@ import prettier from 'eslint-config-prettier';
 import path from 'node:path';
 import { includeIgnoreFile } from '@eslint/compat';
 import js from '@eslint/js';
+import pluginSecurity from 'eslint-plugin-security';
+import pluginNoUnsanitized from 'eslint-plugin-no-unsanitized';
 import svelte from 'eslint-plugin-svelte';
 import { defineConfig } from 'eslint/config';
 import globals from 'globals';
@@ -17,6 +19,8 @@ export default defineConfig(
 	...svelte.configs.recommended,
 	prettier,
 	...svelte.configs.prettier,
+	pluginSecurity.configs.recommended,
+	pluginNoUnsanitized.configs.recommended,
 	{
 		languageOptions: { globals: { ...globals.browser, ...globals.node } },
 		rules: {
@@ -26,7 +30,15 @@ export default defineConfig(
 
 			// The recommended rule expects resolve() from $app/paths, which was removed in SvelteKit 2.
 			// Internal links use {base} from $app/paths instead, which is the correct SvelteKit 2 pattern.
-			'svelte/no-navigation-without-resolve': ['error', { ignoreLinks: true }]
+			'svelte/no-navigation-without-resolve': ['error', { ignoreLinks: true }],
+
+			// These security rules produce overwhelmingly false positives in this codebase.
+			// detect-object-injection flags every arr[i] and obj[key] — all 30+ hits are
+			// safe numeric array indexing, not user-controlled property access.
+			// detect-possible-timing-attacks flags every === comparison — actual password
+			// checking uses bcrypt.compare() which is already timing-safe.
+			'security/detect-object-injection': 'off',
+			'security/detect-possible-timing-attacks': 'off'
 		}
 	},
 	{
