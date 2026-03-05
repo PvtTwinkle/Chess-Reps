@@ -4,10 +4,11 @@
 # Multi-stage build. Two stages keep the final image small:
 #
 #   Stage 1 (builder) — installs all dependencies and runs `vite build`.
+#                        Uses Alpine for fast installs.
 #
 #   Stage 2 (runner) — copies only what is needed to run the app: the
-#   compiled build output, the production node_modules, and the database
-#   migration files.
+#   compiled build output, the production node_modules, the database
+#   migration files, and the Stockfish binary.
 #
 # No native compilation is needed — postgres.js (the PostgreSQL driver) is
 # pure JavaScript, so no build tools (python, make, g++) are required.
@@ -42,9 +43,19 @@ RUN npm prune --omit=dev
 
 
 # ── Stage 2: Production runtime ───────────────────────────────────────────────
-FROM node:22-alpine AS runner
+# Debian bookworm-slim instead of Alpine because Stockfish is not available in
+# Alpine's package repos. Debian's bookworm (stable) ships Stockfish 15 in its
+# main repo. bookworm-slim strips out docs and locales to stay reasonably small.
+FROM node:22-bookworm-slim AS runner
 
 WORKDIR /app
+
+# Install Stockfish (the chess engine) and wget (needed for the healthcheck).
+# --no-install-recommends keeps the install lean.
+# rm -rf removes the package index after install to reduce the layer size.
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends stockfish wget && \
+    rm -rf /var/lib/apt/lists/*
 
 # Copy the pruned production node_modules from the builder stage.
 COPY --from=builder /app/node_modules ./node_modules

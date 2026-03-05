@@ -1,10 +1,9 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # Chess Reps — Docker Compose
 #
-# Three services:
-#   app        — the SvelteKit application (Node.js HTTP server)
+# Two services:
+#   app        — the SvelteKit application (Node.js HTTP server + Stockfish)
 #   postgres   — PostgreSQL database
-#   stockfish  — Stockfish chess engine, UCI over TCP on the internal network
 #
 # Quick start:
 #   docker compose up -d
@@ -53,12 +52,6 @@ services:
       - DEFAULT_USERNAME=admin
       - DEFAULT_PASSWORD=changeme
 
-      # ── Stockfish sidecar ───────────────────────────────────────────────────
-      # How the app reaches the Stockfish engine.
-      # "stockfish" resolves to the sidecar container on the internal network.
-      - STOCKFISH_HOST=stockfish
-      - STOCKFISH_PORT=3001
-
       # ── Optional tweaks ─────────────────────────────────────────────────────
       # Increase if you plan to upload large PGN files (default is 512kb).
       # Example: - BODY_SIZE_LIMIT=5242880  # 5 MB
@@ -85,8 +78,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      stockfish:
-        condition: service_started
 
     healthcheck:
       test: ['CMD', 'wget', '-qO-', 'http://localhost:3000/api/health']
@@ -117,27 +108,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-
-  # ── Stockfish sidecar ────────────────────────────────────────────────────────
-  stockfish:
-    build:
-      context: .
-      dockerfile: Dockerfile.stockfish
-    image: chess-reps-stockfish:latest
-    container_name: chess-reps-stockfish
-    restart: unless-stopped
-
-    # No port mapping here — this service is intentionally NOT exposed to the
-    # host. Only the app container can reach it, via the internal Docker network,
-    # using the hostname "stockfish" on port 3001.
-
-    # Limit CPU and memory so Stockfish analysis does not starve the app.
-    # Adjust these based on your host machine's available resources.
-    deploy:
-      resources:
-        limits:
-          cpus: '2.0'
-          memory: 512M
 
 volumes:
   pgdata:

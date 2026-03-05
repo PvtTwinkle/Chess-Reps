@@ -33,10 +33,10 @@ Two plugins integrated into the main ESLint config:
 - **eslint-plugin-security** -- catches common Node.js security antipatterns (eval, non-literal RegExp, non-literal require, timing attacks in string comparisons, object injection sinks)
 - **eslint-plugin-no-unsanitized** -- prevents DOM injection via innerHTML, document.write, and similar sinks (maintained by Mozilla)
 
-| Where | How |
-|-------|-----|
-| Pre-push hook + CI | `npm run lint:security` |
-| Local | `npm run lint:security` |
+| Where                    | How                                                            |
+| ------------------------ | -------------------------------------------------------------- |
+| Pre-push hook + CI       | `npm run lint:security`                                        |
+| Local                    | `npm run lint:security`                                        |
 | Suppress false positives | `// eslint-disable-next-line security/detect-object-injection` |
 
 ### License Checker
@@ -83,12 +83,12 @@ Scans the built Docker image for OS-level and library CVEs in the final containe
 
 ## Suppressing False Positives
 
-| Tool | Method |
-|------|--------|
-| ESLint | `// eslint-disable-next-line <rule-name>` with a comment explaining why |
-| Gitleaks | Add the pattern to `.gitleaksignore` in the project root |
-| Semgrep | Add paths to `.semgrepignore` or use `// nosemgrep: <rule-id>` inline |
-| Trivy | Add CVE IDs to `.trivyignore` in the project root |
+| Tool     | Method                                                                  |
+| -------- | ----------------------------------------------------------------------- |
+| ESLint   | `// eslint-disable-next-line <rule-name>` with a comment explaining why |
+| Gitleaks | Add the pattern to `.gitleaksignore` in the project root                |
+| Semgrep  | Add paths to `.semgrepignore` or use `// nosemgrep: <rule-id>` inline   |
+| Trivy    | Add CVE IDs to `.trivyignore` in the project root                       |
 
 ---
 

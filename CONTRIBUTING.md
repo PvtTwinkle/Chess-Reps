@@ -22,8 +22,7 @@ needs from the chess community.
 ### Requirements
 
 - [Node.js](https://nodejs.org/) 20 or later
-- [Docker](https://docs.docker.com/get-docker/) and Docker Compose (for the
-  Stockfish sidecar)
+- [Docker](https://docs.docker.com/get-docker/) and Docker Compose (for PostgreSQL)
 - A code editor — [VS Code](https://code.visualstudio.com/) is recommended
 
 ### Steps
@@ -45,8 +44,9 @@ There are two ways to run the app during development.
 
 ### Option A — Dev server only (no Stockfish)
 
-This is the fastest way to work on the UI. Stockfish analysis will not be available,
-but everything else works.
+This is the fastest way to work on the UI. Stockfish analysis will not be available
+unless you install Stockfish on your machine (`apt install stockfish` or
+`brew install stockfish`), but everything else works.
 
 ```bash
 npm run dev
@@ -57,12 +57,12 @@ The app starts at `http://localhost:5173`.
 You will need a `.env` file in the project root for local environment variables:
 
 ```env
-DATABASE_URL=./data/db.sqlite
+DATABASE_URL=postgresql://chess_reps:chess_reps_secret@localhost:5432/chess_reps
 ORIGIN=http://localhost:5173
 DEFAULT_USERNAME=admin
 DEFAULT_PASSWORD=changeme
-STOCKFISH_HOST=localhost
-STOCKFISH_PORT=3001
+# Only needed if Stockfish is not at /usr/games/stockfish
+# STOCKFISH_BIN=stockfish
 ```
 
 ### Option B — Full stack with Docker (includes Stockfish)

@@ -1,23 +1,25 @@
-// Stockfish UCI wrapper — connects to the Stockfish sidecar over TCP.
+// Stockfish UCI wrapper — spawns Stockfish as a child process.
 //
-// Stockfish speaks the UCI (Universal Chess Interface) protocol over
-// stdin/stdout. In Docker, a socat process bridges a TCP port to Stockfish's
-// stdio, so each TCP connection gets a fresh, dedicated Stockfish process.
+// Each analysis request spawns a fresh Stockfish process, communicates via
+// stdin/stdout using the UCI protocol, and kills the process when done.
 //
 // Analysis flow per request:
-//   1. Open a TCP socket to stockfish:3001
+//   1. Spawn the Stockfish binary
 //   2. Send "uci" and "setoption name MultiPV value N" then "isready"
 //   3. Wait for "readyok", then send "position fen <fen>" and "go depth <d>"
 //   4. Collect "info" lines — each carries a candidate move and its score
-//   5. When "bestmove" arrives, close the socket and return the results
+//   5. When "bestmove" arrives, kill the process and return the results
 //
-// If the engine is unreachable (e.g. running `npm run dev` outside Docker),
-// getTopMoves returns [] instead of throwing so the app degrades gracefully.
+// If the engine binary is not installed (e.g. running `npm run dev` without
+// Stockfish on PATH), getTopMoves returns [] instead of throwing so the app
+// degrades gracefully.
 
-import * as net from 'net';
+import { spawn } from 'child_process';
 
-const STOCKFISH_HOST = process.env.STOCKFISH_HOST ?? 'stockfish';
-const STOCKFISH_PORT = parseInt(process.env.STOCKFISH_PORT ?? '3001', 10);
+// Path to the Stockfish binary. Debian installs to /usr/games/stockfish.
+// For local dev, set STOCKFISH_BIN=stockfish to rely on PATH resolution,
+// or point to wherever your local binary lives.
+const STOCKFISH_BIN = process.env.STOCKFISH_BIN ?? '/usr/games/stockfish';
 
 // Default timeout when no explicit value is provided (10 seconds).
 const DEFAULT_TIMEOUT_MS = 10_000;
@@ -57,30 +59,51 @@ export async function getTopMoves(
 		// We overwrite on every new "info" line so we always keep the deepest result.
 		const bestResults = new Map<number, StockfishMove>();
 		let buffer = '';
+		let resolved = false;
 
-		const socket = new net.Socket();
-
-		// Tear down the socket and resolve with whatever results we have so far.
-		const finish = () => {
+		// Guard: ensure we only resolve once (timeout, bestmove, or process exit
+		// can all race to resolve).
+		const resolveOnce = (results: StockfishMove[]) => {
+			if (resolved) return;
+			resolved = true;
 			clearTimeout(timer);
-			socket.destroy();
-			const sorted = [...bestResults.entries()].sort(([a], [b]) => a - b).map(([, v]) => v);
-			resolve(sorted);
+			resolve(results);
 		};
+
+		// Collect whatever results we have so far, kill the process, and resolve.
+		const finish = () => {
+			const sorted = [...bestResults.entries()].sort(([a], [b]) => a - b).map(([, v]) => v);
+			resolveOnce(sorted);
+			proc.kill('SIGKILL');
+		};
+
+		let proc: ReturnType<typeof spawn>;
+		try {
+			proc = spawn(STOCKFISH_BIN, [], {
+				stdio: ['pipe', 'pipe', 'ignore']
+			});
+		} catch {
+			// Binary not found (e.g. local dev without Stockfish installed).
+			resolve([]);
+			return;
+		}
+
+		// stdio: ['pipe', 'pipe', 'ignore'] guarantees stdin and stdout are non-null.
+		const stdin = proc.stdin!;
+		const stdout = proc.stdout!;
 
 		// Safety net: if analysis takes too long, return partial results rather
 		// than hanging the request indefinitely.
 		const timer = setTimeout(finish, timeoutMs);
 
-		socket.on('connect', () => {
-			// UCI handshake. "uci" puts Stockfish in UCI mode. We set MultiPV before
-			// "isready" so the option is in place before analysis begins.
-			socket.write(`uci\n`);
-			socket.write(`setoption name MultiPV value ${numMoves}\n`);
-			socket.write(`isready\n`);
-		});
+		// UCI handshake. stdin is available immediately after spawn — no "connect"
+		// event needed. We set MultiPV before "isready" so the option is in place
+		// before analysis begins.
+		stdin.write(`uci\n`);
+		stdin.write(`setoption name MultiPV value ${numMoves}\n`);
+		stdin.write(`isready\n`);
 
-		socket.on('data', (chunk: Buffer) => {
+		stdout.on('data', (chunk: Buffer) => {
 			buffer += chunk.toString();
 
 			// Split on newlines. lines.pop() removes the last (potentially incomplete)
@@ -91,8 +114,8 @@ export async function getTopMoves(
 			for (const line of lines) {
 				if (line.startsWith('readyok')) {
 					// Engine is warmed up — send the position and kick off analysis.
-					socket.write(`position fen ${fen}\n`);
-					socket.write(`go depth ${depth}\n`);
+					stdin.write(`position fen ${fen}\n`);
+					stdin.write(`go depth ${depth}\n`);
 				} else if (line.startsWith('info') && line.includes('multipv') && line.includes(' pv ')) {
 					// Example "info" line:
 					//   info depth 15 seldepth 22 multipv 1 score cp 45 nodes 1234 pv e2e4 e7e5 ...
@@ -121,11 +144,15 @@ export async function getTopMoves(
 			}
 		});
 
-		// If the engine sidecar is not running (e.g. in local dev mode without
-		// Docker), resolve with an empty array instead of letting the request hang
-		// or throw an unhandled error.
-		socket.on('error', () => resolve([]));
+		// If the binary is not found or crashes, resolve with an empty array
+		// instead of letting the request hang or throw an unhandled error.
+		proc.on('error', () => resolveOnce([]));
 
-		socket.connect(STOCKFISH_PORT, STOCKFISH_HOST);
+		// If the process exits before bestmove (unexpected), resolve with
+		// whatever partial results we have.
+		proc.on('close', () => {
+			const sorted = [...bestResults.entries()].sort(([a], [b]) => a - b).map(([, v]) => v);
+			resolveOnce(sorted);
+		});
 	});
 }

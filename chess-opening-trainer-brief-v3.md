@@ -149,8 +149,8 @@ Drill mode has three sub-modes:
 | ORM          | Drizzle        | Lightweight, TypeScript-first, SQL-like syntax, good for SQLite |
 | Database     | SQLite         | Single user self-hosted, simple backup, no extra container      |
 | SR Algorithm | ts-fsrs        | State of the art spaced repetition, what modern Anki uses       |
-| Chess Engine | Stockfish      | Industry standard, runs as Docker sidecar                       |
-| Containers   | Docker Compose | Two services: app + stockfish                                   |
+| Chess Engine | Stockfish      | Industry standard, child process in app container               |
+| Containers   | Docker Compose | Two services: app + postgres                                    |
 
 ---
 
@@ -332,13 +332,10 @@ chess-opening-trainer/
 
 Two services:
 
-**app** — the SvelteKit application. Mounts a volume for the SQLite database file.
+**app** — the SvelteKit application with Stockfish installed. The engine is spawned
+as a child process per analysis request.
 
-**stockfish** — lightweight Stockfish sidecar. Communicates over the internal Docker
-network via UCI. Not exposed to the host.
-
-SQLite stored at `/app/data/db.sqlite` inside the container, mounted from host at
-`./data/db.sqlite` for easy backup.
+**postgres** — PostgreSQL database with a persistent named volume (`pgdata`).
 
 A health check endpoint at `/api/health` returns 200 OK when the app and database are
 running. Users can monitor this with Uptime Kuma or any other monitoring tool.
@@ -559,7 +556,7 @@ Chess.com API before scoping.
 2. Drizzle schema and initial migration (with user_id on all tables)
 3. Default user created on first run
 4. Authentication — login screen, session handling, route protection
-5. Docker Compose file with app and Stockfish services
+5. Docker Compose file with app and postgres services
 6. Dockerfile for the app
 7. Health check endpoint `/api/health`
 8. CLAUDE.md, CONTRIBUTING.md, CHANGELOG.md, README with docker-compose example
@@ -569,7 +566,7 @@ Chess.com API before scoping.
 12. Onboarding / empty state screen
 13. Build mode — board, moves, save to database, undo
 14. Book move lookup and candidate display with Stockfish evals
-15. Stockfish integration (sidecar + UCI wrapper)
+15. Stockfish integration (child process + UCI wrapper)
 16. ECO opening name display (bundled static data)
 17. Transposition detection in build mode
 18. Move annotations in build mode
@@ -599,6 +596,6 @@ Chess.com API before scoping.
 - Prefer explicit, readable code over clever abstractions
 - The app must work fully offline after the Docker image is pulled
 - ECO codes and opening book ship as static seed data in migrations
-- Stockfish runs as a sidecar container on the internal Docker network
+- Stockfish runs as a child process inside the app container
 - All user data tables include user_id from the start even though only one user
   exists initially — this enables multi-user support later without schema changes

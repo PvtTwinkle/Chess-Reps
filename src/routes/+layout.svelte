@@ -115,10 +115,7 @@
 
 <!-- Rendered outside the header so it's not trapped in the header's stacking context (z-index: 900). -->
 {#if data.user}
-	<ManageRepertoireModal
-		bind:open={$manageRepertoiresOpen}
-		repertoires={data.repertoires}
-	/>
+	<ManageRepertoireModal bind:open={$manageRepertoiresOpen} repertoires={data.repertoires} />
 {/if}
 
 <style>

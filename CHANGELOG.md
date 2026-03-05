@@ -26,9 +26,12 @@ Docker images are tagged per version. To stay on stable releases, pin your
 
 ### Changed
 
-- **Dockerfile hardening** — all Dockerfiles now run as non-root users (`node` for
-  the app, dedicated system users for stockfish). Stockfish sidecar pins package
-  versions (`stockfish=15.1-4`, `socat=1.7.4.4-2`).
+- **Stockfish moved into app container** — removed the Stockfish sidecar container.
+  The engine binary is now installed directly in the app image and spawned as a child
+  process per analysis request via `child_process.spawn()`. Docker Compose is now two
+  services (app + postgres) instead of three. `STOCKFISH_HOST` and `STOCKFISH_PORT`
+  env vars replaced by `STOCKFISH_BIN` (defaults to `/usr/games/stockfish`).
+- **Dockerfile hardening** — Dockerfile runs as non-root user (`node`).
 
 ### Removed
 

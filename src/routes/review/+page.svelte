@@ -1244,7 +1244,9 @@
 						>
 							<span class="rep-picker-name">{a.repertoireName}</span>
 							<span class="rep-picker-match">
-								Matches first {Math.ceil(a.matchDepth / 2)} move{Math.ceil(a.matchDepth / 2) !== 1 ? 's' : ''}
+								Matches first {Math.ceil(a.matchDepth / 2)} move{Math.ceil(a.matchDepth / 2) !== 1
+									? 's'
+									: ''}
 							</span>
 							<span class="rep-picker-issues">
 								{a.issueCount === 0

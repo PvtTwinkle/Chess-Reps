@@ -45,16 +45,13 @@ services:
     ports:
       - '3000:3000'
     environment:
-      - DATABASE_URL=/app/data/db.sqlite
+      - DATABASE_URL=postgresql://chess_reps:chess_reps_secret@postgres:5432/chess_reps
       - ORIGIN=http://localhost:3000
       - DEFAULT_USERNAME=admin
       - DEFAULT_PASSWORD=changeme
-      - STOCKFISH_HOST=stockfish
-      - STOCKFISH_PORT=3001
-    volumes:
-      - ./data:/app/data
     depends_on:
-      - stockfish
+      postgres:
+        condition: service_healthy
     healthcheck:
       test: ['CMD', 'wget', '-qO-', 'http://localhost:3000/api/health']
       interval: 30s
@@ -62,18 +59,24 @@ services:
       retries: 3
       start_period: 30s
 
-  stockfish:
-    build:
-      context: .
-      dockerfile: Dockerfile.stockfish
-    image: chess-reps-stockfish:latest
-    container_name: chess-reps-stockfish
+  postgres:
+    image: postgres:17-alpine
+    container_name: chess-reps-postgres
     restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          cpus: '2.0'
-          memory: 512M
+    environment:
+      POSTGRES_DB: chess_reps
+      POSTGRES_USER: chess_reps
+      POSTGRES_PASSWORD: chess_reps_secret
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U chess_reps']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:
 ```
 
 **2. Change your password before starting:**
@@ -101,12 +104,10 @@ Log in with the username and password you set above.
 
 | Variable           | Required  | Description                                                                                                                           |
 | ------------------ | --------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| `DATABASE_URL`     | Yes       | Path to the SQLite file inside the container. Do not change unless you also change the volume mount.                                  |
+| `DATABASE_URL`     | Yes       | PostgreSQL connection string. Default points to the `postgres` container on the internal Docker network.                              |
 | `ORIGIN`           | Yes       | The URL you use to access the app. Change this if using a reverse proxy (e.g. `https://chess.yourdomain.com`). Required for security. |
 | `DEFAULT_USERNAME` | First run | Username created when the database is empty. Ignored after first run.                                                                 |
 | `DEFAULT_PASSWORD` | First run | Password created when the database is empty. **Change this before first run.** Ignored after first run.                               |
-| `STOCKFISH_HOST`   | Yes       | Hostname of the Stockfish sidecar. Leave as `stockfish` unless you rename the service.                                                |
-| `STOCKFISH_PORT`   | Yes       | Port Stockfish listens on. Leave as `3001` unless you change the sidecar config.                                                      |
 
 ---
 
@@ -123,23 +124,17 @@ Migrations run automatically on startup — your personal data is never touched.
 
 ## Backup
 
-Your data lives in a single SQLite file on the host machine:
-
-```
-./data/db.sqlite
-```
-
-To back up, copy that file anywhere. To restore, stop the container, replace the
-file, and start again.
+Your data lives in the PostgreSQL container's named volume (`pgdata`).
 
 ```bash
 # Back up
-cp ./data/db.sqlite ./data/db.sqlite.backup
+docker exec chess-reps-postgres pg_dump -U chess_reps chess_reps > backup.sql
 
 # Restore
 docker compose down
-cp ./data/db.sqlite.backup ./data/db.sqlite
+docker volume rm chess-reps_pgdata
 docker compose up -d
+docker exec -i chess-reps-postgres psql -U chess_reps chess_reps < backup.sql
 ```
 
 ---
