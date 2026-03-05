@@ -101,21 +101,6 @@ services:
     container_name: chess-reps-postgres
     restart: unless-stopped
 
-    # Tuning for bulk data loading (chessmont import).
-    # Can be removed or reduced after the import is complete.
-    command:
-      - postgres
-      - -c
-      - shared_buffers=4GB
-      - -c
-      - wal_buffers=64MB
-      - -c
-      - max_wal_size=8GB
-      - -c
-      - checkpoint_completion_target=0.9
-      - -c
-      - effective_cache_size=16GB
-
     environment:
       POSTGRES_DB: chess_reps
       POSTGRES_USER: chess_reps

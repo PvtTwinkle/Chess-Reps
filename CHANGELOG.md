@@ -175,24 +175,25 @@ postgres-js` and added a PostgreSQL 17 service container to the GitHub Actions w
   `.clear()` calls in `untrack()` inside the form-sync `$effect` to prevent background
   fetches from re-triggering the effect and resetting playback/button state.
 
-- **Lichess Masters Database tab** — Build Mode's candidate moves panel now has a
-  third tab showing move popularity and win/draw/loss stats from master-level games:
-  - Data sourced from the Lichess Opening Explorer Masters API (2.2M+ master games)
-  - Lazy-loaded: only fetches when the Masters tab is clicked (no API calls while
-    browsing Book or Engine tabs)
-  - Permanent SQLite cache: each position is fetched from Lichess at most once —
-    all subsequent requests are served locally with zero latency
+- **Local Masters database (Chessmont)** — the Masters tab in Build Mode and Game
+  Review now queries a local PostgreSQL table instead of the Lichess Masters API:
+  - Data sourced from the Chessmont dataset (~21.5M master games, ELO >= 2500),
+    parsed and aggregated locally — no external API calls at any point
+  - `chessmont_moves` table stores per-move W/D/L counts with composite PK on
+    (position_fen, move_san); FENs normalized to 4-field format for transpositions
+  - ~8.8M move entries across ~57M unique positions (after filtering to >= 5 games)
+  - `GET /api/masters?fen=<fen>` — queries local DB, returns top 12 moves ordered
+    by popularity; response includes W/D/L counts and total games per move
   - W/D/L horizontal bar per move showing white win %, draw %, and black win %
-  - Total games count and per-move game counts displayed
-  - Rate limit handling: shows an amber "Retrying (1/3)…" message on HTTP 429,
-    auto-retries up to 3 times with 5-second delays, then shows "Try again later"
-  - Graceful degradation: if the API is unreachable, returns empty results without
-    affecting Book or Engine tabs
-  - `GET /api/lichess/masters?fen=<fen>` — server-side proxy with cache
-  - `drizzle/migrations/0010_masters_cache.sql` — `masters_cache` table (FEN as PK)
-  - Book and Engine tabs now fetch independently with separate loading states:
-    Book fetches use `mode=book` (instant, no Stockfish call), Engine fetches use
-    `mode=engine` (no book query overhead)
+  - No rate limiting, debounce, or retry logic needed — queries are instant
+  - Import tooling provided for building the dataset from the Chessmont PGN:
+    - `scripts/chessmont-import.py` — Python multiprocessing parser with
+      COPY-based bulk loading and checkpoint/resume support
+    - `Dockerfile.chessmont-import` + `docker-compose.import.yml` — one-shot
+      Docker container for running the import
+    - `scripts/chessmont-export.sh` — pg_dump export for distributing pre-built data
+  - Replaces the previous Lichess Masters API proxy (`/api/lichess/masters`) and
+    its `masters_cache` table
 
 - **Settings page** — full settings page at `/settings` with four sections:
   - **Board Theme** — choose from 5 board color themes (brown, blue, green,

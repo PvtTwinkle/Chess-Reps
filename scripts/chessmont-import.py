@@ -3,16 +3,20 @@
 Chessmont PGN Import — Parses master games into the chessmont_moves table.
 
 Streams chessmont.pgn game by game, replays every move with python-chess to
-compute 4-field normalized FENs, and upserts (position_fen, move_san) pairs
+compute 4-field normalized FENs, and bulk-loads (position_fen, move_san) pairs
 with per-move W/D/L counts into PostgreSQL.
+
+Strategy: COPY (append-only) into an unindexed staging table during import,
+then one GROUP BY aggregation pass at the end to consolidate duplicates. This
+keeps write speed constant regardless of table size — no per-row index lookups.
 
 Usage:
   python chessmont-import.py                        # 4 workers, batch 5000
-  python chessmont-import.py --workers 8            # more parallelism
+  python chessmont-import.py --workers 14           # more parallelism
   python chessmont-import.py --resume               # continue from checkpoint
-  python chessmont-import.py --clean                # truncate and re-import
+  python chessmont-import.py --clean                # drop all data, re-import
   python chessmont-import.py --min-games 5          # custom filter (default 2)
-  python chessmont-import.py --batch-size 10000     # larger batches
+  python chessmont-import.py --batch-size 200000    # larger batches
 
 Environment:
   DATABASE_URL  PostgreSQL connection string (required)
@@ -30,7 +34,6 @@ from collections import defaultdict
 import chess
 import chess.pgn
 import psycopg2
-from psycopg2.extras import execute_values
 
 
 # ── FEN normalization ────────────────────────────────────────────────────────
@@ -130,7 +133,29 @@ def drop_progress_table(conn):
     conn.commit()
 
 
-# ── Batch processing and upsert ──────────────────────────────────────────────
+# ── Raw staging table ────────────────────────────────────────────────────────
+# No primary key, no indexes — optimized purely for fast sequential writes.
+# Duplicate (position_fen, move_san) pairs across batches are expected and
+# will be consolidated in the aggregation step after all games are parsed.
+
+def ensure_raw_table(conn):
+    """Create the unindexed staging table for COPY loading."""
+    with conn.cursor() as cur:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS chessmont_moves_raw (
+                position_fen  TEXT NOT NULL,
+                move_san      TEXT NOT NULL,
+                resulting_fen TEXT NOT NULL,
+                games_played  INTEGER NOT NULL,
+                white_wins    INTEGER NOT NULL,
+                black_wins    INTEGER NOT NULL,
+                draws         INTEGER NOT NULL
+            )
+        """)
+    conn.commit()
+
+
+# ── Batch processing — COPY-based append ─────────────────────────────────────
 
 def merge_results(all_results: list) -> dict:
     """Merge per-game move dicts into one aggregated dict."""
@@ -145,32 +170,32 @@ def merge_results(all_results: list) -> dict:
     return aggregated
 
 
-def upsert_batch(conn, aggregated: dict):
-    """Upsert aggregated move data into chessmont_moves."""
+def copy_batch(conn, aggregated: dict):
+    """Append aggregated move data into chessmont_moves_raw using COPY.
+
+    COPY is orders of magnitude faster than INSERT for bulk loading because
+    it bypasses per-row SQL parsing, planning, and index maintenance. The
+    raw table has no primary key or indexes, so writes are purely sequential.
+    """
     if not aggregated:
         return
 
-    rows = []
+    # Build a TSV buffer in memory
+    buf = io.StringIO()
     for (position_fen, move_san), data in aggregated.items():
         total = data["w"] + data["d"] + data["b"]
-        rows.append((
-            position_fen, move_san, data["to_fen"],
-            total, data["w"], data["b"], data["d"],
-        ))
+        buf.write(
+            f"{position_fen}\t{move_san}\t{data['to_fen']}\t"
+            f"{total}\t{data['w']}\t{data['b']}\t{data['d']}\n"
+        )
+    buf.seek(0)
 
-    sql = """
-        INSERT INTO chessmont_moves
-            (position_fen, move_san, resulting_fen,
-             games_played, white_wins, black_wins, draws)
-        VALUES %s
-        ON CONFLICT (position_fen, move_san) DO UPDATE SET
-            games_played = chessmont_moves.games_played + EXCLUDED.games_played,
-            white_wins   = chessmont_moves.white_wins   + EXCLUDED.white_wins,
-            black_wins   = chessmont_moves.black_wins   + EXCLUDED.black_wins,
-            draws        = chessmont_moves.draws         + EXCLUDED.draws
-    """
     with conn.cursor() as cur:
-        execute_values(cur, sql, rows, page_size=2000)
+        cur.copy_from(
+            buf, "chessmont_moves_raw",
+            columns=("position_fen", "move_san", "resulting_fen",
+                     "games_played", "white_wins", "black_wins", "draws")
+        )
     conn.commit()
 
 
@@ -203,27 +228,94 @@ def read_games_as_pgn_strings(pgn_path: str):
             yield pgn_str
 
 
-# ── Post-import cleanup ──────────────────────────────────────────────────────
+# ── Post-import aggregation and cleanup ──────────────────────────────────────
 
-def post_import_cleanup(conn, min_games: int):
-    """Remove rare moves, create index, vacuum."""
+def aggregate_and_finalize(conn, min_games: int):
+    """Aggregate raw data, build final chessmont_moves, filter, index, vacuum.
+
+    One SQL query consolidates all duplicate (position_fen, move_san) rows
+    from the raw staging table by summing their W/D/L counters. This is far
+    faster than doing per-row ON CONFLICT during import because PostgreSQL
+    can do a single sequential scan + hash aggregate over the raw table.
+    """
+    print("[chessmont] ── Post-import aggregation ──")
+
+    with conn.cursor() as cur:
+        # Count raw rows for reporting
+        cur.execute("SELECT COUNT(*) FROM chessmont_moves_raw")
+        raw_count = cur.fetchone()[0]
+        cur.execute(
+            "SELECT pg_size_pretty(pg_total_relation_size('chessmont_moves_raw'))"
+        )
+        raw_size = cur.fetchone()[0]
+        print(f"[chessmont] Raw staging table: {raw_count:,} rows ({raw_size})")
+
+    # Drop the old final table if it exists
+    print("[chessmont] Aggregating raw data → final table (GROUP BY + SUM)...")
+    print("[chessmont]   This may take a while — one sequential scan over all raw rows")
+    agg_start = time.time()
+
+    with conn.cursor() as cur:
+        cur.execute("DROP TABLE IF EXISTS chessmont_moves")
+        cur.execute("""
+            CREATE TABLE chessmont_moves AS
+            SELECT
+                position_fen,
+                move_san,
+                resulting_fen,
+                SUM(games_played)::INTEGER AS games_played,
+                SUM(white_wins)::INTEGER AS white_wins,
+                SUM(black_wins)::INTEGER AS black_wins,
+                SUM(draws)::INTEGER AS draws
+            FROM chessmont_moves_raw
+            GROUP BY position_fen, move_san, resulting_fen
+        """)
+    conn.commit()
+
+    agg_elapsed = time.time() - agg_start
+    with conn.cursor() as cur:
+        cur.execute("SELECT COUNT(*) FROM chessmont_moves")
+        agg_count = cur.fetchone()[0]
+    print(
+        f"[chessmont]   Aggregated to {agg_count:,} unique move entries "
+        f"in {format_duration(agg_elapsed)}"
+    )
+
+    # Filter rare moves
     print(f"[chessmont] Removing moves with fewer than {min_games} games...")
     with conn.cursor() as cur:
         cur.execute(
             "DELETE FROM chessmont_moves WHERE games_played < %s", (min_games,)
         )
         deleted = cur.rowcount
-        print(f"[chessmont] Deleted {deleted:,} rare move entries")
+        print(f"[chessmont]   Deleted {deleted:,} rare move entries")
     conn.commit()
 
+    # Add primary key (also serves as the unique index for the app's queries)
+    print("[chessmont] Adding primary key (position_fen, move_san)...")
+    with conn.cursor() as cur:
+        cur.execute(
+            "ALTER TABLE chessmont_moves "
+            "ADD PRIMARY KEY (position_fen, move_san)"
+        )
+    conn.commit()
+
+    # Create additional index for query performance
     print("[chessmont] Creating index on position_fen...")
     with conn.cursor() as cur:
         cur.execute(
-            "CREATE INDEX IF NOT EXISTS idx_chessmont_position_fen "
+            "CREATE INDEX idx_chessmont_position_fen "
             "ON chessmont_moves (position_fen)"
         )
     conn.commit()
 
+    # Drop the raw staging table to reclaim disk space
+    print("[chessmont] Dropping raw staging table...")
+    with conn.cursor() as cur:
+        cur.execute("DROP TABLE IF EXISTS chessmont_moves_raw")
+    conn.commit()
+
+    # Vacuum to reclaim disk space from the dropped raw table and deleted rows
     print("[chessmont] Running VACUUM ANALYZE...")
     old_autocommit = conn.autocommit
     conn.autocommit = True
@@ -242,8 +334,10 @@ def post_import_cleanup(conn, min_games: int):
         )
         table_size = cur.fetchone()[0]
 
-    print(f"[chessmont] Final: {total_rows:,} move entries "
-          f"across {total_positions:,} positions ({table_size} on disk)")
+    print(
+        f"[chessmont] Final: {total_rows:,} move entries "
+        f"across {total_positions:,} positions ({table_size} on disk)"
+    )
 
 
 # ── Progress reporting ───────────────────────────────────────────────────────
@@ -293,7 +387,7 @@ def main():
     )
     parser.add_argument(
         "--clean", action="store_true",
-        help="Truncate chessmont_moves before importing"
+        help="Drop all data and re-import from scratch"
     )
     parser.add_argument(
         "--total-games", type=int, default=21_500_000,
@@ -313,8 +407,9 @@ def main():
 
     print(f"[chessmont] PGN file: {pgn_path}")
     print(f"[chessmont] Workers: {args.workers}")
-    print(f"[chessmont] Batch size: {args.batch_size}")
+    print(f"[chessmont] Batch size: {args.batch_size:,}")
     print(f"[chessmont] Min games filter: {args.min_games}")
+    print(f"[chessmont] Strategy: COPY append → aggregate at end")
 
     conn = psycopg2.connect(db_url)
 
@@ -326,9 +421,23 @@ def main():
     ensure_progress_table(conn)
 
     if args.clean:
-        print("[chessmont] Truncating chessmont_moves (--clean flag)...")
+        print("[chessmont] Dropping all import data (--clean flag)...")
         with conn.cursor() as cur:
-            cur.execute("TRUNCATE chessmont_moves")
+            cur.execute("DROP TABLE IF EXISTS chessmont_moves_raw")
+            cur.execute("DROP TABLE IF EXISTS chessmont_moves")
+            # Recreate the final table (empty) so the app doesn't error
+            cur.execute("""
+                CREATE TABLE chessmont_moves (
+                    position_fen  TEXT NOT NULL,
+                    move_san      TEXT NOT NULL,
+                    resulting_fen TEXT NOT NULL,
+                    games_played  INTEGER NOT NULL DEFAULT 0,
+                    white_wins    INTEGER NOT NULL DEFAULT 0,
+                    black_wins    INTEGER NOT NULL DEFAULT 0,
+                    draws         INTEGER NOT NULL DEFAULT 0,
+                    PRIMARY KEY (position_fen, move_san)
+                )
+            """)
             cur.execute(
                 "DELETE FROM chessmont_import_progress WHERE id = 1"
             )
@@ -342,16 +451,9 @@ def main():
             print("[chessmont] No checkpoint found, starting from the beginning")
     else:
         resume_from = 0
-        # Safety check: warn if table already has data
-        with conn.cursor() as cur:
-            cur.execute("SELECT COUNT(*) FROM chessmont_moves")
-            existing = cur.fetchone()[0]
-        if existing > 0:
-            print(
-                f"[chessmont] WARNING: chessmont_moves already has {existing:,} rows. "
-                f"Re-importing without --clean will ADD to existing counts. "
-                f"Use --clean to start fresh or --resume to continue."
-            )
+
+    # Create the raw staging table (no PK, no indexes — fast appends)
+    ensure_raw_table(conn)
 
     # Process games
     start_time = time.time()
@@ -374,7 +476,7 @@ def main():
                 # Process batch in parallel
                 results = pool.map(process_game_pgn, batch)
                 aggregated = merge_results(results)
-                upsert_batch(conn, aggregated)
+                copy_batch(conn, aggregated)
 
                 games_processed += len(batch)
                 total_so_far = resume_from + games_processed
@@ -391,7 +493,7 @@ def main():
         if batch:
             results = pool.map(process_game_pgn, batch)
             aggregated = merge_results(results)
-            upsert_batch(conn, aggregated)
+            copy_batch(conn, aggregated)
             games_processed += len(batch)
             total_so_far = resume_from + games_processed
             save_checkpoint(conn, total_so_far)
@@ -418,8 +520,8 @@ def main():
         f"{format_duration(elapsed)}"
     )
 
-    # Post-import cleanup
-    post_import_cleanup(conn, args.min_games)
+    # Aggregate raw data into final table, filter, index, vacuum
+    aggregate_and_finalize(conn, args.min_games)
     drop_progress_table(conn)
 
     print("[chessmont] Import complete.")
