@@ -71,6 +71,25 @@ export const PATCH: RequestHandler = async ({ locals, request }) => {
 		}
 	}
 
+	// Puzzle goal count: positive integer 1–999, or null to clear the goal.
+	if (body.puzzleGoalCount !== undefined) {
+		if (body.puzzleGoalCount === null) {
+			updates.puzzleGoalCount = null;
+			updates.puzzleGoalFrequency = null;
+		} else if (typeof body.puzzleGoalCount === 'number') {
+			updates.puzzleGoalCount = Math.max(1, Math.min(999, Math.round(body.puzzleGoalCount)));
+		}
+	}
+
+	// Puzzle goal frequency: must be one of the known period names.
+	const VALID_FREQUENCIES = ['daily', 'weekly', 'monthly'];
+	if (
+		typeof body.puzzleGoalFrequency === 'string' &&
+		VALID_FREQUENCIES.includes(body.puzzleGoalFrequency)
+	) {
+		updates.puzzleGoalFrequency = body.puzzleGoalFrequency;
+	}
+
 	if (Object.keys(updates).length === 0) {
 		throw error(400, 'No recognised settings fields provided');
 	}

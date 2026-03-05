@@ -29,7 +29,8 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 			hasImportedPuzzles: false,
 			openingFamilies: [] as string[],
 			totalMatchingPuzzles: 0,
-			availableThemes: [] as string[]
+			availableThemes: [] as string[],
+			repertoireColor: null as string | null
 		};
 	}
 
@@ -38,7 +39,8 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 			hasImportedPuzzles: true,
 			openingFamilies: [] as string[],
 			totalMatchingPuzzles: 0,
-			availableThemes: [] as string[]
+			availableThemes: [] as string[],
+			repertoireColor: null as string | null
 		};
 	}
 
@@ -48,7 +50,8 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 			hasImportedPuzzles: true,
 			openingFamilies: [] as string[],
 			totalMatchingPuzzles: 0,
-			availableThemes: [] as string[]
+			availableThemes: [] as string[],
+			repertoireColor: null as string | null
 		};
 	}
 
@@ -68,7 +71,8 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 			hasImportedPuzzles: true,
 			openingFamilies: [] as string[],
 			totalMatchingPuzzles: 0,
-			availableThemes: [] as string[]
+			availableThemes: [] as string[],
+			repertoireColor: activeRep.color
 		};
 	}
 
@@ -91,7 +95,8 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 			hasImportedPuzzles: true,
 			openingFamilies: [] as string[],
 			totalMatchingPuzzles: 0,
-			availableThemes: [] as string[]
+			availableThemes: [] as string[],
+			repertoireColor: activeRep.color
 		};
 	}
 
@@ -113,7 +118,8 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 			hasImportedPuzzles: true,
 			openingFamilies: [] as string[],
 			totalMatchingPuzzles: 0,
-			availableThemes: [] as string[]
+			availableThemes: [] as string[],
+			repertoireColor: activeRep.color
 		};
 	}
 
@@ -168,6 +174,7 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 		hasImportedPuzzles: true,
 		openingFamilies,
 		totalMatchingPuzzles: matchCount.count,
-		availableThemes
+		availableThemes,
+		repertoireColor: activeRep.color
 	};
 };

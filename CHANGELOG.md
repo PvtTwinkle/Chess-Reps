@@ -15,6 +15,20 @@ Docker images are tagged per version. To stay on stable releases, pin your
 
 ### Added
 
+- **Dashboard: puzzle goal widget** — set a target number of puzzles to solve per
+  day, week, or month. The widget tracks solved puzzle attempts within the current
+  period and shows a progress bar. Links to the puzzle page when the goal isn't met;
+  displays a green "Goal met!" state when complete. Goals are persisted in user
+  settings and can be edited or cleared at any time.
+  - `puzzle_goal_count` and `puzzle_goal_frequency` columns added to `user_settings`
+  - `PATCH /api/settings` extended to accept goal fields
+  - `drizzle/migrations/0007_puzzle_goal.sql` — schema changes + index on
+    `puzzle_attempt(user_id, attempted_at)` for efficient date-range queries
+
+- **Puzzle page: color filter** — "My color only" checkbox in the Filters panel
+  restricts puzzles to those where you play the same side as your active repertoire
+  (e.g. only white puzzles for a white repertoire). Unchecked by default.
+
 - **Puzzle page: hide tags toggle** — small "Hide Tags" / "Show Tags" button in the
   puzzle info card lets you hide theme tags while solving so they don't hint at the
   tactic type. Session-only toggle, resets on page reload.

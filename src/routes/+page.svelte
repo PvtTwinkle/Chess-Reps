@@ -3,8 +3,59 @@
 	import OnboardingWelcome from '$lib/components/OnboardingWelcome.svelte';
 	import { formatLine } from '$lib/gaps';
 	import { base } from '$app/paths';
+	import { invalidateAll } from '$app/navigation';
 
 	let { data }: { data: PageData } = $props();
+
+	// ── Puzzle Goal state ───────────────────────────────────────────────
+	let editingGoal = $state(false);
+	let goalCountInput = $state<number | undefined>(undefined);
+	let goalFreqInput = $state<string>('daily');
+	let savingGoal = $state(false);
+
+	// Sync edit form with current goal when data changes.
+	$effect(() => {
+		if (data.puzzleGoal) {
+			goalCountInput = data.puzzleGoal.count;
+			goalFreqInput = data.puzzleGoal.frequency;
+		}
+	});
+
+	async function saveGoal() {
+		if (!goalCountInput || goalCountInput < 1) return;
+		savingGoal = true;
+		try {
+			await fetch(`${base}/api/settings`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					puzzleGoalCount: goalCountInput,
+					puzzleGoalFrequency: goalFreqInput
+				})
+			});
+			editingGoal = false;
+			await invalidateAll();
+		} finally {
+			savingGoal = false;
+		}
+	}
+
+	async function clearGoal() {
+		savingGoal = true;
+		try {
+			await fetch(`${base}/api/settings`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ puzzleGoalCount: null })
+			});
+			editingGoal = false;
+			goalCountInput = undefined;
+			goalFreqInput = 'daily';
+			await invalidateAll();
+		} finally {
+			savingGoal = false;
+		}
+	}
 
 	/**
 	 * Format a unix timestamp (seconds) as a relative time string like
@@ -110,6 +161,80 @@
 						Cards are waiting
 					{/if}
 				</div>
+			</div>
+
+			<!-- Puzzle Goal -->
+			<div class="widget">
+				<div class="widget-label">Puzzle Goal</div>
+				{#if data.puzzleGoal && !editingGoal}
+					{@const pct = Math.min(
+						100,
+						Math.round((data.puzzleGoal.solved / data.puzzleGoal.count) * 100)
+					)}
+					{@const met = data.puzzleGoal.solved >= data.puzzleGoal.count}
+					{@const freqLabel =
+						data.puzzleGoal.frequency === 'daily'
+							? 'today'
+							: data.puzzleGoal.frequency === 'weekly'
+								? 'this week'
+								: 'this month'}
+
+					<div class="widget-value" class:goal-met={met} class:goal-progress={!met}>
+						{data.puzzleGoal.solved}<span class="widget-denom">/{data.puzzleGoal.count}</span>
+					</div>
+
+					<div class="goal-bar">
+						<div class="goal-bar-fill" class:goal-bar-complete={met} style="width: {pct}%"></div>
+					</div>
+
+					{#if met}
+						<div class="widget-hint goal-complete-hint">Goal met {freqLabel}!</div>
+					{:else}
+						<a href="{base}/puzzles" class="goal-link">Solve puzzles</a>
+					{/if}
+
+					<button class="goal-edit-btn" onclick={() => (editingGoal = true)}>Edit</button>
+				{:else}
+					<!-- Setup / edit form -->
+					<div class="goal-setup">
+						<div class="goal-form-row">
+							<input
+								type="number"
+								min="1"
+								max="999"
+								placeholder="10"
+								class="goal-input"
+								bind:value={goalCountInput}
+							/>
+							<select class="goal-freq-select" bind:value={goalFreqInput}>
+								<option value="daily">daily</option>
+								<option value="weekly">weekly</option>
+								<option value="monthly">monthly</option>
+							</select>
+						</div>
+						<div class="goal-form-actions">
+							<button
+								class="goal-save-btn"
+								onclick={saveGoal}
+								disabled={!goalCountInput || goalCountInput < 1 || savingGoal}
+							>
+								{savingGoal ? 'Saving…' : 'Set Goal'}
+							</button>
+							{#if data.puzzleGoal}
+								<button class="goal-clear-btn" onclick={clearGoal} disabled={savingGoal}>
+									Clear
+								</button>
+								<button
+									class="goal-clear-btn"
+									onclick={() => (editingGoal = false)}
+									disabled={savingGoal}
+								>
+									Cancel
+								</button>
+							{/if}
+						</div>
+					</div>
+				{/if}
 			</div>
 
 			<!-- Card State Breakdown -->
@@ -269,6 +394,7 @@
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-1);
+		overflow: hidden;
 		transition:
 			border-color var(--dur-base) var(--ease-snap),
 			box-shadow var(--dur-base) var(--ease-snap);
@@ -545,5 +671,153 @@
 		color: var(--color-danger);
 		font-size: 12px;
 		white-space: nowrap;
+	}
+
+	/* ── Puzzle Goal ──────────────────────────────────────────────────── */
+
+	.goal-met {
+		color: var(--color-success);
+	}
+
+	.goal-progress {
+		color: var(--color-gold);
+	}
+
+	.goal-bar {
+		height: 6px;
+		background: var(--color-surface-alt);
+		border-radius: 3px;
+		overflow: hidden;
+		margin-top: var(--space-1);
+	}
+
+	.goal-bar-fill {
+		height: 100%;
+		background: var(--color-gold);
+		border-radius: 3px;
+		transition: width var(--dur-slow);
+		min-width: 2px;
+	}
+
+	.goal-bar-complete {
+		background: var(--color-success);
+	}
+
+	.goal-link {
+		font-size: 12px;
+		color: var(--color-gold);
+		text-decoration: none;
+		margin-top: var(--space-1);
+		transition: color var(--dur-fast) var(--ease-snap);
+	}
+
+	.goal-link:hover {
+		color: var(--color-text-primary);
+	}
+
+	.goal-complete-hint {
+		color: var(--color-success);
+	}
+
+	.goal-setup {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-2);
+		margin-top: var(--space-2);
+		min-width: 0;
+	}
+
+	.goal-form-row {
+		display: flex;
+		gap: var(--space-1);
+		align-items: center;
+		min-width: 0;
+	}
+
+	.goal-input {
+		width: 45px;
+		min-width: 40px;
+		flex: 0 1 45px;
+		background: var(--color-surface-alt);
+		color: var(--color-text-primary);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-sm);
+		padding: var(--space-1) var(--space-1);
+		font-family: var(--font-body);
+		font-size: 0.8rem;
+	}
+
+	.goal-input:focus {
+		outline: none;
+		border-color: var(--color-gold);
+	}
+
+	.goal-freq-select {
+		min-width: 0;
+		flex: 1 1 auto;
+		background: var(--color-surface-alt);
+		color: var(--color-text-primary);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-sm);
+		padding: var(--space-1) var(--space-1);
+		font-family: var(--font-body);
+		font-size: 0.8rem;
+	}
+
+	.goal-form-actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--space-1);
+		align-items: center;
+	}
+
+	.goal-save-btn {
+		background: var(--color-gold);
+		color: var(--color-base);
+		border: none;
+		border-radius: var(--radius-sm);
+		padding: var(--space-1) var(--space-2);
+		font-family: var(--font-body);
+		font-size: 0.75rem;
+		font-weight: 600;
+		cursor: pointer;
+		white-space: nowrap;
+	}
+
+	.goal-save-btn:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+
+	.goal-clear-btn {
+		background: none;
+		border: 1px solid var(--color-border);
+		color: var(--color-text-muted);
+		border-radius: var(--radius-sm);
+		padding: var(--space-1) var(--space-2);
+		font-family: var(--font-body);
+		font-size: 0.75rem;
+		cursor: pointer;
+		white-space: nowrap;
+	}
+
+	.goal-clear-btn:hover {
+		color: var(--color-text-secondary);
+		border-color: var(--color-text-muted);
+	}
+
+	.goal-edit-btn {
+		background: none;
+		border: none;
+		color: var(--color-text-muted);
+		font-size: 0.7rem;
+		cursor: pointer;
+		padding: 0;
+		margin-top: var(--space-1);
+		font-family: var(--font-body);
+	}
+
+	.goal-edit-btn:hover {
+		color: var(--color-text-secondary);
 	}
 </style>

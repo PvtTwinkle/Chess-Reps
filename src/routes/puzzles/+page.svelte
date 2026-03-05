@@ -80,6 +80,9 @@
 	// Hide tags toggle — session-only, not persisted
 	let hideThemes = $state(false);
 
+	// Color filter — only show puzzles where user plays the repertoire's side
+	let myColorOnly = $state(false);
+
 	// Session stats
 	let puzzlesSolved = $state(0);
 	let puzzlesFailed = $state(0);
@@ -153,6 +156,7 @@
 		if (minRating) params.set('minRating', minRating);
 		if (maxRating) params.set('maxRating', maxRating);
 		if (selectedThemes.length > 0) params.set('themes', selectedThemes.join(','));
+		if (myColorOnly && data.repertoireColor) params.set('color', data.repertoireColor);
 
 		try {
 			const res = await fetch(`/api/puzzles/next?${params}`);
@@ -575,6 +579,15 @@
 			<!-- Filters -->
 			<details class="filters" open>
 				<summary class="filters-title">Filters</summary>
+
+				{#if data.repertoireColor}
+					<div class="filter-group">
+						<label class="color-filter-label">
+							<input type="checkbox" bind:checked={myColorOnly} />
+							<span>My color only ({data.repertoireColor === 'WHITE' ? 'White' : 'Black'})</span>
+						</label>
+					</div>
+				{/if}
 
 				<div class="filter-group">
 					<label class="filter-label" for="opening-filter">Opening</label>
@@ -1024,6 +1037,22 @@
 
 	.rating-sep {
 		color: var(--color-text-muted);
+	}
+
+	/* ── Color filter ────────────────────────────────────────────────────────── */
+
+	.color-filter-label {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		font-size: 0.82rem;
+		color: var(--color-text-secondary);
+		cursor: pointer;
+	}
+
+	.color-filter-label input[type='checkbox'] {
+		accent-color: var(--color-gold);
+		cursor: pointer;
 	}
 
 	/* ── Theme checkboxes ────────────────────────────────────────────────────── */

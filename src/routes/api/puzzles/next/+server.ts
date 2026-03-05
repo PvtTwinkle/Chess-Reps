@@ -34,6 +34,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 	const minRating = url.searchParams.get('minRating');
 	const maxRating = url.searchParams.get('maxRating');
 	const themesParam = url.searchParams.get('themes');
+	const colorParam = url.searchParams.get('color'); // 'WHITE' or 'BLACK'
 
 	// Build the WHERE conditions
 	// Prefix-match: each family becomes a LIKE 'family%' clause
@@ -53,6 +54,14 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		const max = parseInt(maxRating);
 		if (!isNaN(max)) conditions.push(lte(puzzle.rating, max));
 	}
+	// Color filter: the FEN's active color is who plays the setup move (opponent).
+	// User plays the opposite side. So WHITE repertoire → FEN turn = 'b', BLACK → 'w'.
+	if (colorParam === 'WHITE') {
+		conditions.push(sql`split_part(${puzzle.fen}, ' ', 2) = 'b'`);
+	} else if (colorParam === 'BLACK') {
+		conditions.push(sql`split_part(${puzzle.fen}, ' ', 2) = 'w'`);
+	}
+
 	if (themesParam) {
 		// Match puzzles that contain ANY of the specified themes
 		const themes = themesParam.split(',').filter((t) => t.length > 0);

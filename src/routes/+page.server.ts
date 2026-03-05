@@ -12,8 +12,14 @@
 
 import type { PageServerLoad } from './$types';
 import { db } from '$lib/db';
-import { userMove, bookMove, userRepertoireMove, drillSession } from '$lib/db/schema';
-import { eq, and, inArray, gt, desc } from 'drizzle-orm';
+import {
+	userMove,
+	bookMove,
+	userRepertoireMove,
+	drillSession,
+	puzzleAttempt
+} from '$lib/db/schema';
+import { eq, and, inArray, gt, gte, desc, count } from 'drizzle-orm';
 import { computeGaps, fenKey } from '$lib/gaps';
 import type { Gap } from '$lib/gaps';
 import { getEffectiveStartFens, buildInScopeFens } from '$lib/repertoire';
@@ -33,7 +39,7 @@ export interface SessionSummary {
 }
 
 export const load: PageServerLoad = async ({ parent, locals }) => {
-	const { repertoires, activeRepertoireId } = await parent();
+	const { repertoires, activeRepertoireId, settings } = await parent();
 
 	// Defaults when there's nothing to show.
 	const emptyStats = {
@@ -46,7 +52,8 @@ export const load: PageServerLoad = async ({ parent, locals }) => {
 		cardStates: { new_: 0, learning: 0, review: 0, relearning: 0 },
 		streak: 0,
 		recentSessions: [] as SessionSummary[],
-		troubleSpots: [] as TroubleSpot[]
+		troubleSpots: [] as TroubleSpot[],
+		puzzleGoal: null as { count: number; frequency: string; solved: number } | null
 	};
 
 	if (!activeRepertoireId || repertoires.length === 0 || !locals.user) {
@@ -203,6 +210,39 @@ export const load: PageServerLoad = async ({ parent, locals }) => {
 			lapses: c.lapses ?? 0
 		}));
 
+	// ── Puzzle Goal (solved count within current period) ────────────────
+	let puzzleGoal: { count: number; frequency: string; solved: number } | null = null;
+
+	if (settings?.puzzleGoalCount && settings?.puzzleGoalFrequency) {
+		const periodStart = new Date(now);
+		periodStart.setUTCHours(0, 0, 0, 0);
+
+		if (settings.puzzleGoalFrequency === 'weekly') {
+			// Week starts Monday: getUTCDay() 0=Sun,1=Mon,...,6=Sat
+			const dow = periodStart.getUTCDay();
+			periodStart.setUTCDate(periodStart.getUTCDate() - (dow === 0 ? 6 : dow - 1));
+		} else if (settings.puzzleGoalFrequency === 'monthly') {
+			periodStart.setUTCDate(1);
+		}
+
+		const [result] = await db
+			.select({ solved: count() })
+			.from(puzzleAttempt)
+			.where(
+				and(
+					eq(puzzleAttempt.userId, userId),
+					eq(puzzleAttempt.solved, true),
+					gte(puzzleAttempt.attemptedAt, periodStart)
+				)
+			);
+
+		puzzleGoal = {
+			count: settings.puzzleGoalCount,
+			frequency: settings.puzzleGoalFrequency,
+			solved: Number(result.solved)
+		};
+	}
+
 	return {
 		repertoires,
 		gaps,
@@ -213,6 +253,7 @@ export const load: PageServerLoad = async ({ parent, locals }) => {
 		cardStates,
 		streak,
 		recentSessions,
-		troubleSpots
+		troubleSpots,
+		puzzleGoal
 	};
 };
