@@ -12,7 +12,7 @@
 
 import { redirect } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { deleteSession, SESSION_COOKIE_NAME } from '$lib/auth';
+import { deleteSession, SESSION_COOKIE_NAME, SECURE_COOKIE } from '$lib/auth';
 
 export const POST: RequestHandler = async ({ cookies }) => {
 	const token = cookies.get(SESSION_COOKIE_NAME);
@@ -23,7 +23,7 @@ export const POST: RequestHandler = async ({ cookies }) => {
 
 		// Tell the browser to delete the cookie by clearing it.
 		// The path: '/' must match the path used when the cookie was set.
-		cookies.delete(SESSION_COOKIE_NAME, { path: '/' });
+		cookies.delete(SESSION_COOKIE_NAME, { path: '/', secure: SECURE_COOKIE });
 	}
 
 	// Send the user to the login page.

@@ -440,8 +440,8 @@
 		</p>
 		<p>
 			<code
-				>gunzip -c puzzles-dump.sql.gz | docker exec -i chess-reps-postgres psql -U
-				chess_reps chess_reps</code
+				>gunzip -c puzzles-dump.sql.gz | docker exec -i chess-reps-postgres psql -U chess_reps
+				chess_reps</code
 			>
 		</p>
 	</div>

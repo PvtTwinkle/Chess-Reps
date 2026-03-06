@@ -10,7 +10,7 @@ import { db } from '$lib/db';
 import { user } from '$lib/db/schema';
 import { eq } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
-import { createSession, SESSION_COOKIE_NAME } from '$lib/auth';
+import { createSession, SESSION_COOKIE_NAME, SECURE_COOKIE } from '$lib/auth';
 
 const REGISTRATION_MODE = process.env.REGISTRATION_MODE ?? 'invite';
 
@@ -98,12 +98,11 @@ export const actions: Actions = {
 
 		// Create session and set cookie
 		const token = await createSession(newUser.id);
-		const secureCookies = process.env.SECURE_COOKIES === 'true';
 		cookies.set(SESSION_COOKIE_NAME, token, {
 			path: '/',
 			httpOnly: true,
 			sameSite: 'lax',
-			secure: secureCookies,
+			secure: SECURE_COOKIE,
 			maxAge: 60 * 60 * 24 * 30
 		});
 

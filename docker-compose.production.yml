@@ -1,5 +1,5 @@
 services:
-    app:
+  app:
     image: ghcr.io/pvttwinkle/chess-reps:latest
     container_name: chess-reps-app
     restart: unless-stopped
@@ -11,8 +11,7 @@ services:
       - DEFAULT_USERNAME=admin
       - DEFAULT_PASSWORD=changeme
       - REGISTRATION_MODE=invite # change to 'open' if you want anyone to be able to register an account
-      # - SECURE_COOKIES=true # Set to true when the app is accessed over HTTPS
-      # - GAME_IMPORT_INTERVAL_MINUTES=60 # How often the app fetches new games from Lichess & Chess.com. Defaults to 0
+      - GAME_IMPORT_INTERVAL_MINUTES=0 # How often the app fetches new games from Lichess & Chess.com.
     depends_on:
       postgres:
         condition: service_healthy

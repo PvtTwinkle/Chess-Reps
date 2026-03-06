@@ -14,7 +14,7 @@
 
 import { redirect } from '@sveltejs/kit';
 import type { Handle } from '@sveltejs/kit';
-import { validateSession, deleteSession, SESSION_COOKIE_NAME } from '$lib/auth';
+import { validateSession, deleteSession, SESSION_COOKIE_NAME, SECURE_COOKIE } from '$lib/auth';
 import { db, dbReady } from '$lib/db';
 import { user } from '$lib/db/schema';
 import { eq } from 'drizzle-orm';
@@ -66,7 +66,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 				if (!foundUser.enabled) {
 					// Account has been disabled by an admin — immediately invalidate the session.
 					await deleteSession(token);
-					event.cookies.delete(SESSION_COOKIE_NAME, { path: '/' });
+					event.cookies.delete(SESSION_COOKIE_NAME, { path: '/', secure: SECURE_COOKIE });
 				} else {
 					event.locals.user = {
 						id: foundUser.id,
@@ -78,7 +78,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 		} else {
 			// The token exists in the browser but is not valid (expired or deleted).
 			// Clear the stale cookie so the browser stops sending it on every request.
-			event.cookies.delete(SESSION_COOKIE_NAME, { path: '/' });
+			event.cookies.delete(SESSION_COOKIE_NAME, { path: '/', secure: SECURE_COOKIE });
 		}
 	}
 

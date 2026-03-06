@@ -105,10 +105,10 @@ Log in with the username and password you set above.
 Chess Reps ships with ECO opening names and a small starter book, but two larger
 datasets are available as separate downloads:
 
-| Dataset              | Description                                                        | Approx. Size |
-| -------------------- | ------------------------------------------------------------------ | ------------ |
+| Dataset              | Description                                                                                           | Approx. Size |
+| -------------------- | ----------------------------------------------------------------------------------------------------- | ------------ |
 | **Masters Database** | ~8.8M moves from master-level games (Chessmont, ELO >= 2500). Powers the "Masters" tab in Build Mode. | ~131 MB      |
-| **Lichess Puzzles**  | Opening-tagged tactical puzzles. Powers the Puzzles page.          | ~69 MB      |
+| **Lichess Puzzles**  | Opening-tagged tactical puzzles. Powers the Puzzles page.                                             | ~69 MB       |
 
 Without these datasets, the app works fine — the Masters tab falls back to Stockfish
 engine analysis, and the Puzzles page shows setup instructions.

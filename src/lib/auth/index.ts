@@ -14,6 +14,12 @@ import { eq } from 'drizzle-orm';
 // (login action) and the code that reads it (hooks.server.ts).
 export const SESSION_COOKIE_NAME = 'chess_reps_session';
 
+// Derive cookie "secure" flag from the ORIGIN env var.
+// If ORIGIN starts with https://, the app is accessed over HTTPS and cookies
+// must be marked secure. Otherwise (plain HTTP), secure must be false or the
+// browser will silently reject the cookie.
+export const SECURE_COOKIE = (process.env.ORIGIN ?? '').startsWith('https://');
+
 // Sessions are valid for 30 days. After this, the user must log in again.
 const SESSION_DURATION_DAYS = 30;
 

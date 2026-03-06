@@ -62,10 +62,8 @@ services:
       #   "invite" — only the admin can create accounts via /admin (default)
       - REGISTRATION_MODE=invite
 
-      # Set to true when the app is accessed over HTTPS (e.g. behind a reverse
-      # proxy with TLS). Ensures the session cookie is only sent over secure
-      # connections. Leave commented out (defaults to false) for HTTP-only setups.
-      # - SECURE_COOKIES=true
+      # Cookie security is derived automatically from the ORIGIN env var above.
+      # If ORIGIN starts with https://, cookies are marked secure automatically.
 
       # ── Game Import ───────────────────────────────────────────────────────
       # Auto-import interval in minutes. When set to a positive number, the
