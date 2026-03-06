@@ -13,6 +13,8 @@
 // IMPORTANT: This must produce identical output to normalize_opening()
 // in scripts/puzzle-import.py. If you change one, change the other.
 
+import { fenKey } from '$lib/fen';
+
 /**
  * Normalize an opening name for matching between ECO names and
  * Lichess puzzle opening tags.
@@ -54,5 +56,64 @@ export function removeParentNames(names: string[]): string[] {
 		}
 	}
 
+	return result;
+}
+
+/**
+ * Traverse the repertoire move tree via DFS and collect only the deepest
+ * ECO name along each branch. Transit positions (e.g. "King's Knight
+ * Opening" on the way to "Scotch Game") are naturally overridden by
+ * deeper ECO names and never appear in the result.
+ *
+ * @param moves     All user moves for the repertoire (fromFen + toFen)
+ * @param ecoByFen  Map from fenKey → ECO opening name
+ * @param rootFen   The root position of the repertoire tree
+ * @returns         Set of deepest ECO names (one per leaf path)
+ */
+export function getDeepestEcoNames(
+	moves: { fromFen: string; toFen: string }[],
+	ecoByFen: Map<string, string>,
+	rootFen: string
+): Set<string> {
+	// Build adjacency: fenKey(fromFen) → fenKey(toFen)[]
+	const adj = new Map<string, string[]>();
+	for (const m of moves) {
+		const fk = fenKey(m.fromFen);
+		const tk = fenKey(m.toFen);
+		let children = adj.get(fk);
+		if (!children) {
+			children = [];
+			adj.set(fk, children);
+		}
+		if (!children.includes(tk)) children.push(tk);
+	}
+
+	const result = new Set<string>();
+	const visited = new Set<string>();
+
+	function dfs(fk: string, currentEco: string | null): void {
+		if (visited.has(fk)) {
+			// Transposition cycle — treat as leaf for this path
+			if (currentEco) result.add(currentEco);
+			return;
+		}
+		visited.add(fk);
+
+		// If this position has an ECO name, it overrides the ancestor's
+		const eco = ecoByFen.get(fk);
+		const effectiveEco = eco ?? currentEco;
+
+		const children = adj.get(fk);
+		if (!children || children.length === 0) {
+			// Leaf — record the deepest ECO seen along this path
+			if (effectiveEco) result.add(effectiveEco);
+		} else {
+			for (const child of children) {
+				dfs(child, effectiveEco);
+			}
+		}
+	}
+
+	dfs(fenKey(rootFen), null);
 	return result;
 }

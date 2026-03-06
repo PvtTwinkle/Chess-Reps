@@ -11,7 +11,9 @@ import { redirect } from '@sveltejs/kit';
 import { db } from '$lib/db';
 import { userMove, ecoOpening, puzzle } from '$lib/db/schema';
 import { eq, and, inArray, sql, count } from 'drizzle-orm';
-import { normalizeOpening, removeParentNames } from '$lib/puzzleMatching';
+import { normalizeOpening, removeParentNames, getDeepestEcoNames } from '$lib/puzzleMatching';
+import { fenKey } from '$lib/fen';
+import { STARTING_FEN } from '$lib/gaps';
 
 export const load: PageServerLoad = async ({ locals, parent }) => {
 	const { activeRepertoireId, repertoires } = await parent();
@@ -57,16 +59,14 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 
 	const userId = locals.user.id;
 
-	// Get all destination FENs from the user's active repertoire.
-	// These represent positions the user has studied.
+	// Get all moves from the user's active repertoire (need both fromFen
+	// and toFen to build the tree for tree-aware ECO selection).
 	const moves = await db
-		.select({ toFen: userMove.toFen })
+		.select({ fromFen: userMove.fromFen, toFen: userMove.toFen })
 		.from(userMove)
 		.where(and(eq(userMove.userId, userId), eq(userMove.repertoireId, activeRepertoireId)));
 
-	const toFens = [...new Set(moves.map((m) => m.toFen))];
-
-	if (toFens.length === 0) {
+	if (moves.length === 0) {
 		return {
 			hasImportedPuzzles: true,
 			openingFamilies: [] as string[],
@@ -76,21 +76,29 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 		};
 	}
 
-	// Look up ECO opening names for those positions.
-	const ecoMatches = await db
-		.select({ name: ecoOpening.name })
+	// Look up ECO names for all positions in the repertoire.
+	const allFens = [...new Set([...moves.map((m) => m.fromFen), ...moves.map((m) => m.toFen)])];
+	const ecoRows = await db
+		.select({ fen: ecoOpening.fen, name: ecoOpening.name })
 		.from(ecoOpening)
-		.where(inArray(ecoOpening.fen, toFens));
+		.where(inArray(ecoOpening.fen, allFens));
 
-	// Normalize ECO names for matching against puzzle opening_family column.
-	// Then remove broad parent names when a more specific child exists —
-	// e.g. if the user has "Scotch Game" and "Scotch Game: Scotch Gambit",
-	// only keep the Scotch Gambit so we don't match all Scotch variations.
-	const ecoNames = [...new Set(ecoMatches.map((e) => e.name))];
-	const allNormalized = [...new Set(ecoNames.map(normalizeOpening))];
-	const dedupedNames = removeParentNames(allNormalized);
+	const ecoByFen = new Map<string, string>();
+	for (const row of ecoRows) {
+		ecoByFen.set(fenKey(row.fen), row.name);
+	}
 
-	if (dedupedNames.length === 0) {
+	// Tree-aware ECO selection: DFS the repertoire tree and collect only
+	// the deepest ECO name along each branch. Transit positions (e.g.
+	// "King's Knight Opening" on the way to "Scotch Game") are overridden
+	// by the deeper opening and excluded from puzzle matching.
+	const rootFen = activeRep.startFen ?? STARTING_FEN;
+	const deepestNames = getDeepestEcoNames(moves, ecoByFen, rootFen);
+
+	// Normalize for matching against puzzle opening_family column.
+	const normalizedDeepest = [...new Set([...deepestNames].map(normalizeOpening))];
+
+	if (normalizedDeepest.length === 0) {
 		return {
 			hasImportedPuzzles: true,
 			openingFamilies: [] as string[],
@@ -100,18 +108,50 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 		};
 	}
 
-	// Verify each name actually exists as a puzzle opening_family.
-	// Early/transit ECO positions like "King's Pawn Game" (1.e4) have
-	// no exact match in the puzzle table — they only appear as prefixes
-	// of unrelated families (e.g. "kings pawn game wayward queen attack").
-	// Dropping names without exact matches prevents these transit positions
-	// from pulling in thousands of irrelevant puzzles.
-	const existCheck = await db
+	// Progressive fallback: deepest ECO names may be too specific to
+	// match any puzzle family (e.g. "Scotch Game, Classical Variation,
+	// Intermezzo Variation"). Query broad prefixes (first 2 words) to
+	// get candidate families, then truncate word-by-word until a match.
+	const broadPrefixes = new Set<string>();
+	for (const name of normalizedDeepest) {
+		const words = name.split(' ');
+		broadPrefixes.add(words.length >= 2 ? words.slice(0, 2).join(' ') : name);
+	}
+	const prefixPatterns = [...broadPrefixes].map((p) => `${p}%`);
+
+	const familyRows = await db
 		.selectDistinct({ family: puzzle.openingFamily })
 		.from(puzzle)
-		.where(inArray(puzzle.openingFamily, dedupedNames));
-	const existingFamilies = new Set(existCheck.map((r) => r.family));
-	const normalizedNames = dedupedNames.filter((n) => existingFamilies.has(n));
+		.where(
+			sql`${puzzle.openingFamily} LIKE ANY(ARRAY[${sql.join(
+				prefixPatterns.map((p) => sql`${p}`),
+				sql`, `
+			)}])`
+		);
+	const candidateFamilies = new Set(familyRows.map((r) => r.family));
+
+	// For each deepest name, find the best matching puzzle family by
+	// progressively removing the last word until we find an exact match.
+	const resolved = new Set<string>();
+	for (const name of normalizedDeepest) {
+		if (candidateFamilies.has(name)) {
+			resolved.add(name);
+			continue;
+		}
+		let candidate = name;
+		while (candidate.includes(' ')) {
+			candidate = candidate.substring(0, candidate.lastIndexOf(' '));
+			if (candidateFamilies.has(candidate)) {
+				resolved.add(candidate);
+				break;
+			}
+		}
+	}
+
+	// Remove parent names when a more specific child exists — e.g. if
+	// one branch resolves to "Scotch Game" and another to "Scotch Game
+	// Scotch Gambit", only keep the gambit.
+	const normalizedNames = removeParentNames([...resolved]);
 
 	if (normalizedNames.length === 0) {
 		return {
