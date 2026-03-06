@@ -2,21 +2,18 @@
 
 A self-hosted web application for learning and drilling chess openings using spaced
 repetition. Build your own opening repertoire on an interactive board, then let the
-app quiz you on it — surfacing the positions you are most likely to forget.
-
-No subscription. No data leaving your machine. Fully offline after the initial pull.
+app quiz you on it.
 
 ---
 
 ## What It Does
 
 - **Build Mode** — Play out moves to construct your repertoire. The app suggests
-  known book moves and shows Stockfish evaluations for any position.
+  known book moves, moves played by Masters (2500+) extracted from 21 million+ games, and Stockfish suggestions.
 - **Drill Mode** — Spaced repetition (FSRS algorithm) surfaces positions due for
   review. Grade yourself and the algorithm schedules the next session.
-- **Explorer** — Browse your full repertoire tree on an interactive board.
-- **Game Review** — Paste a PGN or import from Lichess to find where you deviated
-  from your prep. Add punishment lines to drill opponent blunders.
+- **Puzzles** — Test your tactics derived from the openings you play.
+- **Game Review** — Paste a PGN or import from Lichess & Chess.com to find where you or your opponent deviated from your prep.
 - **Dashboard** — Track your repertoire health: due cards, mastered positions,
   gaps, streaks, and review history.
 
@@ -29,17 +26,14 @@ No subscription. No data leaving your machine. Fully offline after the initial p
 - [Docker](https://docs.docker.com/get-docker/)
 - [Docker Compose](https://docs.docker.com/compose/install/) (included with Docker Desktop)
 
-### Run in Under 5 Minutes
+### Docker Setup
 
-**1. Copy this file and save it as `docker-compose.yml`:**
+**1. Create a docker-compose.yml file**
 
 ```yaml
 services:
   app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: chess-reps:latest
+    image: ghcr.io/pvttwinkle/chess-reps:latest
     container_name: chess-reps-app
     restart: unless-stopped
     ports:
@@ -49,6 +43,8 @@ services:
       - ORIGIN=http://localhost:3000
       - DEFAULT_USERNAME=admin
       - DEFAULT_PASSWORD=changeme
+      - REGISTRATION_MODE=invite
+      - GAME_IMPORT_INTERVAL_MINUTES=0
     depends_on:
       postgres:
         condition: service_healthy
@@ -58,7 +54,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
-
   postgres:
     image: postgres:17-alpine
     container_name: chess-reps-postgres
@@ -74,23 +69,17 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-
 volumes:
   pgdata:
 ```
 
-**2. Change your password before starting:**
-
-Edit the `DEFAULT_PASSWORD` line. This password is only used on the very first run
-to create your account. After that, change it in Settings.
-
-**3. Start the app:**
+**2. Start the app:**
 
 ```bash
 docker compose up -d
 ```
 
-**4. Open your browser:**
+**3. Open your browser:**
 
 ```
 http://localhost:3000
@@ -110,7 +99,7 @@ datasets are available as separate downloads:
 | **Masters Database** | ~8.8M moves from master-level games (Chessmont, ELO >= 2500). Powers the "Masters" tab in Build Mode. | ~131 MB      |
 | **Lichess Puzzles**  | Opening-tagged tactical puzzles. Powers the Puzzles page.                                             | ~69 MB       |
 
-Without these datasets, the app works fine — the Masters tab falls back to Stockfish
+Without these datasets, the Masters tab falls back to Stockfish
 engine analysis, and the Puzzles page shows setup instructions.
 
 ### One-Command Install
@@ -118,7 +107,7 @@ engine analysis, and the Puzzles page shows setup instructions.
 After starting the app (`docker compose up -d`), run:
 
 ```bash
-./scripts/data-restore.sh
+curl -sL https://raw.githubusercontent.com/PvtTwinkle/Chess-Reps/main/scripts/data-restore.sh | bash
 ```
 
 This downloads the latest data from GitHub Releases and loads it into your database.
@@ -126,7 +115,7 @@ This downloads the latest data from GitHub Releases and loads it into your datab
 ### Manual Install
 
 1. Download `chessmont-moves-dump.sql.gz` and `puzzles-dump.sql.gz` from the
-   [latest data release](https://github.com/PvtTwinkle/Chess-Reps/releases?q=data-v).
+   [latest data release](https://github.com/PvtTwinkle/Chess-Reps/releases?q=data).
 2. Restore each file:
 
 ```bash
@@ -147,6 +136,8 @@ gunzip -c puzzles-dump.sql.gz | \
 | `ORIGIN`           | Yes       | The URL you use to access the app. Change this if using a reverse proxy (e.g. `https://chess.yourdomain.com`). Required for security. |
 | `DEFAULT_USERNAME` | First run | Username created when the database is empty. Ignored after first run.                                                                 |
 | `DEFAULT_PASSWORD` | First run | Password created when the database is empty. **Change this before first run.** Ignored after first run.                               |
+| `REGISTRATION_MODE` | No | `invite` (admin creates users) or `open` (login page includes registration). Default: `invite`.                              |
+| `GAME_IMPORT_INTERVAL_MINUTES` | No | How often (in minutes) the app syncs user Chess.com & Lichess public games for review. `0` = manual only. Default: `0`.                               |
 
 ---
 
@@ -155,9 +146,6 @@ gunzip -c puzzles-dump.sql.gz | \
 ```bash
 docker compose pull && docker compose up -d
 ```
-
-New releases may include additional opening theory in the shared book database.
-Migrations run automatically on startup — your personal data is never touched.
 
 ---
 
@@ -203,15 +191,6 @@ No authentication required. Compatible with [Uptime Kuma](https://github.com/lou
 and any other monitoring tool.
 
 ---
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for how to set up a dev environment and
-how to contribute opening book moves.
-
-## Changelog
-
-See [CHANGELOG.md](CHANGELOG.md) for version history.
 
 ## Acknowledgments
 
