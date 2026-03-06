@@ -33,6 +33,8 @@ CLAUDE.md
 README.md
 CHANGELOG.md
 CONTRIBUTING.md
+SECURITY.md
+THIRD-PARTY-NOTICES.md
 chess-opening-trainer-brief-v3.md
 
 # Docker files — not needed inside the image
@@ -44,7 +46,12 @@ docker-compose.yml
 scripts
 .prettierrc
 .prettierignore
+.pre-commit-config.yaml
 eslint.config.js
+drizzle.config.ts
+
+# Data dump files — large, not needed in the image
+*.sql.gz
 
 # Logs
 *.log
