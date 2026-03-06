@@ -9,17 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [1.0.1] — 2026-03-06
+
 ### Added
 
 - Delete confirmation modal in Build Mode before removing moves
 
 ### Changed
 
+- Standardized project documentation for public release
 - Cleaned up stale files and expanded `.dockerignore` for smaller build context
 
 ### Fixed
 
 - Puzzle opening matching now uses tree-aware ECO selection for more accurate results
+- Formatting and code style consistency improvements
 
 ---
 
@@ -113,5 +119,6 @@ game review, puzzle training, and a local masters database — all running offli
 
 ---
 
-[Unreleased]: https://github.com/your-org/chess-reps/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/your-org/chess-reps/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/your-org/chess-reps/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/your-org/chess-reps/releases/tag/v1.0.0
