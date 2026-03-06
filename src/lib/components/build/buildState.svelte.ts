@@ -70,6 +70,10 @@ export function createBuildState(params: CreateBuildStateParams) {
 	let boardKey = $state(0);
 	let startFen = $state<string | null>(null);
 
+	// ── Delete confirmation state ────────────────────────────────────────────
+
+	let pendingDelete = $state<RepertoireMove | null>(null);
+
 	// ── Annotation state ─────────────────────────────────────────────────────
 
 	let annotatingMove = $state<RepertoireMove | null>(null);
@@ -379,6 +383,39 @@ export function createBuildState(params: CreateBuildStateParams) {
 
 	// ── Deletion ─────────────────────────────────────────────────────────────
 
+	// Count how many moves exist in the subtree rooted at a given position.
+	function countSubtreeMoves(rootFen: string): number {
+		let count = 0;
+		const queue = [rootFen];
+		const visited = new SvelteSet<string>();
+		while (queue.length > 0) {
+			const fen = queue.shift()!;
+			const key = fenKey(fen);
+			if (visited.has(key)) continue;
+			visited.add(key);
+			for (const child of movesFromFen.get(key) ?? []) {
+				count++;
+				queue.push(child.toFen);
+			}
+		}
+		return count;
+	}
+
+	function confirmDelete(move: RepertoireMove): void {
+		pendingDelete = move;
+	}
+
+	function cancelDelete(): void {
+		pendingDelete = null;
+	}
+
+	async function executePendingDelete(): Promise<void> {
+		if (!pendingDelete) return;
+		const move = pendingDelete;
+		pendingDelete = null;
+		await deleteMove(move);
+	}
+
 	async function deleteMove(move: RepertoireMove): Promise<void> {
 		if (saving) return;
 		saving = true;
@@ -606,6 +643,15 @@ export function createBuildState(params: CreateBuildStateParams) {
 			return isStartPosition;
 		},
 
+		// Delete confirmation
+		get pendingDelete() {
+			return pendingDelete;
+		},
+		get pendingDeleteSubtreeCount() {
+			if (!pendingDelete) return 0;
+			return countSubtreeMoves(pendingDelete.toFen);
+		},
+
 		// Actions
 		syncFromData,
 		saveJumpLineMoves,
@@ -615,7 +661,9 @@ export function createBuildState(params: CreateBuildStateParams) {
 		navigateTo,
 		navigateToHistoryIdx,
 		handleCandidateSelect,
-		deleteMove,
+		confirmDelete,
+		cancelDelete,
+		executePendingDelete,
 		openAnnotation,
 		closeAnnotation,
 		annotateLastMove,
