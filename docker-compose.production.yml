@@ -1,0 +1,41 @@
+services:
+    app:
+    image: ghcr.io/pvttwinkle/chess-reps:latest
+    container_name: chess-reps-app
+    restart: unless-stopped
+    ports:
+      - '3000:3000'
+    environment:
+      - DATABASE_URL=postgresql://chess_reps:chess_reps_secret@postgres:5432/chess_reps
+      - ORIGIN=http://localhost:3000
+      - DEFAULT_USERNAME=admin
+      - DEFAULT_PASSWORD=changeme
+      - REGISTRATION_MODE=invite # change to 'open' if you want anyone to be able to register an account
+      # - SECURE_COOKIES=true # Set to true when the app is accessed over HTTPS
+      # - GAME_IMPORT_INTERVAL_MINUTES=60 # How often the app fetches new games from Lichess & Chess.com. Defaults to 0
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://localhost:3000/api/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+  postgres:
+    image: postgres:17-alpine
+    container_name: chess-reps-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: chess_reps
+      POSTGRES_USER: chess_reps
+      POSTGRES_PASSWORD: chess_reps_secret
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U chess_reps']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+volumes:
+  pgdata:

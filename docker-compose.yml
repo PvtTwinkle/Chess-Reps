@@ -22,7 +22,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: chess-reps:latest
+    image: ghcr.io/pvttwinkle/chess-reps:latest
     container_name: chess-reps-app
     restart: unless-stopped
 
