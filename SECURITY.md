@@ -37,15 +37,15 @@ If you discover a security issue, please open a
 
 Every push is gated by the following checks via the `pre-commit` framework:
 
-| Tool | Purpose |
-|---|---|
-| Gitleaks | Scans Git history for hardcoded secrets, API keys, and tokens |
-| npm audit | Checks dependencies against the GitHub Advisory Database for known CVEs |
-| ESLint security plugins | Catches Node.js security antipatterns and DOM injection sinks |
-| License checker | Ensures all dependency licenses are on the approved allowlist |
-| Semgrep | SAST scanning for SQL injection, command injection, path traversal, and similar patterns |
-| Trivy (filesystem) | Scans source code and lock files for known vulnerabilities |
-| Trivy (config) | Checks Dockerfiles and Compose files against CIS benchmarks |
+| Tool                    | Purpose                                                                                  |
+| ----------------------- | ---------------------------------------------------------------------------------------- |
+| Gitleaks                | Scans Git history for hardcoded secrets, API keys, and tokens                            |
+| npm audit               | Checks dependencies against the GitHub Advisory Database for known CVEs                  |
+| ESLint security plugins | Catches Node.js security antipatterns and DOM injection sinks                            |
+| License checker         | Ensures all dependency licenses are on the approved allowlist                            |
+| Semgrep                 | SAST scanning for SQL injection, command injection, path traversal, and similar patterns |
+| Trivy (filesystem)      | Scans source code and lock files for known vulnerabilities                               |
+| Trivy (config)          | Checks Dockerfiles and Compose files against CIS benchmarks                              |
 
 ### CI Pipeline
 

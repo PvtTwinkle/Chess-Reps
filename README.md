@@ -130,14 +130,14 @@ gunzip -c puzzles-dump.sql.gz | \
 
 ## Environment Variables
 
-| Variable           | Required  | Description                                                                                                                           |
-| ------------------ | --------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| `DATABASE_URL`     | Yes       | PostgreSQL connection string. Default points to the `postgres` container on the internal Docker network.                              |
-| `ORIGIN`           | Yes       | The URL you use to access the app. Change this if using a reverse proxy (e.g. `https://chess.yourdomain.com`). Required for security. |
-| `DEFAULT_USERNAME` | First run | Username created when the database is empty. Ignored after first run.                                                                 |
-| `DEFAULT_PASSWORD` | First run | Password created when the database is empty. **Change this before first run.** Ignored after first run.                               |
-| `REGISTRATION_MODE` | No | `invite` (admin creates users) or `open` (login page includes registration). Default: `invite`.                              |
-| `GAME_IMPORT_INTERVAL_MINUTES` | No | How often (in minutes) the app syncs user Chess.com & Lichess public games for review. `0` = manual only. Default: `0`.                               |
+| Variable                       | Required  | Description                                                                                                                           |
+| ------------------------------ | --------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`                 | Yes       | PostgreSQL connection string. Default points to the `postgres` container on the internal Docker network.                              |
+| `ORIGIN`                       | Yes       | The URL you use to access the app. Change this if using a reverse proxy (e.g. `https://chess.yourdomain.com`). Required for security. |
+| `DEFAULT_USERNAME`             | First run | Username created when the database is empty. Ignored after first run.                                                                 |
+| `DEFAULT_PASSWORD`             | First run | Password created when the database is empty. **Change this before first run.** Ignored after first run.                               |
+| `REGISTRATION_MODE`            | No        | `invite` (admin creates users) or `open` (login page includes registration). Default: `invite`.                                       |
+| `GAME_IMPORT_INTERVAL_MINUTES` | No        | How often (in minutes) the app syncs user Chess.com & Lichess public games for review. `0` = manual only. Default: `0`.               |
 
 ---
 

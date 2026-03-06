@@ -141,6 +141,7 @@ Open a [GitHub Issue](https://github.com/your-org/chess-reps/issues) for bug
 reports, feature requests, or general questions.
 
 When reporting a bug, include:
+
 - Steps to reproduce the issue
 - Expected vs actual behavior
 - Browser and OS (if UI-related)
