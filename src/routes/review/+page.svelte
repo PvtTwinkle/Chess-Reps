@@ -255,7 +255,8 @@
 	// Evals for DEVIATION issues: evalCp from White's perspective after each move.
 	// Fetched in the background when analysis loads; populated as results arrive.
 	let deviationEvals = new SvelteMap<number, { played: number | null; correct: number | null }>();
-	const deviationFetching = new SvelteSet<number>(); // dedup guard — tracks in-flight fetches
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- intentionally non-reactive to avoid $effect loop
+	const deviationFetching = new Set<number>();
 	let actionLoading = new SvelteMap<number, boolean>();
 
 	// ── Masters data for DEVIATION issues (lazy-loaded on expand) ───────────────
