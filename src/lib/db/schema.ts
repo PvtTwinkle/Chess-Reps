@@ -169,6 +169,8 @@ export const userSettings = pgTable('user_settings', {
 	lastChesscomImport: timestamp('last_chesscom_import'), // watermark: playedAt of most recent Chess.com import
 	puzzleGoalCount: integer('puzzle_goal_count'), // target number of solved puzzles per period (null = no goal)
 	puzzleGoalFrequency: text('puzzle_goal_frequency'), // 'daily' | 'weekly' | 'monthly' (null = no goal)
+	tempoEnabled: boolean('tempo_enabled').notNull().default(false), // countdown timer during drill
+	tempoSeconds: integer('tempo_seconds').notNull().default(10), // seconds per move (3–30)
 	updatedAt: timestamp('updated_at').notNull()
 });
 

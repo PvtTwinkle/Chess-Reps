@@ -134,6 +134,60 @@
 		}
 	}
 
+	// ── Tempo Training ─────────────────────────────────────────────────────
+	// eslint-disable-next-line svelte/prefer-writable-derived
+	let tempoEnabled = $state(false);
+	// eslint-disable-next-line svelte/prefer-writable-derived
+	let tempoSeconds = $state(10);
+	let tempoStatus = $state('');
+	let tempoDebounce: ReturnType<typeof setTimeout> | undefined;
+
+	$effect(() => {
+		tempoEnabled = data.settings?.tempoEnabled ?? false;
+	});
+
+	$effect(() => {
+		tempoSeconds = data.settings?.tempoSeconds ?? 10;
+	});
+
+	async function toggleTempo() {
+		tempoEnabled = !tempoEnabled;
+		try {
+			await fetch('/api/settings', {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ tempoEnabled })
+			});
+			await invalidateAll();
+		} catch {
+			tempoEnabled = !tempoEnabled;
+		}
+	}
+
+	function handleTempoSecondsChange(e: Event) {
+		const value = parseInt((e.target as HTMLInputElement).value);
+		tempoSeconds = value;
+		clearTimeout(tempoDebounce);
+		tempoDebounce = setTimeout(() => saveTempoSeconds(value), 400);
+	}
+
+	async function saveTempoSeconds(value: number) {
+		tempoStatus = '';
+		try {
+			const res = await fetch('/api/settings', {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ tempoSeconds: value })
+			});
+			if (!res.ok) throw new Error('Failed to save');
+			await invalidateAll();
+			tempoStatus = 'Saved';
+			setTimeout(() => (tempoStatus = ''), 2000);
+		} catch {
+			tempoStatus = 'Error saving';
+		}
+	}
+
 	// ── Game Import Accounts ────────────────────────────────────────────────
 	// eslint-disable-next-line svelte/prefer-writable-derived
 	let lichessUsername = $state('');
@@ -337,6 +391,47 @@
 					<span class="status-msg">{timeoutStatus}</span>
 				{/if}
 			</div>
+		</section>
+
+		<!-- ── Drill ───────────────────────────────────────────────────────── -->
+		<section class="settings-section">
+			<h2>Drill</h2>
+
+			<div class="setting-row">
+				<span class="setting-label">Tempo Training</span>
+				<button class="toggle-btn" class:active={tempoEnabled} onclick={toggleTempo}>
+					{tempoEnabled ? 'On' : 'Off'}
+				</button>
+				<p class="setting-hint">
+					Set a time limit per move during drill sessions. If you don't play in time, the card is
+					marked as Forgot.
+				</p>
+			</div>
+
+			{#if tempoEnabled}
+				<div class="setting-row">
+					<label class="setting-label" for="tempo-slider">
+						Time Limit: <strong>{tempoSeconds}s</strong>
+					</label>
+					<div class="slider-wrap">
+						<span class="slider-label">3s</span>
+						<input
+							id="tempo-slider"
+							type="range"
+							min="3"
+							max="30"
+							step="1"
+							value={tempoSeconds}
+							oninput={handleTempoSecondsChange}
+						/>
+						<span class="slider-label">30s</span>
+					</div>
+					<p class="setting-hint">Seconds per move. Shorter times make drills more challenging.</p>
+					{#if tempoStatus}
+						<span class="status-msg">{tempoStatus}</span>
+					{/if}
+				</div>
+			{/if}
 		</section>
 
 		<!-- ── Game Import ─────────────────────────────────────────────────── -->

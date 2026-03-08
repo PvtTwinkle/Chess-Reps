@@ -147,9 +147,60 @@
 	// can be toggled in-session via the mute button (persisted to the DB).
 	let soundEnabled = $state(true);
 
+	// ── Tempo training state ──────────────────────────────────────────────────
+	let tempoEnabled = $state(false);
+	let tempoSeconds = $state(10);
+	let tempoRemaining = $state(0);
+	let tempoFraction = $state(1);
+	let tempoTimerId: ReturnType<typeof setInterval> | undefined;
+	let tempoStartTime = 0;
+
+	function startTempoTimer(): void {
+		stopTempoTimer();
+		if (!tempoEnabled || tempoSeconds <= 0) return;
+
+		tempoRemaining = tempoSeconds;
+		tempoFraction = 1;
+		tempoStartTime = Date.now();
+
+		// Update every 100ms for smooth progress bar animation.
+		// Uses wall-clock elapsed time so browser tab throttling doesn't cause drift.
+		tempoTimerId = setInterval(() => {
+			const elapsed = (Date.now() - tempoStartTime) / 1000;
+			const remaining = Math.max(0, tempoSeconds - elapsed);
+			tempoRemaining = Math.ceil(remaining);
+			tempoFraction = remaining / tempoSeconds;
+
+			if (remaining <= 0) {
+				handleTempoTimeout();
+			}
+		}, 100);
+	}
+
+	function stopTempoTimer(): void {
+		if (tempoTimerId !== undefined) {
+			clearInterval(tempoTimerId);
+			tempoTimerId = undefined;
+		}
+	}
+
+	function handleTempoTimeout(): void {
+		stopTempoTimer();
+		if (phase !== 'waiting' || !currentCard) return;
+
+		// Treat timeout exactly like an incorrect move.
+		boardKey++;
+		phase = 'incorrect';
+		flashColor = 'red';
+		playIncorrect();
+		revealedSan = currentCard.san;
+		setTimeout(() => (flashColor = null), 600);
+	}
+
 	// Preload audio files once on mount so sounds play without latency.
 	onMount(() => {
 		initSounds();
+		return () => stopTempoTimer();
 	});
 
 	// ── Keyboard shortcuts ─────────────────────────────────────────────────────
@@ -209,6 +260,8 @@
 		allMoves = data.moves as RepertoireMove[];
 		allDueCards = data.dueCards as DueCard[];
 		soundEnabled = data.settings?.soundEnabled ?? true;
+		tempoEnabled = data.settings?.tempoEnabled ?? false;
+		tempoSeconds = data.settings?.tempoSeconds ?? 10;
 
 		// Reset session.
 		totalReviewed = 0;
@@ -221,6 +274,16 @@
 			resetBoard();
 			startNextCard();
 		});
+	});
+
+	// Start/stop the tempo timer whenever the drill phase changes.
+	// When phase becomes 'waiting', start counting down; otherwise, stop.
+	$effect(() => {
+		if (phase === 'waiting') {
+			untrack(() => startTempoTimer());
+		} else {
+			untrack(() => stopTempoTimer());
+		}
 	});
 
 	// ── Derived ───────────────────────────────────────────────────────────────
@@ -389,6 +452,7 @@
 	// Reset board state to the starting position.
 	function resetBoard(): void {
 		stopAutoPlay();
+		stopTempoTimer();
 		navHistory = [];
 		currentFen = STARTING_FEN;
 		lastMove = undefined;
@@ -822,6 +886,19 @@
 				<span class="turn-dot"></span>
 				YOUR TURN <span class="turn-hint">— play your move</span>
 			</div>
+
+			<!-- Tempo countdown bar -->
+			{#if tempoEnabled}
+				<div class="tempo-bar-wrap">
+					<div
+						class="tempo-bar-fill"
+						class:tempo-warning={tempoFraction <= 0.5 && tempoFraction > 0.2}
+						class:tempo-danger={tempoFraction <= 0.2}
+						style="width: {tempoFraction * 100}%"
+					></div>
+					<span class="tempo-label">{tempoRemaining}s</span>
+				</div>
+			{/if}
 
 			<!-- Hint button / hint-active indicator -->
 			{#if !hintUsed}
@@ -1577,6 +1654,44 @@
 	.next-btn kbd {
 		font-size: 0.6rem;
 		opacity: 0.5;
+	}
+
+	/* ── Tempo timer bar ─────────────────────────────────────────────────────── */
+
+	.tempo-bar-wrap {
+		position: relative;
+		height: 6px;
+		background: var(--color-surface-alt);
+		border-radius: 3px;
+		overflow: hidden;
+		margin-bottom: var(--space-3);
+	}
+
+	.tempo-bar-fill {
+		height: 100%;
+		border-radius: 3px;
+		background: var(--color-success);
+		transition:
+			width 0.1s linear,
+			background 0.3s ease;
+	}
+
+	.tempo-bar-fill.tempo-warning {
+		background: var(--color-gold);
+	}
+
+	.tempo-bar-fill.tempo-danger {
+		background: var(--color-danger);
+	}
+
+	.tempo-label {
+		position: absolute;
+		right: 0;
+		top: -18px;
+		font-size: 11px;
+		font-weight: 600;
+		color: var(--color-text-muted);
+		font-variant-numeric: tabular-nums;
 	}
 
 	/* ── Mobile responsive ────────────────────────────────────────────── */

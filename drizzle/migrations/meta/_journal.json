@@ -57,6 +57,13 @@
 			"when": 1773100000000,
 			"tag": "0007_puzzle_goal",
 			"breakpoints": true
+		},
+		{
+			"idx": 8,
+			"version": "6",
+			"when": 1773200000000,
+			"tag": "0008_tempo_training",
+			"breakpoints": true
 		}
 	]
 }

@@ -90,6 +90,16 @@ export const PATCH: RequestHandler = async ({ locals, request }) => {
 		updates.puzzleGoalFrequency = body.puzzleGoalFrequency;
 	}
 
+	// Tempo training: boolean toggle.
+	if (typeof body.tempoEnabled === 'boolean') {
+		updates.tempoEnabled = body.tempoEnabled;
+	}
+
+	// Tempo training time limit: integer clamped to 3–30 seconds.
+	if (typeof body.tempoSeconds === 'number') {
+		updates.tempoSeconds = Math.max(3, Math.min(30, Math.round(body.tempoSeconds)));
+	}
+
 	if (Object.keys(updates).length === 0) {
 		throw error(400, 'No recognised settings fields provided');
 	}
