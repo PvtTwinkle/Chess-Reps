@@ -198,7 +198,7 @@
 		gap: var(--space-4);
 		padding: 0 var(--space-6);
 		height: 56px;
-		background: rgba(26, 26, 46, 0.85);
+		background: var(--color-header-bg);
 		backdrop-filter: blur(12px);
 		-webkit-backdrop-filter: blur(12px);
 		border-bottom: 1px solid var(--color-border);
@@ -362,7 +362,7 @@
 		right: 0;
 		z-index: 899;
 		flex-direction: column;
-		background: rgba(26, 26, 46, 0.95);
+		background: var(--color-header-bg-solid);
 		backdrop-filter: blur(12px);
 		-webkit-backdrop-filter: blur(12px);
 		border-bottom: 1px solid var(--color-border);

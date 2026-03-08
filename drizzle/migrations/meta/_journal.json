@@ -64,6 +64,13 @@
 			"when": 1773200000000,
 			"tag": "0008_tempo_training",
 			"breakpoints": true
+		},
+		{
+			"idx": 9,
+			"version": "6",
+			"when": 1773300000000,
+			"tag": "0009_app_theme",
+			"breakpoints": true
 		}
 	]
 }

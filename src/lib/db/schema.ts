@@ -171,6 +171,7 @@ export const userSettings = pgTable('user_settings', {
 	puzzleGoalFrequency: text('puzzle_goal_frequency'), // 'daily' | 'weekly' | 'monthly' (null = no goal)
 	tempoEnabled: boolean('tempo_enabled').notNull().default(false), // countdown timer during drill
 	tempoSeconds: integer('tempo_seconds').notNull().default(10), // seconds per move (3–30)
+	appTheme: text('app_theme').notNull().default('dark'), // 'dark' | 'light'
 	updatedAt: timestamp('updated_at').notNull()
 });
 

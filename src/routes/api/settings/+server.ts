@@ -100,6 +100,12 @@ export const PATCH: RequestHandler = async ({ locals, request }) => {
 		updates.tempoSeconds = Math.max(3, Math.min(30, Math.round(body.tempoSeconds)));
 	}
 
+	// App theme: dark or light mode.
+	const VALID_APP_THEMES = ['dark', 'light'];
+	if (typeof body.appTheme === 'string' && VALID_APP_THEMES.includes(body.appTheme)) {
+		updates.appTheme = body.appTheme;
+	}
+
 	if (Object.keys(updates).length === 0) {
 		throw error(400, 'No recognised settings fields provided');
 	}

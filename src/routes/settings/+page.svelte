@@ -5,6 +5,34 @@
 
 	let { data }: { data: PageData } = $props();
 
+	// ── App Theme (dark / light) ────────────────────────────────────────────
+	// eslint-disable-next-line svelte/prefer-writable-derived
+	let appTheme = $state('dark');
+
+	$effect(() => {
+		appTheme = data.settings?.appTheme ?? 'dark';
+	});
+
+	async function setAppTheme(mode: string) {
+		appTheme = mode;
+		// Instant visual feedback — don't wait for the server round-trip
+		document.documentElement.dataset.theme = mode;
+		try {
+			const res = await fetch('/api/settings', {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ appTheme: mode })
+			});
+			if (!res.ok) throw new Error('Failed to save');
+			await invalidateAll();
+		} catch {
+			// Revert on failure
+			const prev = mode === 'dark' ? 'light' : 'dark';
+			appTheme = prev;
+			document.documentElement.dataset.theme = prev;
+		}
+	}
+
 	// ── Board Theme ─────────────────────────────────────────────────────────
 	const THEMES = [
 		{ name: 'brown', label: 'Brown', light: '#f0d9b5', dark: '#b58863' },
@@ -307,6 +335,26 @@
 			<h2>Board Appearance</h2>
 
 			<div class="setting-row">
+				<span class="setting-label">App Theme</span>
+				<div class="theme-mode-picker">
+					<button
+						class="mode-btn"
+						class:selected={appTheme === 'dark'}
+						onclick={() => setAppTheme('dark')}
+					>
+						Dark
+					</button>
+					<button
+						class="mode-btn"
+						class:selected={appTheme === 'light'}
+						onclick={() => setAppTheme('light')}
+					>
+						Light
+					</button>
+				</div>
+			</div>
+
+			<div class="setting-row">
 				<span class="setting-label">Board Theme</span>
 				<div class="theme-picker">
 					{#each THEMES as theme (theme.name)}
@@ -584,6 +632,45 @@
 		margin: var(--space-1) 0 0;
 		font-size: 12px;
 		color: var(--color-text-muted);
+	}
+
+	/* ── App theme mode picker ─────────────────────────────────────── */
+
+	.theme-mode-picker {
+		display: flex;
+		gap: 0;
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-md);
+		overflow: hidden;
+		width: fit-content;
+	}
+
+	.mode-btn {
+		padding: var(--space-2) var(--space-5);
+		border: none;
+		background: var(--color-surface-alt);
+		color: var(--color-text-muted);
+		font-family: var(--font-body);
+		font-size: 12px;
+		font-weight: 500;
+		cursor: pointer;
+		transition:
+			background var(--dur-fast) var(--ease-snap),
+			color var(--dur-fast) var(--ease-snap);
+	}
+
+	.mode-btn:not(:last-child) {
+		border-right: 1px solid var(--color-border);
+	}
+
+	.mode-btn:hover:not(.selected) {
+		color: var(--color-text-secondary);
+	}
+
+	.mode-btn.selected {
+		background: var(--color-gold);
+		color: var(--color-base);
+		font-weight: 600;
 	}
 
 	/* ── Theme picker ──────────────────────────────────────────────── */

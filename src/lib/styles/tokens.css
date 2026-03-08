@@ -42,6 +42,10 @@
 	--radius-lg: 12px;
 	--radius-xl: 16px;
 
+	/* ── Header / Drawer backgrounds ─────────────────────────── */
+	--color-header-bg: rgba(26, 26, 46, 0.85);
+	--color-header-bg-solid: rgba(26, 26, 46, 0.95);
+
 	/* ── Shadows & Glow ───────────────────────────────────────── */
 	--shadow-surface: 0 1px 3px rgba(0, 0, 0, 0.4), 0 4px 12px rgba(0, 0, 0, 0.3);
 	--shadow-elevated: 0 8px 24px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.4);
@@ -60,4 +64,37 @@
 	--bp-md: 768px; /* tablet portrait */
 	--bp-lg: 1024px; /* tablet landscape / small desktop */
 	--bp-xl: 1280px; /* desktop */
+}
+
+/* ============================================================
+   Light Theme Overrides
+   Warm, paper-like tones — not clinical white
+   ============================================================ */
+
+[data-theme='light'] {
+	/* ── Colors ───────────────────────────────────────────────── */
+	--color-base: #e8e5df;
+	--color-surface: #f5f3ef;
+	--color-surface-alt: #ddd9d1;
+	--color-border: #b8b3a8;
+	--color-gold: #b08e00;
+	--color-gold-dim: #8a6f00;
+	--color-gold-glow: rgba(176, 142, 0, 0.15);
+	--color-text-primary: #12121f;
+	--color-text-secondary: #44445a;
+	--color-text-muted: #6e6e85;
+	--color-success: #15803d;
+	--color-danger: #b91c1c;
+	--color-explore: #0e7490;
+	--color-explore-glow: rgba(14, 116, 144, 0.15);
+
+	/* ── Header / Drawer backgrounds ─────────────────────────── */
+	--color-header-bg: rgba(232, 229, 223, 0.9);
+	--color-header-bg-solid: rgba(232, 229, 223, 0.97);
+
+	/* ── Shadows & Glow ───────────────────────────────────────── */
+	--shadow-surface: 0 1px 3px rgba(0, 0, 0, 0.12), 0 4px 12px rgba(0, 0, 0, 0.08);
+	--shadow-elevated: 0 8px 24px rgba(0, 0, 0, 0.14), 0 2px 6px rgba(0, 0, 0, 0.1);
+	--shadow-gold: 0 0 0 1px rgba(176, 142, 0, 0.2), 0 4px 16px rgba(176, 142, 0, 0.12);
+	--glow-gold: 0 0 12px rgba(176, 142, 0, 0.25);
 }

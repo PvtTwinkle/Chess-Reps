@@ -16,7 +16,7 @@ import { redirect } from '@sveltejs/kit';
 import type { Handle } from '@sveltejs/kit';
 import { validateSession, deleteSession, SESSION_COOKIE_NAME, SECURE_COOKIE } from '$lib/auth';
 import { db, dbReady } from '$lib/db';
-import { user } from '$lib/db/schema';
+import { user, userSettings } from '$lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { startImportScheduler } from '$lib/server/import-scheduler';
 
@@ -107,6 +107,20 @@ export const handle: Handle = async ({ event, resolve }) => {
 		}
 	}
 
+	// Look up the user's preferred app theme so we can inject it into the HTML
+	// during SSR. This prevents a flash of the wrong theme on page load.
+	let appTheme = 'dark';
+	if (event.locals.user) {
+		const [settings] = await db
+			.select({ appTheme: userSettings.appTheme })
+			.from(userSettings)
+			.where(eq(userSettings.userId, event.locals.user.id));
+		if (settings?.appTheme) appTheme = settings.appTheme;
+	}
+
 	// All checks passed — continue to the actual page or API handler.
-	return resolve(event);
+	return resolve(event, {
+		transformPageChunk: ({ html }) =>
+			html.replace('<html lang="en">', `<html lang="en" data-theme="${appTheme}">`)
+	});
 };
