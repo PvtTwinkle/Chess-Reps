@@ -48,6 +48,14 @@
 		onHoverMove?: (san: string | null) => void;
 		disabled?: boolean;
 		playerColor?: 'WHITE' | 'BLACK';
+		/** Index of the keyboard-highlighted candidate (parent-controlled). */
+		highlightedIndex?: number | null;
+		/** Fires whenever the active tab's candidate SAN list changes. */
+		onCandidatesChanged?: (sans: string[]) => void;
+		/** Parent requests a tab switch (set to null after applying). */
+		requestedTab?: 'book' | 'engine' | 'masters' | null;
+		/** Fires whenever the active tab changes. */
+		onTabChanged?: (tab: 'book' | 'engine' | 'masters') => void;
 	}
 
 	let {
@@ -55,7 +63,11 @@
 		onSelectMove,
 		onHoverMove,
 		disabled = false,
-		playerColor = 'WHITE'
+		playerColor = 'WHITE',
+		highlightedIndex = null,
+		onCandidatesChanged,
+		requestedTab = null,
+		onTabChanged
 	}: Props = $props();
 
 	// ── Book state ────────────────────────────────────────────────────────────
@@ -83,6 +95,45 @@
 		activeTab = tab;
 		userClickedTab = true;
 	}
+
+	// ── Notify parent when the visible candidate list changes ────────────────
+	$effect(() => {
+		const sans =
+			activeTab === 'book'
+				? bookCandidates.map((c) => c.san)
+				: activeTab === 'masters'
+					? mastersMoves.map((m) => m.san)
+					: engineCandidates.map((c) => c.san);
+		onCandidatesChanged?.(sans);
+	});
+
+	// ── Notify parent when activeTab changes ──────────────────────────────────
+	$effect(() => {
+		onTabChanged?.(activeTab);
+	});
+
+	// ── Apply parent-requested tab switch ─────────────────────────────────────
+	$effect(() => {
+		if (requestedTab && requestedTab !== activeTab) {
+			activeTab = requestedTab;
+			userClickedTab = true;
+		}
+	});
+
+	// ── Keyboard highlight triggers hover arrow ───────────────────────────────
+	$effect(() => {
+		if (highlightedIndex === null || highlightedIndex === undefined) {
+			return;
+		}
+		const sans =
+			activeTab === 'book'
+				? bookCandidates.map((c) => c.san)
+				: activeTab === 'masters'
+					? mastersMoves.map((m) => m.san)
+					: engineCandidates.map((c) => c.san);
+		const san = sans[highlightedIndex] ?? null;
+		onHoverMove?.(san);
+	});
 
 	// ── Book fetch — near-instant (local DB query) ────────────────────────────
 	$effect(() => {
@@ -287,9 +338,10 @@
 			<p class="empty-hint">No book moves at this position.</p>
 		{:else}
 			<div class="candidate-list">
-				{#each bookCandidates as c (c.uci)}
+				{#each bookCandidates as c, idx (c.uci)}
 					<button
 						class="candidate-row"
+						class:candidate-highlighted={highlightedIndex === idx}
 						onclick={() => onSelectMove(c.san)}
 						onmouseenter={() => onHoverMove?.(c.san)}
 						onmouseleave={() => onHoverMove?.(null)}
@@ -322,12 +374,13 @@
 			<p class="empty-hint">No master games from this position.</p>
 		{:else}
 			<div class="candidate-list">
-				{#each mastersMoves as m (m.san)}
+				{#each mastersMoves as m, idx (m.san)}
 					{@const winPct = m.totalGames > 0 ? (m.white / m.totalGames) * 100 : 0}
 					{@const drawPct = m.totalGames > 0 ? (m.draws / m.totalGames) * 100 : 0}
 					{@const lossPct = m.totalGames > 0 ? (m.black / m.totalGames) * 100 : 0}
 					<button
 						class="candidate-row"
+						class:candidate-highlighted={highlightedIndex === idx}
 						onclick={() => onSelectMove(m.san)}
 						onmouseenter={() => onHoverMove?.(m.san)}
 						onmouseleave={() => onHoverMove?.(null)}
@@ -364,9 +417,10 @@
 		</p>
 	{:else}
 		<div class="candidate-list">
-			{#each engineCandidates as c (c.uci)}
+			{#each engineCandidates as c, idx (c.uci)}
 				<button
 					class="candidate-row"
+					class:candidate-highlighted={highlightedIndex === idx}
 					onclick={() => onSelectMove(c.san)}
 					onmouseenter={() => onHoverMove?.(c.san)}
 					onmouseleave={() => onHoverMove?.(null)}
@@ -479,7 +533,8 @@
 			background var(--dur-fast) var(--ease-snap);
 	}
 
-	.candidate-row:hover:not(:disabled) {
+	.candidate-row:hover:not(:disabled),
+	.candidate-row.candidate-highlighted:not(:disabled) {
 		border-color: var(--color-gold-dim);
 		background: rgba(30, 30, 53, 0.8);
 	}

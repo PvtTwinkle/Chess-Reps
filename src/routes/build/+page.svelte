@@ -43,6 +43,9 @@
 	import type { PageData } from './$types';
 	import { initSounds, setSoundEnabled } from '$lib/sounds';
 	import { downloadTextFile, copyToClipboard } from '$lib/download';
+	import { Chess } from 'chess.js';
+	import type { DrawShape } from '@lichess-org/chessground/draw';
+	import type { Key } from '@lichess-org/chessground/types';
 
 	let importOpen = $state(false);
 	let exporting = $state(false);
@@ -50,6 +53,152 @@
 	let exportPgn = $state('');
 	let exportFilename = $state('');
 	let exportMsg = $state('');
+
+	// ── Keyboard shortcut & hover-arrow state ─────────────────────────────────
+	let hoveredSan = $state<string | null>(null);
+	let highlightedCandidateIdx = $state<number | null>(null);
+	let highlightedContinuationIdx = $state<number | null>(null);
+	let activeCandidates = $state<string[]>([]);
+	let requestedTab = $state<'book' | 'engine' | 'masters' | null>(null);
+	let currentCandidateTab = $state<'book' | 'engine' | 'masters'>('book');
+
+	const TAB_ORDER: Array<'book' | 'masters' | 'engine'> = ['book', 'masters', 'engine'];
+
+	/** Resolve from/to squares for a SAN move at the given FEN. */
+	function getMoveSquares(fen: string, san: string): { from: string; to: string } | null {
+		try {
+			const chess = new Chess(fen);
+			const result = chess.move(san);
+			return result ? { from: result.from, to: result.to } : null;
+		} catch {
+			return null;
+		}
+	}
+
+	/** Blue arrow showing the hovered / keyboard-highlighted candidate on the board. */
+	const boardShapes: DrawShape[] = $derived.by(() => {
+		if (!hoveredSan) return [];
+		const sq = getMoveSquares(s.currentFen, hoveredSan);
+		if (!sq) return [];
+		return [{ orig: sq.from as Key, dest: sq.to as Key, brush: 'blue' }];
+	});
+
+	// Reset keyboard highlight whenever the position changes.
+	$effect(() => {
+		void s.currentFen; // track as dependency
+		highlightedCandidateIdx = null;
+		highlightedContinuationIdx = null;
+		hoveredSan = null;
+	});
+
+	function handleKeydown(e: KeyboardEvent) {
+		// Don't intercept when a modal is open.
+		if (s.annotatingMove || s.pendingDelete || importOpen) return;
+		// Don't intercept when typing in an input field.
+		const tag = (e.target as HTMLElement)?.tagName;
+		if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement)?.isContentEditable) {
+			return;
+		}
+
+		switch (e.key) {
+			case 'ArrowLeft':
+				e.preventDefault();
+				s.handleUndo();
+				break;
+
+			case 'ArrowRight':
+				e.preventDefault();
+				if (s.movesFromCurrentPosition.length > 0) {
+					const idx = highlightedContinuationIdx ?? 0;
+					s.navigateTo(s.movesFromCurrentPosition[idx]);
+				}
+				break;
+
+			case 'Home':
+				e.preventDefault();
+				s.handleReset();
+				break;
+
+			case 'ArrowDown':
+				e.preventDefault();
+				// Context-sensitive: cycle saved continuations when multiple exist,
+				// otherwise fall through to candidate highlighting.
+				if (s.movesFromCurrentPosition.length > 1) {
+					highlightedContinuationIdx =
+						highlightedContinuationIdx === null
+							? 0
+							: Math.min(highlightedContinuationIdx + 1, s.movesFromCurrentPosition.length - 1);
+					hoveredSan = s.movesFromCurrentPosition[highlightedContinuationIdx].san;
+				} else if (activeCandidates.length > 0) {
+					highlightedCandidateIdx =
+						highlightedCandidateIdx === null
+							? 0
+							: Math.min(highlightedCandidateIdx + 1, activeCandidates.length - 1);
+				}
+				break;
+
+			case 'ArrowUp':
+				e.preventDefault();
+				if (s.movesFromCurrentPosition.length > 1) {
+					highlightedContinuationIdx =
+						highlightedContinuationIdx === null
+							? s.movesFromCurrentPosition.length - 1
+							: Math.max(highlightedContinuationIdx - 1, 0);
+					hoveredSan = s.movesFromCurrentPosition[highlightedContinuationIdx].san;
+				} else if (activeCandidates.length > 0) {
+					highlightedCandidateIdx =
+						highlightedCandidateIdx === null
+							? activeCandidates.length - 1
+							: Math.max(highlightedCandidateIdx - 1, 0);
+				}
+				break;
+
+			case 'Enter':
+				if (
+					highlightedCandidateIdx !== null &&
+					activeCandidates[highlightedCandidateIdx] &&
+					!s.saving
+				) {
+					e.preventDefault();
+					s.handleCandidateSelect(activeCandidates[highlightedCandidateIdx]);
+					highlightedCandidateIdx = null;
+				}
+				break;
+
+			case 'Tab': {
+				e.preventDefault();
+				const curIdx = TAB_ORDER.indexOf(currentCandidateTab);
+				if (e.shiftKey) {
+					requestedTab = TAB_ORDER[(curIdx - 1 + TAB_ORDER.length) % TAB_ORDER.length];
+				} else {
+					requestedTab = TAB_ORDER[(curIdx + 1) % TAB_ORDER.length];
+				}
+				highlightedCandidateIdx = null;
+				break;
+			}
+
+			case 'Escape':
+				if (highlightedCandidateIdx !== null || highlightedContinuationIdx !== null) {
+					e.preventDefault();
+					highlightedCandidateIdx = null;
+					highlightedContinuationIdx = null;
+					hoveredSan = null;
+				}
+				break;
+
+			default:
+				// Number keys 1-5 directly select a candidate.
+				if (e.key >= '1' && e.key <= '5' && !s.saving) {
+					const idx = parseInt(e.key) - 1;
+					if (activeCandidates[idx]) {
+						e.preventDefault();
+						s.handleCandidateSelect(activeCandidates[idx]);
+						highlightedCandidateIdx = null;
+					}
+				}
+				break;
+		}
+	}
 
 	async function handleExport() {
 		if (exporting) return;
@@ -135,6 +284,8 @@
 	});
 </script>
 
+<svelte:window onkeydown={handleKeydown} />
+
 <div class="page">
 	<!-- ── Board column ─────────────────────────────────────────────────────── -->
 	<div class="board-col">
@@ -152,6 +303,7 @@
 				interactive={!s.saving}
 				lastMove={s.lastMove}
 				onMove={s.handleMove}
+				autoShapes={boardShapes}
 			/>
 		{/key}
 	</div>
@@ -280,9 +432,19 @@
 				<div class="section">
 					<div class="section-label">SAVED MOVES HERE</div>
 					<div class="position-moves">
-						{#each s.movesFromCurrentPosition as m (m.id)}
+						{#each s.movesFromCurrentPosition as m, idx (m.id)}
 							<div class="position-move-row">
-								<button class="move-nav-btn" onclick={() => s.navigateTo(m)}>
+								<button
+									class="move-nav-btn"
+									class:move-nav-btn--highlighted={highlightedContinuationIdx === idx}
+									onclick={() => s.navigateTo(m)}
+									onmouseenter={() => {
+										hoveredSan = m.san;
+									}}
+									onmouseleave={() => {
+										hoveredSan = null;
+									}}
+								>
 									{m.san}
 								</button>
 							</div>
@@ -298,10 +460,20 @@
 
 				{#if s.movesFromCurrentPosition.length > 0}
 					<div class="position-moves">
-						{#each s.movesFromCurrentPosition as m (m.id)}
+						{#each s.movesFromCurrentPosition as m, idx (m.id)}
 							<div class="position-move-item">
 								<div class="position-move-row">
-									<button class="move-nav-btn" onclick={() => s.navigateTo(m)}>
+									<button
+										class="move-nav-btn"
+										class:move-nav-btn--highlighted={highlightedContinuationIdx === idx}
+										onclick={() => s.navigateTo(m)}
+										onmouseenter={() => {
+											hoveredSan = m.san;
+										}}
+										onmouseleave={() => {
+											hoveredSan = null;
+										}}
+									>
 										{m.san}
 									</button>
 									<button
@@ -345,8 +517,20 @@
 		<CandidateMoves
 			currentFen={s.currentFen}
 			onSelectMove={s.handleCandidateSelect}
+			onHoverMove={(san) => {
+				hoveredSan = san;
+			}}
 			disabled={s.saving}
 			playerColor={data.repertoire.color as 'WHITE' | 'BLACK'}
+			highlightedIndex={highlightedCandidateIdx}
+			onCandidatesChanged={(sans) => {
+				activeCandidates = sans;
+			}}
+			{requestedTab}
+			onTabChanged={(tab) => {
+				currentCandidateTab = tab;
+				requestedTab = null;
+			}}
 		/>
 
 		<!-- Navigation controls -->
@@ -855,7 +1039,8 @@
 			color var(--dur-fast) var(--ease-snap);
 	}
 
-	.move-nav-btn:hover {
+	.move-nav-btn:hover,
+	.move-nav-btn--highlighted {
 		border-color: var(--color-gold-dim);
 		color: var(--color-gold);
 	}
