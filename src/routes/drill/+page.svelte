@@ -60,6 +60,33 @@
 		fromFen: string;
 		san: string;
 		state: number | null;
+		due: string | null;
+		stability: number | null;
+		difficulty: number | null;
+		elapsedDays: number | null;
+		scheduledDays: number | null;
+		reps: number | null;
+		lapses: number | null;
+		lastReview: string | null;
+		learningSteps: number;
+	}
+
+	// Snapshot of a card's FSRS state before grading — used for undo.
+	interface UndoSnapshot {
+		cardId: number;
+		wasCorrect: boolean;
+		previousState: {
+			due: string | null;
+			stability: number | null;
+			difficulty: number | null;
+			elapsedDays: number | null;
+			scheduledDays: number | null;
+			reps: number | null;
+			lapses: number | null;
+			state: number | null;
+			lastReview: string | null;
+			learningSteps: number;
+		};
 	}
 
 	// One step in the current navigation path through the board.
@@ -147,6 +174,11 @@
 	// can be toggled in-session via the mute button (persisted to the DB).
 	let soundEnabled = $state(true);
 
+	// ── Undo state ───────────────────────────────────────────────────────────
+	// Snapshot of the last graded card's FSRS state — allows single-level undo.
+	let undoSnapshot = $state<UndoSnapshot | null>(null);
+	let undoing = $state(false);
+
 	// ── Tempo training state ──────────────────────────────────────────────────
 	let tempoEnabled = $state(false);
 	let tempoSeconds = $state(10);
@@ -209,9 +241,17 @@
 	// The $effect cleanup function removes the listener when the component unmounts.
 	$effect(() => {
 		function handleKey(e: KeyboardEvent) {
-			// Ignore keypresses with modifiers or inside input fields.
-			if (e.ctrlKey || e.altKey || e.metaKey) return;
 			if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+			// Ctrl+Z / Cmd+Z for undo (before the modifier guard).
+			if ((e.ctrlKey || e.metaKey) && e.key === 'z' && undoSnapshot && awaitingNext) {
+				e.preventDefault();
+				undoLastGrade();
+				return;
+			}
+
+			// Ignore other keypresses with modifiers.
+			if (e.ctrlKey || e.altKey || e.metaKey) return;
 
 			// "Next" shortcut: Space or Enter when the Next button is visible.
 			// Visible when: awaitingNext (graded correct), or incorrect, or hint-used correct.
@@ -236,6 +276,12 @@
 					e.preventDefault();
 					submitGrade(4);
 				}
+			}
+
+			// z for undo (without modifier) when undo is available.
+			if (e.key === 'z' && undoSnapshot && awaitingNext) {
+				e.preventDefault();
+				undoLastGrade();
 			}
 		}
 
@@ -596,6 +642,30 @@
 
 		const wasCorrect = phase === 'correct';
 
+		// Snapshot the card's current FSRS state before we overwrite it,
+		// so the user can undo if they picked the wrong grade.
+		// Only for user-chosen grades (correct phase, no hint) — not auto-grades.
+		if (wasCorrect && !hintUsed) {
+			undoSnapshot = {
+				cardId: currentCard.id,
+				wasCorrect,
+				previousState: {
+					due: currentCard.due,
+					stability: currentCard.stability,
+					difficulty: currentCard.difficulty,
+					elapsedDays: currentCard.elapsedDays,
+					scheduledDays: currentCard.scheduledDays,
+					reps: currentCard.reps,
+					lapses: currentCard.lapses,
+					state: currentCard.state,
+					lastReview: currentCard.lastReview,
+					learningSteps: currentCard.learningSteps
+				}
+			};
+		} else {
+			undoSnapshot = null;
+		}
+
 		// Create the session record the first time a card is graded.
 		// Non-critical: if this fails we still let the user continue drilling.
 		if (sessionId === null) {
@@ -633,8 +703,39 @@
 		awaitingNext = true;
 	}
 
+	// Undo the last grade — restore the card's FSRS state and re-show grade buttons.
+	async function undoLastGrade(): Promise<void> {
+		if (!undoSnapshot || undoing) return;
+		undoing = true;
+
+		try {
+			const res = await fetch('/api/drill/undo', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					cardId: undoSnapshot.cardId,
+					previousState: undoSnapshot.previousState
+				})
+			});
+			if (!res.ok) throw new Error(`Undo failed: ${res.status}`);
+
+			// Roll back local session stats.
+			totalReviewed--;
+			if (undoSnapshot.wasCorrect) correctCount--;
+
+			// Re-show the grade buttons.
+			awaitingNext = false;
+			undoSnapshot = null;
+		} catch (err) {
+			console.error('Failed to undo grade:', err);
+		}
+
+		undoing = false;
+	}
+
 	// Advance to the next card after the user clicks "Next".
 	async function advanceToNext(): Promise<void> {
+		undoSnapshot = null; // Undo window closes when moving to the next card.
 		currentCardIdx++;
 		resetBoard();
 
@@ -968,10 +1069,17 @@
 					Next <kbd>Space</kbd>
 				</button>
 			{:else if awaitingNext}
-				<!-- Already graded — show Next button. -->
-				<button class="btn btn--primary next-btn" onclick={handleNext}>
-					Next <kbd>Space</kbd>
-				</button>
+				<!-- Already graded — show Next + Undo buttons. -->
+				<div class="next-row">
+					<button class="btn btn--primary next-btn" onclick={handleNext}>
+						Next <kbd>Space</kbd>
+					</button>
+					{#if undoSnapshot}
+						<button class="btn btn--ghost undo-btn" onclick={undoLastGrade} disabled={undoing}>
+							Undo <kbd>Z</kbd>
+						</button>
+					{/if}
+				</div>
 			{:else}
 				<div class="section">
 					<div class="section-label">HOW CONFIDENT WAS YOUR RESPONSE?</div>
@@ -1641,17 +1749,44 @@
 		white-space: pre-wrap;
 	}
 
-	/* ── Next button ─────────────────────────────────────────────────────────── */
+	/* ── Next + Undo buttons ─────────────────────────────────────────────────── */
+
+	.next-row {
+		display: flex;
+		gap: var(--space-2);
+		align-items: center;
+	}
 
 	.next-btn {
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		gap: var(--space-2);
-		width: 100%;
+		flex: 1;
 	}
 
 	.next-btn kbd {
+		font-size: 0.6rem;
+		opacity: 0.5;
+	}
+
+	.undo-btn {
+		display: flex;
+		align-items: center;
+		gap: var(--space-1);
+		background: transparent;
+		border-color: var(--color-border);
+		color: var(--color-text-secondary);
+		font-size: 0.8rem;
+		white-space: nowrap;
+	}
+
+	.undo-btn:hover {
+		border-color: var(--color-gold);
+		color: var(--color-text-primary);
+	}
+
+	.undo-btn kbd {
 		font-size: 0.6rem;
 		opacity: 0.5;
 	}
