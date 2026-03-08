@@ -232,7 +232,10 @@
 	// Preload audio files once on mount so sounds play without latency.
 	onMount(() => {
 		initSounds();
-		return () => stopTempoTimer();
+		return () => {
+			stopAutoPlay();
+			stopTempoTimer();
+		};
 	});
 
 	// ── Keyboard shortcuts ─────────────────────────────────────────────────────
