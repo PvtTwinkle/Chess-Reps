@@ -163,6 +163,34 @@
 				</div>
 			</div>
 
+			<!-- Health Score -->
+			<div class="widget">
+				<div class="widget-label">Health</div>
+				<div
+					class="widget-value"
+					class:health-green={data.healthScore >= 80}
+					class:health-yellow={data.healthScore >= 50 && data.healthScore < 80}
+					class:health-red={data.healthScore < 50}
+				>
+					{#if data.totalCards === 0}
+						&mdash;
+					{:else}
+						{data.healthScore}
+					{/if}
+				</div>
+				<div class="widget-hint">
+					{#if data.totalCards === 0}
+						No cards yet
+					{:else if data.healthScore >= 80}
+						Healthy
+					{:else if data.healthScore >= 50}
+						Needs work
+					{:else}
+						At risk
+					{/if}
+				</div>
+			</div>
+
 			<!-- Puzzle Goal -->
 			<div class="widget">
 				<div class="widget-label">Puzzle Goal</div>
@@ -381,7 +409,7 @@
 
 	.widget-grid {
 		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+		grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
 		gap: var(--space-3);
 	}
 
@@ -478,6 +506,20 @@
 
 	.next-value {
 		color: var(--color-text-secondary);
+	}
+
+	/* ── Health Score accent ──────────────────────────────────────────── */
+
+	.health-green {
+		color: var(--color-success);
+	}
+
+	.health-yellow {
+		color: var(--color-gold-dim);
+	}
+
+	.health-red {
+		color: var(--color-danger);
 	}
 
 	/* ── Card State Breakdown ─────────────────────────────────────────── */

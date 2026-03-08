@@ -53,7 +53,8 @@ export const load: PageServerLoad = async ({ parent, locals }) => {
 		streak: 0,
 		recentSessions: [] as SessionSummary[],
 		troubleSpots: [] as TroubleSpot[],
-		puzzleGoal: null as { count: number; frequency: string; solved: number } | null
+		puzzleGoal: null as { count: number; frequency: string; solved: number } | null,
+		healthScore: 0
 	};
 
 	if (!activeRepertoireId || repertoires.length === 0 || !locals.user) {
@@ -210,6 +211,17 @@ export const load: PageServerLoad = async ({ parent, locals }) => {
 			lapses: c.lapses ?? 0
 		}));
 
+	// ── Health Score (composite 0–100) ──────────────────────────────────
+	let healthScore = 0;
+	if (totalCards > 0) {
+		const coverage = Math.max(0, 100 - gaps.length * 5);
+		const mastery = Math.round((masteredCount / totalCards) * 100);
+		const freshness = Math.round((1 - dueCount / totalCards) * 100);
+		const troubleCount = scopedCards.filter((c) => (c.lapses ?? 0) >= 3).length;
+		const stability = Math.round((1 - troubleCount / totalCards) * 100);
+		healthScore = Math.round((coverage + mastery + freshness + stability) / 4);
+	}
+
 	// ── Puzzle Goal (solved count within current period) ────────────────
 	let puzzleGoal: { count: number; frequency: string; solved: number } | null = null;
 
@@ -254,6 +266,7 @@ export const load: PageServerLoad = async ({ parent, locals }) => {
 		streak,
 		recentSessions,
 		troubleSpots,
-		puzzleGoal
+		puzzleGoal,
+		healthScore
 	};
 };
