@@ -169,47 +169,76 @@
 			>
 				{data.repertoire.color === 'WHITE' ? 'White' : 'Black'}
 			</span>
-			<button class="import-btn" onclick={() => (importOpen = true)} title="Import PGN">
-				Import PGN
-			</button>
-			<div class="export-wrap">
-				<button class="import-btn" onclick={handleExport} disabled={exporting} title="Export PGN">
-					{exporting ? 'Exporting…' : 'Export PGN'}
+			{#if !s.exploreMode}
+				<button class="import-btn" onclick={() => (importOpen = true)} title="Import PGN">
+					Import PGN
 				</button>
-				{#if exportDropdown}
-					<div class="export-dropdown">
-						<button class="export-option" onclick={handleDownload}>Download .pgn</button>
-						<button class="export-option" onclick={handleCopy}>Copy to clipboard</button>
-						<button class="export-option export-cancel" onclick={() => (exportDropdown = false)}
-							>Cancel</button
-						>
-					</div>
-				{/if}
-				{#if exportMsg}
-					<span class="export-msg">{exportMsg}</span>
-				{/if}
-			</div>
+				<div class="export-wrap">
+					<button class="import-btn" onclick={handleExport} disabled={exporting} title="Export PGN">
+						{exporting ? 'Exporting…' : 'Export PGN'}
+					</button>
+					{#if exportDropdown}
+						<div class="export-dropdown">
+							<button class="export-option" onclick={handleDownload}>Download .pgn</button>
+							<button class="export-option" onclick={handleCopy}>Copy to clipboard</button>
+							<button class="export-option export-cancel" onclick={() => (exportDropdown = false)}
+								>Cancel</button
+							>
+						</div>
+					{/if}
+					{#if exportMsg}
+						<span class="export-msg">{exportMsg}</span>
+					{/if}
+				</div>
+			{/if}
+		</div>
+
+		<!-- Mode toggle -->
+		<div class="mode-toggle">
+			<button
+				class="mode-btn"
+				class:mode-btn--active={!s.exploreMode}
+				onclick={() => {
+					if (s.exploreMode) s.toggleExploreMode();
+				}}
+			>
+				Build
+			</button>
+			<button
+				class="mode-btn"
+				class:mode-btn--active={s.exploreMode}
+				onclick={() => {
+					if (!s.exploreMode) s.toggleExploreMode();
+				}}
+			>
+				Explore
+			</button>
 		</div>
 
 		<!-- ECO opening name (updates as moves are played) -->
 		<OpeningName currentFen={s.currentFen} fenHistory={s.fenHistory} />
 
-		<!-- Turn indicator -->
-		<div class="turn-indicator" class:user-turn={s.isUserTurn} class:opp-turn={!s.isUserTurn}>
-			<span class="turn-dot"></span>
-			{#if s.isUserTurn}
-				YOUR TURN <span class="turn-hint">— play a move on the board</span>
-			{:else}
-				OPPONENT'S TURN <span class="turn-hint">— play their move to add a response</span>
-			{/if}
-		</div>
-
-		<!-- Conflict warning -->
-		{#if s.conflictSan}
-			<div class="banner banner--warn">
-				You already have <strong>{s.conflictSan}</strong> here. Remove it first to change your move.
-				<button class="banner-dismiss" onclick={() => s.dismissConflict()}>✕</button>
+		{#if s.exploreMode}
+			<div class="banner banner--explore">Explore mode — moves are not saved to repertoire</div>
+		{:else}
+			<!-- Turn indicator -->
+			<div class="turn-indicator" class:user-turn={s.isUserTurn} class:opp-turn={!s.isUserTurn}>
+				<span class="turn-dot"></span>
+				{#if s.isUserTurn}
+					YOUR TURN <span class="turn-hint">— play a move on the board</span>
+				{:else}
+					OPPONENT'S TURN <span class="turn-hint">— play their move to add a response</span>
+				{/if}
 			</div>
+
+			<!-- Conflict warning -->
+			{#if s.conflictSan}
+				<div class="banner banner--warn">
+					You already have <strong>{s.conflictSan}</strong> here. Remove it first to change your
+					move.
+					<button class="banner-dismiss" onclick={() => s.dismissConflict()}>✕</button>
+				</div>
+			{/if}
 		{/if}
 
 		<!-- Error message -->
@@ -234,6 +263,7 @@
 			movePairs={s.movePairs}
 			currentIdx={s.navHistory.length - 1}
 			onNavigate={s.navigateToHistoryIdx}
+			isExploreEntry={s.exploreMode ? s.isExploreNavEntry : undefined}
 		/>
 
 		<!-- Full repertoire tree view -->
@@ -245,54 +275,71 @@
 		/>
 
 		<!-- Moves from the current position -->
-		<div class="section">
-			<div class="section-label">
-				{s.isUserTurn ? 'YOUR MOVE' : 'OPPONENT RESPONSES'}
-			</div>
-
+		{#if s.exploreMode}
 			{#if s.movesFromCurrentPosition.length > 0}
-				<div class="position-moves">
-					{#each s.movesFromCurrentPosition as m (m.id)}
-						<div class="position-move-item">
+				<div class="section">
+					<div class="section-label">SAVED MOVES HERE</div>
+					<div class="position-moves">
+						{#each s.movesFromCurrentPosition as m (m.id)}
 							<div class="position-move-row">
 								<button class="move-nav-btn" onclick={() => s.navigateTo(m)}>
 									{m.san}
 								</button>
-								<button
-									class="move-annotate-btn"
-									onclick={() => s.openAnnotation(m)}
-									title="Add or edit annotation"
-									aria-label="Edit annotation for {m.san}"
-								>
-									✎
-								</button>
-								<button
-									class="move-delete-btn"
-									onclick={() => s.confirmDelete(m)}
-									disabled={s.saving}
-									title="Remove this move and all moves after it"
-								>
-									✕
-								</button>
 							</div>
-							{#if m.notes}
-								<p class="move-notes">
-									{m.notes.length > 80 ? m.notes.slice(0, 80) + '…' : m.notes}
-								</p>
-							{/if}
-						</div>
-					{/each}
+						{/each}
+					</div>
 				</div>
-			{:else}
-				<p class="empty-hint">
-					{#if s.isUserTurn}
-						No move saved yet — play one on the board.
-					{:else}
-						No responses yet — play an opponent move to add one.
-					{/if}
-				</p>
 			{/if}
-		</div>
+		{:else}
+			<div class="section">
+				<div class="section-label">
+					{s.isUserTurn ? 'YOUR MOVE' : 'OPPONENT RESPONSES'}
+				</div>
+
+				{#if s.movesFromCurrentPosition.length > 0}
+					<div class="position-moves">
+						{#each s.movesFromCurrentPosition as m (m.id)}
+							<div class="position-move-item">
+								<div class="position-move-row">
+									<button class="move-nav-btn" onclick={() => s.navigateTo(m)}>
+										{m.san}
+									</button>
+									<button
+										class="move-annotate-btn"
+										onclick={() => s.openAnnotation(m)}
+										title="Add or edit annotation"
+										aria-label="Edit annotation for {m.san}"
+									>
+										✎
+									</button>
+									<button
+										class="move-delete-btn"
+										onclick={() => s.confirmDelete(m)}
+										disabled={s.saving}
+										title="Remove this move and all moves after it"
+									>
+										✕
+									</button>
+								</div>
+								{#if m.notes}
+									<p class="move-notes">
+										{m.notes.length > 80 ? m.notes.slice(0, 80) + '…' : m.notes}
+									</p>
+								{/if}
+							</div>
+						{/each}
+					</div>
+				{:else}
+					<p class="empty-hint">
+						{#if s.isUserTurn}
+							No move saved yet — play one on the board.
+						{:else}
+							No responses yet — play an opponent move to add one.
+						{/if}
+					</p>
+				{/if}
+			</div>
+		{/if}
 
 		<!-- Candidate moves (book + Stockfish suggestions) -->
 		<CandidateMoves
@@ -320,52 +367,67 @@
 			>
 				← Undo
 			</button>
-			<button
-				class="nav-btn nav-btn--annotate"
-				onclick={s.annotateLastMove}
-				disabled={s.navHistory.length === 0 || s.saving}
-				title="Annotate the last move"
-			>
-				✎
-			</button>
+			{#if !s.exploreMode}
+				<button
+					class="nav-btn nav-btn--annotate"
+					onclick={s.annotateLastMove}
+					disabled={s.navHistory.length === 0 || s.saving}
+					title="Annotate the last move"
+				>
+					✎
+				</button>
+			{/if}
 		</div>
 
-		<!-- Start position control -->
-		{#if s.isStartPosition}
-			<div class="start-indicator">
-				<span class="start-label">Start Position</span>
+		{#if s.exploreMode && s.hasUnsavedExploreMoves}
+			<button
+				class="save-line-btn"
+				onclick={s.saveExploreLine}
+				disabled={s.saving}
+				title="Save all moves in the current line to your repertoire"
+			>
+				{s.saving ? 'Saving…' : 'Add current line to repertoire'}
+			</button>
+		{/if}
+
+		{#if !s.exploreMode}
+			<!-- Start position control -->
+			{#if s.isStartPosition}
+				<div class="start-indicator">
+					<span class="start-label">Start Position</span>
+					<button
+						class="start-clear-btn"
+						onclick={s.clearStartPosition}
+						disabled={s.saving}
+						title="Reset to default (after first move)"
+					>
+						Clear
+					</button>
+				</div>
+			{:else if fenKey(s.currentFen) !== fenKey(STARTING_FEN) && s.navHistory.length > 0}
 				<button
-					class="start-clear-btn"
+					class="start-btn"
+					onclick={s.setStartPosition}
+					disabled={s.saving}
+					title="Set this position as the repertoire's starting point — moves before it won't be drilled"
+				>
+					Set as Start Position
+				</button>
+			{:else if s.startFen && fenKey(s.currentFen) === fenKey(STARTING_FEN)}
+				<button
+					class="start-clear-btn-standalone"
 					onclick={s.clearStartPosition}
 					disabled={s.saving}
 					title="Reset to default (after first move)"
 				>
-					Clear
+					Clear Start Position
 				</button>
-			</div>
-		{:else if fenKey(s.currentFen) !== fenKey(STARTING_FEN) && s.navHistory.length > 0}
-			<button
-				class="start-btn"
-				onclick={s.setStartPosition}
-				disabled={s.saving}
-				title="Set this position as the repertoire's starting point — moves before it won't be drilled"
-			>
-				Set as Start Position
-			</button>
-		{:else if s.startFen && fenKey(s.currentFen) === fenKey(STARTING_FEN)}
-			<button
-				class="start-clear-btn-standalone"
-				onclick={s.clearStartPosition}
-				disabled={s.saving}
-				title="Reset to default (after first move)"
-			>
-				Clear Start Position
-			</button>
-		{/if}
+			{/if}
 
-		<!-- Saving indicator -->
-		{#if s.saving}
-			<div class="saving-indicator">Saving…</div>
+			<!-- Saving indicator -->
+			{#if s.saving}
+				<div class="saving-indicator">Saving…</div>
+			{/if}
 		{/if}
 	</div>
 
@@ -608,6 +670,48 @@
 		white-space: nowrap;
 	}
 
+	/* ── Mode toggle ────────────────────────────────────────────────────────── */
+
+	.mode-toggle {
+		display: flex;
+		gap: 0;
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-md);
+		overflow: hidden;
+	}
+
+	.mode-btn {
+		flex: 1;
+		padding: var(--space-2) var(--space-3);
+		background: none;
+		border: none;
+		color: var(--color-text-muted);
+		font-family: var(--font-body);
+		font-size: 12px;
+		font-weight: 500;
+		letter-spacing: 0.04em;
+		cursor: pointer;
+		transition:
+			background var(--dur-fast) var(--ease-snap),
+			color var(--dur-fast) var(--ease-snap);
+	}
+
+	.mode-btn:hover:not(.mode-btn--active) {
+		color: var(--color-text-secondary);
+		background: var(--color-surface-alt);
+	}
+
+	.mode-btn--active {
+		background: var(--color-surface-alt);
+		color: var(--color-gold);
+		font-weight: 600;
+		cursor: default;
+	}
+
+	.mode-btn + .mode-btn {
+		border-left: 1px solid var(--color-border);
+	}
+
 	/* ── Turn indicator ──────────────────────────────────────────────────────── */
 
 	.turn-indicator {
@@ -676,6 +780,13 @@
 		background: rgba(139, 139, 160, 0.08);
 		border: 1px solid rgba(139, 139, 160, 0.2);
 		color: var(--color-text-secondary);
+	}
+
+	.banner--explore {
+		background: var(--color-explore-glow);
+		border: 1px solid rgba(103, 232, 249, 0.3);
+		color: var(--color-explore);
+		font-weight: 500;
 	}
 
 	.banner-dismiss {
@@ -824,6 +935,35 @@
 
 	.nav-btn--annotate {
 		flex-shrink: 0;
+	}
+
+	/* ── Save explore line button ───────────────────────────────────────────── */
+
+	.save-line-btn {
+		width: 100%;
+		padding: var(--space-2) var(--space-3);
+		background: var(--color-explore-glow);
+		border: 1px solid rgba(103, 232, 249, 0.3);
+		border-radius: var(--radius-sm);
+		color: var(--color-explore);
+		font-family: var(--font-body);
+		font-size: 12px;
+		font-weight: 500;
+		cursor: pointer;
+		transition:
+			border-color var(--dur-fast) var(--ease-snap),
+			color var(--dur-fast) var(--ease-snap),
+			background var(--dur-fast) var(--ease-snap);
+	}
+
+	.save-line-btn:hover:not(:disabled) {
+		border-color: var(--color-explore);
+		background: rgba(103, 232, 249, 0.2);
+	}
+
+	.save-line-btn:disabled {
+		opacity: 0.45;
+		cursor: default;
 	}
 
 	/* ── Saving indicator ────────────────────────────────────────────────────── */

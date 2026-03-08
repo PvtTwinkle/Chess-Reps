@@ -17,6 +17,8 @@
 	--color-text-muted: #52526a;
 	--color-success: #4ade80;
 	--color-danger: #f87171;
+	--color-explore: #67e8f9;
+	--color-explore-glow: rgba(103, 232, 249, 0.15);
 
 	/* ── Typography ───────────────────────────────────────────── */
 	--font-display: 'DM Serif Display', Georgia, serif;

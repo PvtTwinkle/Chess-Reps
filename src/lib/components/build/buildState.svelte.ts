@@ -70,6 +70,9 @@ export function createBuildState(params: CreateBuildStateParams) {
 	let boardKey = $state(0);
 	let startFen = $state<string | null>(null);
 
+	// ── Explore mode ─────────────────────────────────────────────────────────
+	let exploreMode = $state(false);
+
 	// ── Delete confirmation state ────────────────────────────────────────────
 
 	let pendingDelete = $state<RepertoireMove | null>(null);
@@ -194,6 +197,7 @@ export function createBuildState(params: CreateBuildStateParams) {
 		lastMove = undefined;
 		conflictSan = null;
 		errorMsg = null;
+		exploreMode = false;
 		startFen = params.getStartFen();
 
 		if (jumpLine) {
@@ -251,6 +255,16 @@ export function createBuildState(params: CreateBuildStateParams) {
 	): Promise<void> {
 		conflictSan = null;
 		errorMsg = null;
+
+		// In explore mode: navigate locally, never save to the database.
+		if (exploreMode) {
+			navHistory = [...navHistory, { fromFen: currentFen, toFen: newFen, san, from, to }];
+			currentFen = newFen;
+			lastMove = [from, to];
+			if (isCapture) playCapture();
+			else playMove();
+			return;
+		}
 
 		// If this exact move is already in the repertoire, just navigate.
 		const existing = movesFromFen.get(fenKey(currentFen))?.find((m) => m.san === san);
@@ -507,6 +521,106 @@ export function createBuildState(params: CreateBuildStateParams) {
 		}
 	}
 
+	// ── Explore mode helpers ─────────────────────────────────────────────
+
+	function toggleExploreMode(): void {
+		if (exploreMode) {
+			// Leaving explore mode: trim unsaved entries from the end of navHistory.
+			let trimIdx = navHistory.length;
+			for (let i = navHistory.length - 1; i >= 0; i--) {
+				const entry = navHistory[i];
+				const isSaved = moves.some(
+					(m) => fenKey(m.fromFen) === fenKey(entry.fromFen) && m.san === entry.san
+				);
+				if (isSaved) {
+					trimIdx = i + 1;
+					break;
+				}
+				if (i === 0) trimIdx = 0;
+			}
+			navHistory = navHistory.slice(0, trimIdx);
+			if (navHistory.length > 0) {
+				const last = navHistory[navHistory.length - 1];
+				currentFen = last.toFen;
+				lastMove = [last.from, last.to];
+			} else {
+				currentFen = STARTING_FEN;
+				lastMove = undefined;
+			}
+			exploreMode = false;
+		} else {
+			exploreMode = true;
+		}
+		conflictSan = null;
+		errorMsg = null;
+	}
+
+	// True when the current explore line has at least one unsaved move.
+	const hasUnsavedExploreMoves = $derived.by(() => {
+		if (!exploreMode) return false;
+		return navHistory.some(
+			(entry) =>
+				!moves.some((m) => fenKey(m.fromFen) === fenKey(entry.fromFen) && m.san === entry.san)
+		);
+	});
+
+	// Save all unsaved moves in the current navHistory to the database,
+	// then exit explore mode. The user keeps their current position.
+	async function saveExploreLine(): Promise<void> {
+		if (!exploreMode || saving) return;
+		saving = true;
+		errorMsg = null;
+
+		try {
+			for (const entry of navHistory) {
+				const alreadySaved = moves.some(
+					(m) => fenKey(m.fromFen) === fenKey(entry.fromFen) && m.san === entry.san
+				);
+				if (alreadySaved) continue;
+
+				const res = await fetch('/api/moves', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						repertoireId: params.getRepertoireId(),
+						fromFen: entry.fromFen,
+						san: entry.san
+					})
+				});
+
+				if (res.ok || res.status === 201) {
+					const savedMove: RepertoireMove = await res.json();
+					if (!moves.find((m) => m.id === savedMove.id)) {
+						moves = [...moves, savedMove];
+					}
+				} else if (res.status === 409) {
+					// Conflict on user's turn — a different move already exists here.
+					const body = await res.json();
+					errorMsg = `Could not save line: you already have ${body.existing?.san ?? 'a move'} at one of the positions.`;
+					return;
+				} else {
+					errorMsg = 'Failed to save line. Please try again.';
+					return;
+				}
+			}
+
+			// All moves saved — exit explore mode, keeping current position.
+			exploreMode = false;
+		} catch {
+			errorMsg = 'Network error. Please try again.';
+		} finally {
+			saving = false;
+		}
+	}
+
+	// Returns true if the nav entry at the given index is an unsaved explore move.
+	function isExploreNavEntry(idx: number): boolean {
+		if (!exploreMode) return false;
+		const entry = navHistory[idx];
+		if (!entry) return false;
+		return !moves.some((m) => fenKey(m.fromFen) === fenKey(entry.fromFen) && m.san === entry.san);
+	}
+
 	// ── Dismiss helpers ──────────────────────────────────────────────────────
 
 	function dismissConflict(): void {
@@ -602,6 +716,17 @@ export function createBuildState(params: CreateBuildStateParams) {
 		get boardKey() {
 			return boardKey;
 		},
+
+		// Explore mode
+		get exploreMode() {
+			return exploreMode;
+		},
+		get hasUnsavedExploreMoves() {
+			return hasUnsavedExploreMoves;
+		},
+		toggleExploreMode,
+		saveExploreLine,
+		isExploreNavEntry,
 
 		// Annotation state
 		get annotatingMove() {

@@ -19,9 +19,10 @@
 		movePairs: [NavEntry, NavEntry | null][];
 		currentIdx: number;
 		onNavigate: (idx: number) => void;
+		isExploreEntry?: (idx: number) => boolean;
 	}
 
-	let { movePairs, currentIdx, onNavigate }: Props = $props();
+	let { movePairs, currentIdx, onNavigate, isExploreEntry }: Props = $props();
 </script>
 
 {#if movePairs.length > 0}
@@ -33,6 +34,7 @@
 				<button
 					class="move-san"
 					class:is-current={currentIdx === i * 2}
+					class:is-explore={isExploreEntry?.(i * 2)}
 					onclick={() => onNavigate(i * 2)}
 				>
 					{pair[0].san}
@@ -41,6 +43,7 @@
 					<button
 						class="move-san move-san--black"
 						class:is-current={currentIdx === i * 2 + 1}
+						class:is-explore={isExploreEntry?.(i * 2 + 1)}
 						onclick={() => onNavigate(i * 2 + 1)}
 					>
 						{pair[1].san}
@@ -109,6 +112,17 @@
 	/* Black's moves are slightly dimmer to visually distinguish them. */
 	.move-san--black {
 		color: var(--color-text-secondary);
+	}
+
+	/* Explore mode: unsaved moves shown in cyan italic */
+	.move-san.is-explore {
+		color: var(--color-explore);
+		font-style: italic;
+	}
+
+	.move-san.is-explore.is-current {
+		color: var(--color-explore);
+		border-left-color: var(--color-explore);
 	}
 
 	/* ── Mobile compact mode ── --bp-md */
