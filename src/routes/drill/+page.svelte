@@ -857,6 +857,14 @@
 			</button>
 		</div>
 
+		<!-- Drill-all mode banner -->
+		{#if data.drillMode === 'all'}
+			<div class="drill-all-banner">
+				{data.fromFen ? 'Drilling subtree' : 'Drilling all cards'}
+				<a href="/drill" class="drill-all-exit">Exit</a>
+			</div>
+		{/if}
+
 		<!-- ECO opening name -->
 		<OpeningName {currentFen} {fenHistory} />
 
@@ -900,6 +908,11 @@
 			</div>
 		{/if}
 
+		<!-- Drill-all shortcut (only in normal due-cards mode) -->
+		{#if data.drillMode !== 'all' && phase !== 'complete'}
+			<a href="/drill?mode=all" class="drill-all-link">Drill all cards</a>
+		{/if}
+
 		<!-- Progress bar -->
 		{#if phase !== 'complete' && filteredCards.length > 0}
 			<div class="progress-section">
@@ -924,6 +937,7 @@
 				<p class="empty-title">All caught up!</p>
 				<p class="empty-hint">No cards due right now. Come back later or build more repertoire.</p>
 				<a href="/build" class="btn btn--primary">Build Mode</a>
+				<a href="/drill?mode=all" class="btn btn--secondary">Drill all cards</a>
 			</div>
 		{:else if filteredCards.length === 0}
 			<!-- Due cards exist but none match the selected section -->
@@ -1286,6 +1300,47 @@
 		border-radius: var(--radius-sm);
 		pointer-events: none;
 		white-space: nowrap;
+	}
+
+	/* ── Drill-all banner ───────────────────────────────────────────────────── */
+
+	.drill-all-banner {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: var(--space-2) var(--space-3);
+		background: var(--color-accent-subtle, rgba(59, 130, 246, 0.1));
+		border: 1px solid var(--color-accent, #3b82f6);
+		border-radius: var(--radius-sm);
+		font-size: 0.82rem;
+		font-weight: 600;
+		color: var(--color-accent, #3b82f6);
+	}
+
+	.drill-all-link {
+		display: block;
+		text-align: center;
+		padding: var(--space-2) var(--space-3);
+		font-size: 0.8rem;
+		color: var(--color-text-secondary);
+		text-decoration: none;
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-sm);
+		transition:
+			border-color var(--dur-fast) var(--ease-snap),
+			color var(--dur-fast) var(--ease-snap);
+	}
+
+	.drill-all-link:hover {
+		border-color: var(--color-accent, rgba(59, 130, 246, 0.4));
+		color: var(--color-accent, #3b82f6);
+	}
+
+	.drill-all-exit {
+		font-size: 0.75rem;
+		font-weight: 500;
+		color: var(--color-text-secondary);
+		text-decoration: underline;
 	}
 
 	/* ── Repertoire header ───────────────────────────────────────────────────── */

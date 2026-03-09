@@ -608,6 +608,17 @@
 				</button>
 			{/if}
 
+			<!-- Drill from here -->
+			{#if s.navHistory.length > 0 && s.movesFromCurrentPosition.length > 0}
+				<a
+					href="/drill?mode=all&fromFen={encodeURIComponent(s.currentFen)}"
+					class="drill-here-btn"
+					title="Drill all cards downstream from this position"
+				>
+					Drill from here
+				</a>
+			{/if}
+
 			<!-- Saving indicator -->
 			{#if s.saving}
 				<div class="saving-indicator">Saving…</div>
@@ -1269,6 +1280,31 @@
 	.start-btn:disabled {
 		opacity: 0.35;
 		cursor: default;
+	}
+
+	.drill-here-btn {
+		display: block;
+		width: 100%;
+		padding: var(--space-2) var(--space-3);
+		background: var(--color-surface-alt);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-sm);
+		color: var(--color-text-secondary);
+		font-family: var(--font-body);
+		font-size: 12px;
+		text-align: center;
+		text-decoration: none;
+		cursor: pointer;
+		transition:
+			border-color var(--dur-fast) var(--ease-snap),
+			color var(--dur-fast) var(--ease-snap),
+			background var(--dur-fast) var(--ease-snap);
+	}
+
+	.drill-here-btn:hover {
+		border-color: var(--color-accent, rgba(59, 130, 246, 0.4));
+		color: var(--color-accent, #3b82f6);
+		background: rgba(59, 130, 246, 0.05);
 	}
 
 	.start-clear-btn-standalone {

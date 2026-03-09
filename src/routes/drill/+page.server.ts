@@ -1,8 +1,11 @@
 // Drill mode page server load function.
 //
 // Loads the active repertoire's full move tree (for path reconstruction) and
-// all SR cards that are currently due (due <= now). User settings (sound,
-// board theme, etc.) come from the layout load — no need to query them here.
+// SR cards for drilling. By default only due cards (due <= now) are loaded.
+//
+// URL params alter behaviour:
+//   ?mode=all          — load ALL cards regardless of due date
+//   ?fromFen=<fen>     — scope cards to the subtree rooted at that position
 //
 // Cards for "lead-in" moves (before the repertoire's start position) are
 // filtered out so the user only drills positions within scope.
@@ -13,9 +16,10 @@ import { db } from '$lib/db';
 import { userMove, userRepertoireMove } from '$lib/db/schema';
 import { eq, and, lte } from 'drizzle-orm';
 import { fenKey } from '$lib/gaps';
+import { sanitizeFen } from '$lib/fen';
 import { getEffectiveStartFens, buildInScopeFens } from '$lib/repertoire';
 
-export const load: PageServerLoad = async ({ locals, parent }) => {
+export const load: PageServerLoad = async ({ locals, parent, url }) => {
 	const { activeRepertoireId, repertoires } = await parent();
 
 	if (!activeRepertoireId) {
@@ -29,6 +33,9 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 
 	const userId = locals.user!.id;
 	const now = new Date();
+	const drillMode = url.searchParams.get('mode') === 'all' ? 'all' : 'due';
+	const rawFromFen = url.searchParams.get('fromFen');
+	const fromFen = rawFromFen ? sanitizeFen(rawFromFen) : null;
 
 	// All moves in the repertoire — used by the client to reconstruct the path
 	// from move 1 to each due card's position.
@@ -37,31 +44,49 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 		.from(userMove)
 		.where(and(eq(userMove.userId, userId), eq(userMove.repertoireId, activeRepertoireId)));
 
-	// All SR cards that are due right now (due <= now).
-	let dueCards = await db
-		.select()
-		.from(userRepertoireMove)
-		.where(
-			and(
-				eq(userRepertoireMove.userId, userId),
-				eq(userRepertoireMove.repertoireId, activeRepertoireId),
-				lte(userRepertoireMove.due, now)
-			)
-		);
+	// Load SR cards — either all cards or only those currently due.
+	let dueCards =
+		drillMode === 'all'
+			? await db
+					.select()
+					.from(userRepertoireMove)
+					.where(
+						and(
+							eq(userRepertoireMove.userId, userId),
+							eq(userRepertoireMove.repertoireId, activeRepertoireId)
+						)
+					)
+			: await db
+					.select()
+					.from(userRepertoireMove)
+					.where(
+						and(
+							eq(userRepertoireMove.userId, userId),
+							eq(userRepertoireMove.repertoireId, activeRepertoireId),
+							lte(userRepertoireMove.due, now)
+						)
+					);
 
-	// Filter out cards for lead-in moves (before the repertoire's start position).
-	// Only positions reachable from the effective start FEN(s) are in scope.
-	const startFens = getEffectiveStartFens(
-		activeRep.startFen ?? null,
-		moves,
-		activeRep.color as 'WHITE' | 'BLACK'
-	);
-	const inScope = buildInScopeFens(startFens, moves);
-	dueCards = dueCards.filter((c) => inScope.has(fenKey(c.fromFen)));
+	// Scope cards to a subtree if fromFen is provided, otherwise use the
+	// default lead-in filter (positions reachable from the repertoire start).
+	if (fromFen) {
+		const subtree = buildInScopeFens([fromFen], moves);
+		dueCards = dueCards.filter((c) => subtree.has(fenKey(c.fromFen)));
+	} else {
+		const startFens = getEffectiveStartFens(
+			activeRep.startFen ?? null,
+			moves,
+			activeRep.color as 'WHITE' | 'BLACK'
+		);
+		const inScope = buildInScopeFens(startFens, moves);
+		dueCards = dueCards.filter((c) => inScope.has(fenKey(c.fromFen)));
+	}
 
 	return {
 		repertoire: activeRep,
 		moves,
-		dueCards
+		dueCards,
+		drillMode,
+		fromFen
 	};
 };
