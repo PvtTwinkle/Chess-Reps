@@ -98,6 +98,14 @@
 		to: string;
 	}
 
+	// One step in a root-to-leaf line through the repertoire tree.
+	interface LineStep {
+		fromFen: string;
+		toFen: string;
+		san: string;
+		isUserMove: boolean; // true when it's the user's color to move
+	}
+
 	type Phase = 'idle' | 'playing' | 'waiting' | 'correct' | 'incorrect' | 'complete';
 
 	let { data }: { data: PageData } = $props();
@@ -179,6 +187,29 @@
 	let undoSnapshot = $state<UndoSnapshot | null>(null);
 	let undoing = $state(false);
 
+	// ── Line-mode state ──────────────────────────────────────────────────────
+	// 'card' = normal single-position drilling, 'line' = full root-to-leaf lines.
+	let drillType = $state<'card' | 'line'>('card');
+
+	// All enumerated root-to-leaf lines, sorted weakest-first.
+	let allLines = $state<LineStep[][]>([]);
+
+	// Index into allLines — which line we're currently drilling.
+	let currentLineIdx = $state(0);
+
+	// The line currently being drilled.
+	let currentLine = $state<LineStep[]>([]);
+
+	// Index into currentLine — the next step the user must play (always a user-move step).
+	let lineStepIdx = $state(0);
+
+	// Stats for the current line.
+	let lineCorrect = $state(0);
+	let lineTotal = $state(0);
+
+	// Brief interstitial shown between lines.
+	let lineComplete = $state(false);
+
 	// ── Tempo training state ──────────────────────────────────────────────────
 	let tempoEnabled = $state(false);
 	let tempoSeconds = $state(10);
@@ -256,6 +287,13 @@
 			// Ignore other keypresses with modifiers.
 			if (e.ctrlKey || e.altKey || e.metaKey) return;
 
+			// Line mode: Space/Enter advances to the next line on the interstitial.
+			if (drillType === 'line' && lineComplete && (e.key === ' ' || e.key === 'Enter')) {
+				e.preventDefault();
+				advanceToNextLine();
+				return;
+			}
+
 			// "Next" shortcut: Space or Enter when the Next button is visible.
 			// Visible when: awaitingNext (graded correct), or incorrect, or hint-used correct.
 			const nextVisible =
@@ -321,14 +359,19 @@
 
 		untrack(() => {
 			resetBoard();
-			startNextCard();
+			if (drillType === 'line') {
+				initLineMode();
+			} else {
+				startNextCard();
+			}
 		});
 	});
 
 	// Start/stop the tempo timer whenever the drill phase changes.
 	// When phase becomes 'waiting', start counting down; otherwise, stop.
+	// Tempo is disabled in line mode — it doesn't make sense with auto-advancing.
 	$effect(() => {
-		if (phase === 'waiting') {
+		if (phase === 'waiting' && drillType === 'card') {
 			untrack(() => startTempoTimer());
 		} else {
 			untrack(() => stopTempoTimer());
@@ -498,6 +541,97 @@
 		return pathSans;
 	}
 
+	// ── Line enumeration ──────────────────────────────────────────────────────
+
+	// Enumerate all root-to-leaf lines through the repertoire's move tree.
+	// A "leaf" is any position with no outgoing edges. Each line is an ordered
+	// list of LineSteps from the starting position to the leaf.
+	function enumerateLines(moves: RepertoireMove[], color: 'WHITE' | 'BLACK'): LineStep[][] {
+		const adj = new SvelteMap<string, RepertoireMove[]>();
+		for (const m of moves) {
+			const key = fenKey(m.fromFen);
+			const list = adj.get(key);
+			if (list) list.push(m);
+			else adj.set(key, [m]);
+		}
+
+		const lines: LineStep[][] = [];
+		const MAX_LINES = 500;
+
+		function isUserTurn(fen: string): boolean {
+			const sideToMove = fen.split(' ')[1]; // 'w' or 'b'
+			return (color === 'WHITE' && sideToMove === 'w') || (color === 'BLACK' && sideToMove === 'b');
+		}
+
+		function dfs(fen: string, path: LineStep[], visited: Set<string>): void {
+			if (lines.length >= MAX_LINES) return;
+
+			const children = adj.get(fenKey(fen)) ?? [];
+			if (children.length === 0) {
+				// Leaf — only record if path has at least one user move.
+				if (path.some((s) => s.isUserMove)) {
+					lines.push([...path]);
+				}
+				return;
+			}
+
+			for (const child of children) {
+				const toKey = fenKey(child.toFen);
+				if (visited.has(toKey)) continue; // cycle protection
+
+				visited.add(toKey);
+				path.push({
+					fromFen: child.fromFen,
+					toFen: child.toFen,
+					san: child.san,
+					isUserMove: isUserTurn(child.fromFen)
+				});
+				dfs(child.toFen, path, visited);
+				path.pop();
+				visited.delete(toKey);
+			}
+		}
+
+		const startKey = fenKey(STARTING_FEN);
+		const visited = new Set<string>([startKey]);
+		dfs(STARTING_FEN, [], visited);
+		return lines;
+	}
+
+	// Score a line by how many weak/due SR cards it contains.
+	// Higher score = more urgent to drill.
+	function scoreLine(line: LineStep[], dueCards: DueCard[]): number {
+		const dueSet = new Set(dueCards.map((c) => fenKey(c.fromFen) + ':' + c.san));
+		const cardMap = new SvelteMap<string, DueCard>();
+		for (const c of dueCards) {
+			cardMap.set(fenKey(c.fromFen) + ':' + c.san, c);
+		}
+
+		let score = 0;
+		for (const step of line) {
+			if (!step.isUserMove) continue;
+			const key = fenKey(step.fromFen) + ':' + step.san;
+			if (dueSet.has(key)) {
+				score += 3;
+			} else {
+				const card = cardMap.get(key);
+				if (card && (card.lapses ?? 0) > 0) score += 1;
+			}
+		}
+		return score;
+	}
+
+	// Sort lines by score descending, breaking ties randomly.
+	function sortLinesByWeakness(lines: LineStep[][], dueCards: DueCard[]): LineStep[][] {
+		const scored = lines.map((line) => ({
+			line,
+			score: scoreLine(line, dueCards),
+			rand: Math.random()
+		}));
+		scored.sort((a, b) => b.score - a.score || a.rand - b.rand);
+		return scored.map((s) => s.line);
+	}
+
 	// Reset board state to the starting position.
 	function resetBoard(): void {
 		stopAutoPlay();
@@ -610,7 +744,23 @@
 		newFen: string,
 		isCapture: boolean
 	): void {
-		if (phase !== 'waiting' || !currentCard) return;
+		if (phase !== 'waiting') return;
+
+		// Line mode: check against the current line step.
+		if (drillType === 'line') {
+			const step = currentLine[lineStepIdx];
+			if (!step) return;
+
+			if (san === step.san) {
+				handleLineMoveCorrect(from, to, san, newFen, isCapture);
+			} else {
+				handleLineMoveIncorrect();
+			}
+			return;
+		}
+
+		// Card mode: check against the current SR card.
+		if (!currentCard) return;
 
 		if (san === currentCard.san) {
 			// Correct move played. Update the board position regardless.
@@ -773,6 +923,271 @@
 		await advanceToNext();
 	}
 
+	// ── Line-mode functions ───────────────────────────────────────────────────
+
+	// Find the SR card matching a line step (for auto-grading).
+	function findCardForStep(step: LineStep): DueCard | null {
+		return (
+			allDueCards.find((c) => fenKey(c.fromFen) === fenKey(step.fromFen) && c.san === step.san) ??
+			null
+		);
+	}
+
+	// Auto-grade a line step's SR card (fire-and-forget, doesn't block the flow).
+	function autoGradeStep(step: LineStep, rating: number): void {
+		const card = findCardForStep(step);
+		if (!card) return; // no SR card for this move (might not exist)
+
+		// Create session on first grade (same as card mode).
+		if (sessionId === null) {
+			fetch('/api/drill/session', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ repertoireId: data.repertoire.id })
+			})
+				.then((res) => (res.ok ? res.json() : null))
+				.then((d) => {
+					if (d) sessionId = d.sessionId;
+				})
+				.catch(() => {});
+		}
+
+		fetch('/api/drill/grade', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ cardId: card.id, rating })
+		}).catch((err) => console.error('Failed to auto-grade:', err));
+
+		totalReviewed++;
+		if (rating >= 3) correctCount++;
+	}
+
+	// Initialize line mode: enumerate lines, sort, and start the first line.
+	function initLineMode(): void {
+		const color = data.repertoire.color as 'WHITE' | 'BLACK';
+		const raw = enumerateLines(allMoves, color);
+		allLines = sortLinesByWeakness(raw, allDueCards);
+		currentLineIdx = 0;
+		lineComplete = false;
+		totalReviewed = 0;
+		correctCount = 0;
+		sessionId = null;
+		nextDueAt = null;
+		startNextLine();
+	}
+
+	// Start drilling the next line in the queue.
+	function startNextLine(): void {
+		lineComplete = false;
+
+		if (allLines.length === 0 || currentLineIdx >= allLines.length) {
+			phase = 'complete';
+			return;
+		}
+
+		const line = allLines[currentLineIdx];
+		currentLine = line;
+		lineStepIdx = 0;
+		lineCorrect = 0;
+		lineTotal = line.filter((s) => s.isUserMove).length;
+
+		resetBoard();
+		phase = 'playing';
+
+		// Auto-play from the start until the first user-move step.
+		lineAutoPlayFromStart();
+	}
+
+	// Auto-play opponent (and lead-in) moves at the start of a line, or after
+	// the user plays a correct move, until the next user-move step or end of line.
+	function lineAutoPlayFromStart(): void {
+		let fen = currentFen;
+		let history = [...navHistory];
+		let idx = lineStepIdx;
+
+		function step() {
+			if (phase !== 'playing') return;
+
+			// If we've reached the end of the line, mark it complete.
+			if (idx >= currentLine.length) {
+				lineComplete = true;
+				phase = 'idle';
+				return;
+			}
+
+			const s = currentLine[idx];
+
+			// If this is a user move, stop auto-playing and wait for input.
+			if (s.isUserMove) {
+				lineStepIdx = idx;
+				phase = 'waiting';
+				return;
+			}
+
+			// Auto-play this opponent move.
+			try {
+				const chess = new Chess(fen);
+				const result = chess.move(s.san);
+				if (!result) {
+					lineStepIdx = idx;
+					phase = 'waiting';
+					return;
+				}
+
+				const entry: NavEntry = {
+					fromFen: fen,
+					toFen: chess.fen(),
+					san: result.san,
+					from: result.from,
+					to: result.to
+				};
+				history = [...history, entry];
+				fen = chess.fen();
+
+				navHistory = history;
+				currentFen = fen;
+				lastMove = [result.from, result.to];
+
+				if (result.captured) playCapture();
+				else playMove();
+			} catch {
+				lineStepIdx = idx;
+				phase = 'waiting';
+				return;
+			}
+
+			idx++;
+			autoPlayTimer = setTimeout(step, 500);
+		}
+
+		autoPlayTimer = setTimeout(step, 500);
+	}
+
+	// After the user plays a correct move in line mode, continue auto-playing
+	// opponent moves until the next user move or end of line.
+	function continueLineAfterUserMove(): void {
+		// Advance past the just-played user step.
+		lineStepIdx++;
+		phase = 'playing';
+		lineAutoPlayFromStart();
+	}
+
+	// Handle a correct move in line mode: flash green, auto-grade, continue.
+	function handleLineMoveCorrect(
+		from: string,
+		to: string,
+		san: string,
+		newFen: string,
+		isCapture: boolean
+	): void {
+		const step = currentLine[lineStepIdx];
+
+		navHistory = [...navHistory, { fromFen: currentFen, toFen: newFen, san, from, to }];
+		currentFen = newFen;
+		lastMove = [from, to];
+		flashColor = 'green';
+		setTimeout(() => (flashColor = null), 300);
+		if (isCapture) playCapture();
+		else playMove();
+		playCorrect();
+
+		lineCorrect++;
+		autoGradeStep(step, 3); // Rating.Good
+
+		// Short pause then continue the line.
+		setTimeout(() => continueLineAfterUserMove(), 400);
+	}
+
+	// Handle an incorrect move in line mode: flash red, show correct, auto-correct, continue.
+	function handleLineMoveIncorrect(): void {
+		const step = currentLine[lineStepIdx];
+
+		boardKey++; // snap board back
+		flashColor = 'red';
+		playIncorrect();
+		revealedSan = step.san;
+		setTimeout(() => (flashColor = null), 600);
+
+		autoGradeStep(step, 1); // Rating.Again
+
+		// After 1.5s, auto-correct the board and continue.
+		setTimeout(() => {
+			revealedSan = null;
+
+			// Play the correct move on the board.
+			try {
+				const chess = new Chess(currentFen);
+				const result = chess.move(step.san);
+				if (result) {
+					navHistory = [
+						...navHistory,
+						{
+							fromFen: currentFen,
+							toFen: chess.fen(),
+							san: result.san,
+							from: result.from,
+							to: result.to
+						}
+					];
+					currentFen = chess.fen();
+					lastMove = [result.from, result.to];
+					boardKey++;
+				}
+			} catch {
+				// Shouldn't happen — the correct move should always be valid.
+			}
+
+			continueLineAfterUserMove();
+		}, 1500);
+	}
+
+	// Advance to the next line after the interstitial.
+	async function advanceToNextLine(): Promise<void> {
+		currentLineIdx++;
+
+		if (currentLineIdx >= allLines.length) {
+			// All lines done — finalize session.
+			if (sessionId !== null) {
+				try {
+					const finalRes = await fetch(`/api/drill/session/${sessionId}`, {
+						method: 'PATCH',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify({ cardsReviewed: totalReviewed, cardsCorrect: correctCount })
+					});
+					if (finalRes.ok) {
+						const finalData = await finalRes.json();
+						nextDueAt = finalData.nextDueAt;
+					}
+				} catch {
+					// Non-critical.
+				}
+			}
+			phase = 'complete';
+			return;
+		}
+
+		startNextLine();
+	}
+
+	// Switch between card and line drill modes.
+	function switchDrillType(type: 'card' | 'line'): void {
+		if (type === drillType) return;
+		drillType = type;
+		resetBoard();
+
+		if (type === 'line') {
+			initLineMode();
+		} else {
+			// Back to card mode — reset card state.
+			currentCardIdx = 0;
+			totalReviewed = 0;
+			correctCount = 0;
+			sessionId = null;
+			nextDueAt = null;
+			startNextCard();
+		}
+	}
+
 	// ── Session restart ────────────────────────────────────────────────────────
 
 	// Reload fresh due cards from the server, then let the $effect handle the
@@ -865,11 +1280,31 @@
 			</div>
 		{/if}
 
+		<!-- Drill type toggle: Cards vs Lines -->
+		{#if phase !== 'complete'}
+			<div class="drill-type-toggle">
+				<button
+					class="drill-type-btn"
+					class:active={drillType === 'card'}
+					onclick={() => switchDrillType('card')}
+				>
+					Cards
+				</button>
+				<button
+					class="drill-type-btn"
+					class:active={drillType === 'line'}
+					onclick={() => switchDrillType('line')}
+				>
+					Lines
+				</button>
+			</div>
+		{/if}
+
 		<!-- ECO opening name -->
 		<OpeningName {currentFen} {fenHistory} />
 
-		<!-- Depth section filter -->
-		{#if allDueCards.length > 0 && phase !== 'complete'}
+		<!-- Depth section filter (card mode only) -->
+		{#if drillType === 'card' && allDueCards.length > 0 && phase !== 'complete'}
 			<div class="section-filter">
 				<div class="section-label">FOCUS</div>
 				<div class="section-tabs">
@@ -908,13 +1343,13 @@
 			</div>
 		{/if}
 
-		<!-- Drill-all shortcut (only in normal due-cards mode) -->
-		{#if data.drillMode !== 'all' && phase !== 'complete'}
+		<!-- Drill-all shortcut (only in normal due-cards mode, card drill type) -->
+		{#if drillType === 'card' && data.drillMode !== 'all' && phase !== 'complete'}
 			<a href="/drill?mode=all" class="drill-all-link">Drill all cards</a>
 		{/if}
 
 		<!-- Progress bar -->
-		{#if phase !== 'complete' && filteredCards.length > 0}
+		{#if drillType === 'card' && phase !== 'complete' && filteredCards.length > 0}
 			<div class="progress-section">
 				<div class="progress-label">
 					Card {Math.min(currentCardIdx + 1, filteredCards.length)} of {filteredCards.length}
@@ -923,6 +1358,23 @@
 					<div class="progress-fill" style="width: {progress * 100}%"></div>
 				</div>
 			</div>
+		{:else if drillType === 'line' && phase !== 'complete' && allLines.length > 0}
+			<div class="progress-section">
+				<div class="progress-label">
+					Line {Math.min(currentLineIdx + 1, allLines.length)} of {allLines.length}
+				</div>
+				<div class="progress-bar">
+					<div
+						class="progress-fill"
+						style="width: {(currentLineIdx / allLines.length) * 100}%"
+					></div>
+				</div>
+				{#if currentLine.length > 0 && !lineComplete}
+					<div class="progress-sub">
+						Move {Math.min(lineStepIdx + 1, lineTotal)} of {lineTotal} in this line
+					</div>
+				{/if}
+			</div>
 		{/if}
 
 		<!-- ── Phase-specific content ─────────────────────────────────────────── -->
@@ -930,7 +1382,36 @@
 		<!-- Empty-state check comes first: always show "All caught up!" when there
 		     are no due cards, regardless of phase. Prevents the "Session complete"
 		     screen appearing with 0 cards after all cards are pushed into the future. -->
-		{#if allDueCards.length === 0}
+		{#if drillType === 'line' && lineComplete}
+			<!-- Line-complete interstitial -->
+			<div class="line-complete-screen">
+				<div class="feedback feedback--correct">
+					<span class="feedback-icon">✓</span> Line complete
+				</div>
+				<div class="complete-stats">
+					<div class="stat-row">
+						<span class="stat-label">Moves correct</span>
+						<span class="stat-value">
+							{lineCorrect} / {lineTotal}
+							{#if lineTotal > 0}
+								<span class="stat-pct">({Math.round((lineCorrect / lineTotal) * 100)}%)</span>
+							{/if}
+						</span>
+					</div>
+				</div>
+				<button class="btn btn--primary next-btn" onclick={advanceToNextLine}>
+					Next Line <kbd>Space</kbd>
+				</button>
+			</div>
+		{:else if drillType === 'line' && allLines.length === 0 && phase !== 'playing'}
+			<!-- Line mode but no lines to drill -->
+			<div class="empty-state">
+				<div class="empty-icon">✓</div>
+				<p class="empty-title">No lines to drill</p>
+				<p class="empty-hint">Your repertoire has no complete lines yet. Build more moves first.</p>
+				<a href="/build" class="btn btn--primary">Build Mode</a>
+			</div>
+		{:else if drillType === 'card' && allDueCards.length === 0}
 			<!-- No cards due -->
 			<div class="empty-state">
 				<div class="empty-icon">✓</div>
@@ -939,7 +1420,7 @@
 				<a href="/build" class="btn btn--primary">Build Mode</a>
 				<a href="/drill?mode=all" class="btn btn--secondary">Drill all cards</a>
 			</div>
-		{:else if filteredCards.length === 0}
+		{:else if drillType === 'card' && filteredCards.length === 0}
 			<!-- Due cards exist but none match the selected section -->
 			<div class="empty-state">
 				<p class="empty-title">No cards in this range</p>
@@ -951,7 +1432,9 @@
 				<div class="complete-title">Session complete</div>
 				<div class="complete-stats">
 					<div class="stat-row">
-						<span class="stat-label">Cards reviewed</span>
+						<span class="stat-label"
+							>{drillType === 'line' ? 'Moves reviewed' : 'Cards reviewed'}</span
+						>
 						<span class="stat-value">{totalReviewed}</span>
 					</div>
 					<div class="stat-row">
@@ -963,6 +1446,12 @@
 							{/if}
 						</span>
 					</div>
+					{#if drillType === 'line'}
+						<div class="stat-row">
+							<span class="stat-label">Lines drilled</span>
+							<span class="stat-value">{currentLineIdx}</span>
+						</div>
+					{/if}
 					<div class="stat-row">
 						<span class="stat-label">Next session</span>
 						<span class="stat-value">
@@ -1005,8 +1494,8 @@
 				YOUR TURN <span class="turn-hint">— play your move</span>
 			</div>
 
-			<!-- Tempo countdown bar -->
-			{#if tempoEnabled}
+			<!-- Tempo countdown bar (card mode only) -->
+			{#if drillType === 'card' && tempoEnabled}
 				<div class="tempo-bar-wrap">
 					<div
 						class="tempo-bar-fill"
@@ -1018,14 +1507,16 @@
 				</div>
 			{/if}
 
-			<!-- Hint button / hint-active indicator -->
-			{#if !hintUsed}
-				<button class="hint-btn" onclick={showHint}>💡 Hint</button>
-			{:else}
-				<div class="hint-active">
-					<span>💡 Hint active — piece highlighted</span>
-					<span class="hint-penalty">Move will be graded Forgot</span>
-				</div>
+			<!-- Hint button / hint-active indicator (card mode only) -->
+			{#if drillType === 'card'}
+				{#if !hintUsed}
+					<button class="hint-btn" onclick={showHint}>💡 Hint</button>
+				{:else}
+					<div class="hint-active">
+						<span>💡 Hint active — piece highlighted</span>
+						<span class="hint-penalty">Move will be graded Forgot</span>
+					</div>
+				{/if}
 			{/if}
 
 			<!-- Current line display -->
@@ -1043,8 +1534,16 @@
 				</div>
 			{/if}
 
+			<!-- Revealed correct move (line mode: shown briefly on wrong answer) -->
+			{#if drillType === 'line' && revealedSan}
+				<div class="section">
+					<div class="section-label">CORRECT MOVE</div>
+					<div class="revealed-move">{revealedSan}</div>
+				</div>
+			{/if}
+
 			<!-- Note on the opponent's last move (the move that reached this position) -->
-			{#if currentPositionNote}
+			{#if drillType === 'card' && currentPositionNote}
 				<div class="note-box">
 					<div class="note-label">NOTE</div>
 					<div class="note-text">{currentPositionNote}</div>
@@ -1885,6 +2384,55 @@
 		font-weight: 600;
 		color: var(--color-text-muted);
 		font-variant-numeric: tabular-nums;
+	}
+
+	/* ── Drill type toggle ────────────────────────────────────────────── */
+
+	.drill-type-toggle {
+		display: flex;
+		gap: 0.35rem;
+	}
+
+	.drill-type-btn {
+		flex: 1;
+		padding: 0.4rem 0.5rem;
+		border-radius: var(--radius-sm);
+		border: 1px solid var(--color-border);
+		background: var(--color-surface);
+		color: var(--color-text-secondary);
+		font-size: 0.8rem;
+		font-family: var(--font-body);
+		font-weight: 600;
+		cursor: pointer;
+		text-align: center;
+		transition: all var(--dur-fast) var(--ease-snap);
+	}
+
+	.drill-type-btn:hover {
+		border-color: var(--color-gold);
+		color: var(--color-text-primary);
+	}
+
+	.drill-type-btn.active {
+		background: rgba(226, 183, 20, 0.15);
+		border-color: var(--color-gold);
+		color: var(--color-text-primary);
+	}
+
+	/* ── Line-complete interstitial ───────────────────────────────────── */
+
+	.line-complete-screen {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-3);
+	}
+
+	/* ── Progress sub-label ──────────────────────────────────────────── */
+
+	.progress-sub {
+		font-size: 0.7rem;
+		color: var(--color-text-muted);
+		margin-top: 0.15rem;
 	}
 
 	/* ── Mobile responsive ────────────────────────────────────────────── */
