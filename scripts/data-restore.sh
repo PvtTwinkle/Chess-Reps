@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────────────────
-# Data Restore — download and load optional datasets into Chess Reps
+# Data Restore — download and load optional datasets into Chessstack
 #
 # Downloads pre-built data dumps from GitHub Releases and restores them
 # into the PostgreSQL database. The app must be running (docker compose up -d)
@@ -18,10 +18,10 @@
 set -euo pipefail
 
 # ── Configuration ────────────────────────────────────────────────────────────
-REPO="PvtTwinkle/Chess-Reps"
-CONTAINER="chess-reps-postgres"
-DB_USER="chess_reps"
-DB_NAME="chess_reps"
+REPO="PvtTwinkle/Chessstack"
+CONTAINER="chessstack-postgres"
+DB_USER="chessstack"
+DB_NAME="chessstack"
 FORCE=false
 LOCAL_MODE=false
 CHESSMONT=true
@@ -67,7 +67,7 @@ while [[ $# -gt 0 ]]; do
       echo "  --puzzles-only     Only restore puzzle database"
       echo "  --local FILE...    Restore from local .sql.gz files instead of downloading"
       echo "  --force            Skip confirmation prompts"
-      echo "  --container NAME   PostgreSQL container name (default: chess-reps-postgres)"
+      echo "  --container NAME   PostgreSQL container name (default: chessstack-postgres)"
       echo "  --help             Show this help message"
       exit 0
       ;;
@@ -215,7 +215,7 @@ download_file() {
 
 # ── Main ─────────────────────────────────────────────────────────────────────
 
-echo "=== Chess Reps Data Restore ==="
+echo "=== Chessstack Data Restore ==="
 echo ""
 
 check_container

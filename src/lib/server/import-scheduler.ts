@@ -28,11 +28,11 @@ export function startImportScheduler(): void {
 
 	const intervalMinutes = parseInt(process.env.GAME_IMPORT_INTERVAL_MINUTES ?? '0');
 	if (intervalMinutes <= 0) {
-		console.log('[chess-reps] Auto-import disabled (GAME_IMPORT_INTERVAL_MINUTES=0).');
+		console.log('[chessstack] Auto-import disabled (GAME_IMPORT_INTERVAL_MINUTES=0).');
 		return;
 	}
 
-	console.log(`[chess-reps] Auto-import enabled: checking every ${intervalMinutes} minutes.`);
+	console.log(`[chessstack] Auto-import enabled: checking every ${intervalMinutes} minutes.`);
 
 	// Run once on startup (after a short delay to let the app finish initialising),
 	// then at the configured interval.
@@ -41,7 +41,7 @@ export function startImportScheduler(): void {
 }
 
 async function runImportCycle(): Promise<void> {
-	console.log('[chess-reps] Starting auto-import cycle...');
+	console.log('[chessstack] Starting auto-import cycle...');
 
 	try {
 		// Find all users with at least one platform username configured.
@@ -70,7 +70,7 @@ async function runImportCycle(): Promise<void> {
 					totalImported += count;
 				} catch (e) {
 					console.error(
-						`[chess-reps] Lichess import failed for user ${settings.userId}:`,
+						`[chessstack] Lichess import failed for user ${settings.userId}:`,
 						(e as Error).message
 					);
 				}
@@ -89,7 +89,7 @@ async function runImportCycle(): Promise<void> {
 					totalImported += count;
 				} catch (e) {
 					console.error(
-						`[chess-reps] Chess.com import failed for user ${settings.userId}:`,
+						`[chessstack] Chess.com import failed for user ${settings.userId}:`,
 						(e as Error).message
 					);
 				}
@@ -98,10 +98,10 @@ async function runImportCycle(): Promise<void> {
 		}
 
 		console.log(
-			`[chess-reps] Auto-import cycle complete. ${totalImported} new game${totalImported !== 1 ? 's' : ''} imported.`
+			`[chessstack] Auto-import cycle complete. ${totalImported} new game${totalImported !== 1 ? 's' : ''} imported.`
 		);
 	} catch (e) {
-		console.error('[chess-reps] Auto-import cycle error:', (e as Error).message);
+		console.error('[chessstack] Auto-import cycle error:', (e as Error).message);
 	}
 }
 
@@ -174,7 +174,7 @@ async function importGamesForUser(
 	}
 
 	if (imported > 0) {
-		console.log(`[chess-reps] Imported ${imported} ${source} games for user ${userId}.`);
+		console.log(`[chessstack] Imported ${imported} ${source} games for user ${userId}.`);
 	}
 
 	return imported;

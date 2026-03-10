@@ -29,14 +29,14 @@ jobs:
       postgres:
         image: postgres:17
         env:
-          POSTGRES_USER: chess_reps
-          POSTGRES_PASSWORD: chess_reps
-          POSTGRES_DB: chess_reps
+          POSTGRES_USER: chessstack
+          POSTGRES_PASSWORD: chessstack
+          POSTGRES_DB: chessstack
         ports:
           - 5432:5432
         # Wait until PostgreSQL is accepting connections before running steps.
         options: >-
-          --health-cmd "pg_isready -U chess_reps"
+          --health-cmd "pg_isready -U chessstack"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -85,4 +85,4 @@ jobs:
       - name: Smoke test migrations
         run: node scripts/test-migrations.mjs
         env:
-          DATABASE_URL: postgresql://chess_reps:chess_reps@localhost:5432/chess_reps
+          DATABASE_URL: postgresql://chessstack:chessstack@localhost:5432/chessstack

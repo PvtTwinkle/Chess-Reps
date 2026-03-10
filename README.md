@@ -1,4 +1,4 @@
-# Chess Reps
+# Chessstack
 
 A self-hosted web application for learning and drilling chess openings using spaced
 repetition. Build your own opening repertoire on an interactive board, then let the
@@ -33,13 +33,13 @@ app quiz you on it.
 ```yaml
 services:
   app:
-    image: ghcr.io/pvttwinkle/chess-reps:latest
-    container_name: chess-reps-app
+    image: ghcr.io/pvttwinkle/chessstack:latest
+    container_name: chessstack-app
     restart: unless-stopped
     ports:
       - '3000:3000'
     environment:
-      - DATABASE_URL=postgresql://chess_reps:chess_reps_secret@postgres:5432/chess_reps
+      - DATABASE_URL=postgresql://chessstack:chessstack_secret@postgres:5432/chessstack
       - ORIGIN=http://localhost:3000
       - DEFAULT_USERNAME=admin
       - DEFAULT_PASSWORD=changeme
@@ -56,16 +56,16 @@ services:
       start_period: 30s
   postgres:
     image: postgres:17-alpine
-    container_name: chess-reps-postgres
+    container_name: chessstack-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: chess_reps
-      POSTGRES_USER: chess_reps
-      POSTGRES_PASSWORD: chess_reps_secret
+      POSTGRES_DB: chessstack
+      POSTGRES_USER: chessstack
+      POSTGRES_PASSWORD: chessstack_secret
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U chess_reps']
+      test: ['CMD-SHELL', 'pg_isready -U chessstack']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -91,7 +91,7 @@ Log in with the username and password you set above.
 
 ## Optional Data
 
-Chess Reps ships with ECO opening names and a small starter book, but two larger
+Chessstack ships with ECO opening names and a small starter book, but two larger
 datasets are available as separate downloads:
 
 | Dataset              | Description                                                                                           | Approx. Size |
@@ -107,7 +107,7 @@ engine analysis, and the Puzzles page shows setup instructions.
 After starting the app (`docker compose up -d`), run:
 
 ```bash
-curl -sL https://raw.githubusercontent.com/PvtTwinkle/Chess-Reps/main/scripts/data-restore.sh | bash
+curl -sL https://raw.githubusercontent.com/PvtTwinkle/Chessstack/main/scripts/data-restore.sh | bash
 ```
 
 This downloads the latest data from GitHub Releases and loads it into your database.
@@ -115,15 +115,15 @@ This downloads the latest data from GitHub Releases and loads it into your datab
 ### Manual Install
 
 1. Download `chessmont-moves-dump.sql.gz` and `puzzles-dump.sql.gz` from the
-   [latest data release](https://github.com/PvtTwinkle/Chess-Reps/releases?q=data).
+   [latest data release](https://github.com/PvtTwinkle/Chessstack/releases?q=data).
 2. Restore each file:
 
 ```bash
 gunzip -c chessmont-moves-dump.sql.gz | \
-  docker exec -i chess-reps-postgres psql -U chess_reps chess_reps
+  docker exec -i chessstack-postgres psql -U chessstack chessstack
 
 gunzip -c puzzles-dump.sql.gz | \
-  docker exec -i chess-reps-postgres psql -U chess_reps chess_reps
+  docker exec -i chessstack-postgres psql -U chessstack chessstack
 ```
 
 ---
@@ -155,13 +155,13 @@ Your data lives in the PostgreSQL container's named volume (`pgdata`).
 
 ```bash
 # Back up
-docker exec chess-reps-postgres pg_dump -U chess_reps chess_reps > backup.sql
+docker exec chessstack-postgres pg_dump -U chessstack chessstack > backup.sql
 
 # Restore
 docker compose down
-docker volume rm chess-reps_pgdata
+docker volume rm chessstack_pgdata
 docker compose up -d
-docker exec -i chess-reps-postgres psql -U chess_reps chess_reps < backup.sql
+docker exec -i chessstack-postgres psql -U chessstack chessstack < backup.sql
 ```
 
 ---
@@ -194,7 +194,7 @@ and any other monitoring tool.
 
 ## Acknowledgments
 
-Chess Reps uses data from the following open-source projects:
+Chessstack uses data from the following open-source projects:
 
 - **[Chessmont](https://www.kaggle.com/datasets/chessmontdb/chessmont-big-dataset)** — Master game database (CC BY-SA 4.0)
 - **[Lichess Puzzle Database](https://database.lichess.org/#puzzles)** — Tactical puzzles (CC0)

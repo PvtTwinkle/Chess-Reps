@@ -1,6 +1,6 @@
 # Security
 
-Chess Reps uses a layered security approach with automated scanning at multiple
+Chessstack uses a layered security approach with automated scanning at multiple
 stages of the development lifecycle.
 
 ---
@@ -8,7 +8,7 @@ stages of the development lifecycle.
 ## Reporting a Vulnerability
 
 If you discover a security issue, please open a
-[GitHub Issue](https://github.com/your-org/chess-reps/issues) with the label
+[GitHub Issue](https://github.com/your-org/chessstack/issues) with the label
 `security`. Include steps to reproduce and any relevant details.
 
 ---

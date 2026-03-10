@@ -145,7 +145,7 @@
 </script>
 
 <svelte:head>
-	<title>Admin — Chess Reps</title>
+	<title>Admin — Chessstack</title>
 </svelte:head>
 
 <div class="admin-page">

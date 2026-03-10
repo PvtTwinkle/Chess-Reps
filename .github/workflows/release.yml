@@ -8,10 +8,10 @@
 #   git push origin v1.0.0
 #
 # The workflow produces these image tags automatically:
-#   ghcr.io/pvttwinkle/chess-reps:v1.0.0
-#   ghcr.io/pvttwinkle/chess-reps:v1.0
-#   ghcr.io/pvttwinkle/chess-reps:v1
-#   ghcr.io/pvttwinkle/chess-reps:latest
+#   ghcr.io/pvttwinkle/chessstack:v1.0.0
+#   ghcr.io/pvttwinkle/chessstack:v1.0
+#   ghcr.io/pvttwinkle/chessstack:v1
+#   ghcr.io/pvttwinkle/chessstack:latest
 #
 # No secrets need to be configured — the built-in GITHUB_TOKEN has write
 # access to the repository's container registry automatically.
@@ -64,10 +64,10 @@ jobs:
 
       # Step 5: Generate Docker tags from the git tag.
       # For a tag like v1.2.3, this produces:
-      #   ghcr.io/pvttwinkle/chess-reps:v1.2.3
-      #   ghcr.io/pvttwinkle/chess-reps:v1.2
-      #   ghcr.io/pvttwinkle/chess-reps:v1
-      #   ghcr.io/pvttwinkle/chess-reps:latest
+      #   ghcr.io/pvttwinkle/chessstack:v1.2.3
+      #   ghcr.io/pvttwinkle/chessstack:v1.2
+      #   ghcr.io/pvttwinkle/chessstack:v1
+      #   ghcr.io/pvttwinkle/chessstack:latest
       - name: Extract metadata
         id: meta
         uses: docker/metadata-action@v5

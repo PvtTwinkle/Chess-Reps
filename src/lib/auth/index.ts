@@ -12,7 +12,7 @@ import { eq } from 'drizzle-orm';
 
 // The cookie name. Must match exactly between the code that sets the cookie
 // (login action) and the code that reads it (hooks.server.ts).
-export const SESSION_COOKIE_NAME = 'chess_reps_session';
+export const SESSION_COOKIE_NAME = 'chessstack_session';
 
 // Derive cookie "secure" flag from the ORIGIN env var.
 // If ORIGIN starts with https://, the app is accessed over HTTPS and cookies

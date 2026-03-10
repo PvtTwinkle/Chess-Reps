@@ -96,12 +96,12 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Build Docker image
-        run: docker build -t chess-reps:ci-scan .
+        run: docker build -t chessstack:ci-scan .
 
       - name: Trivy image scan
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: 'chess-reps:ci-scan'
+          image-ref: 'chessstack:ci-scan'
           severity: 'HIGH,CRITICAL'
           exit-code: '1'
           ignore-unfixed: true

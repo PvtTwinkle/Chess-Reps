@@ -40,7 +40,7 @@ import psycopg2
 # Strip halfmove clock and fullmove number, keeping only the 4 fields that
 # define a unique position: piece placement, side to move, castling rights,
 # and en-passant target square. This matches the fenKey() convention used
-# throughout the Chess Reps app and handles transpositions correctly.
+# throughout the Chessstack app and handles transpositions correctly.
 
 def normalize_fen(fen: str) -> str:
     parts = fen.split(" ")

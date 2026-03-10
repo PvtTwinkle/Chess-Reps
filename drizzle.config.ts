@@ -21,6 +21,6 @@ export default defineConfig({
 	dbCredentials: {
 		// DATABASE_URL can be set in your .env file or docker-compose.yml.
 		// Falls back to a local PostgreSQL instance for development.
-		url: process.env.DATABASE_URL ?? 'postgresql://chess_reps:chess_reps@localhost:5432/chess_reps'
+		url: process.env.DATABASE_URL ?? 'postgresql://chessstack:chessstack@localhost:5432/chessstack'
 	}
 });

@@ -34,7 +34,7 @@ const migrationsFolder = join(__dirname, '..', 'drizzle', 'migrations');
 // Connect to PostgreSQL. In CI this comes from the service container.
 // Locally you can set DATABASE_URL to point at any test database.
 const DATABASE_URL =
-	process.env.DATABASE_URL ?? 'postgresql://chess_reps:chess_reps@localhost:5432/chess_reps';
+	process.env.DATABASE_URL ?? 'postgresql://chessstack:chessstack@localhost:5432/chessstack';
 
 const sql = postgres(DATABASE_URL);
 const db = drizzle(sql);

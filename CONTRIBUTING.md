@@ -1,4 +1,4 @@
-# Contributing to Chess Reps
+# Contributing to Chessstack
 
 Thank you for your interest in contributing! This document covers how to set up
 a development environment, the code style expected, and how to submit changes.
@@ -26,8 +26,8 @@ a development environment, the code style expected, and how to submit changes.
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-org/chess-reps.git
-cd chess-reps
+git clone https://github.com/your-org/chessstack.git
+cd chessstack
 
 # Install dependencies
 npm install
@@ -54,7 +54,7 @@ The app starts at `http://localhost:5173`.
 You will need a `.env` file in the project root:
 
 ```env
-DATABASE_URL=postgresql://chess_reps:chess_reps_secret@localhost:5432/chess_reps
+DATABASE_URL=postgresql://chessstack:chessstack_secret@localhost:5432/chessstack
 ORIGIN=http://localhost:5173
 DEFAULT_USERNAME=admin
 DEFAULT_PASSWORD=changeme
@@ -137,7 +137,7 @@ committing. The CI check will fail if formatting is off.
 
 ## Reporting Bugs and Requesting Features
 
-Open a [GitHub Issue](https://github.com/your-org/chess-reps/issues) for bug
+Open a [GitHub Issue](https://github.com/your-org/chessstack/issues) for bug
 reports, feature requests, or general questions.
 
 When reporting a bug, include:

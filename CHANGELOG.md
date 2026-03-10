@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to Chess Reps are documented here.
+All notable changes to Chessstack are documented here.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Renamed project from "Chess Reps" to "Chessstack" across all branding, Docker images, database defaults, and documentation
+  - **Breaking**: Default database credentials changed — existing installations must set explicit `DATABASE_URL`/`POSTGRES_*` env vars with old values, or back up and restore data
+  - Session cookie renamed; existing sessions will be invalidated (sign in again)
 - Compact move suggestions in Build Mode — book and masters candidates now use a denser single-line layout with inline WDL bars, scrollable after 5 rows
 - Gap Finder now uses the masters game database as its primary source, showing the most commonly played opponent moves you haven't prepared for — falls back to book moves for positions without master data
 
@@ -152,7 +155,7 @@ game review, puzzle training, and a local masters database — all running offli
 
 ---
 
-[Unreleased]: https://github.com/your-org/chess-reps/compare/v1.0.2...HEAD
-[1.0.2]: https://github.com/your-org/chess-reps/compare/v1.0.1...v1.0.2
-[1.0.1]: https://github.com/your-org/chess-reps/compare/v1.0.0...v1.0.1
-[1.0.0]: https://github.com/your-org/chess-reps/releases/tag/v1.0.0
+[Unreleased]: https://github.com/your-org/chessstack/compare/v1.0.2...HEAD
+[1.0.2]: https://github.com/your-org/chessstack/compare/v1.0.1...v1.0.2
+[1.0.1]: https://github.com/your-org/chessstack/compare/v1.0.0...v1.0.1
+[1.0.0]: https://github.com/your-org/chessstack/releases/tag/v1.0.0

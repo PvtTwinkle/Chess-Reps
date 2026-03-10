@@ -1,12 +1,12 @@
 services:
   app:
-    image: ghcr.io/pvttwinkle/chess-reps:latest
-    container_name: chess-reps-app
+    image: ghcr.io/pvttwinkle/chessstack:latest
+    container_name: chessstack-app
     restart: unless-stopped
     ports:
       - '3000:3000'
     environment:
-      - DATABASE_URL=postgresql://chess_reps:chess_reps_secret@postgres:5432/chess_reps
+      - DATABASE_URL=postgresql://chessstack:chessstack_secret@postgres:5432/chessstack
       - ORIGIN=http://localhost:3000
       - DEFAULT_USERNAME=admin
       - DEFAULT_PASSWORD=changeme
@@ -23,16 +23,16 @@ services:
       start_period: 30s
   postgres:
     image: postgres:17-alpine
-    container_name: chess-reps-postgres
+    container_name: chessstack-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: chess_reps
-      POSTGRES_USER: chess_reps
-      POSTGRES_PASSWORD: chess_reps_secret
+      POSTGRES_DB: chessstack
+      POSTGRES_USER: chessstack
+      POSTGRES_PASSWORD: chessstack_secret
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U chess_reps']
+      test: ['CMD-SHELL', 'pg_isready -U chessstack']
       interval: 10s
       timeout: 5s
       retries: 5

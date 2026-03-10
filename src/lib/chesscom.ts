@@ -9,7 +9,7 @@
 // User-Agent header is required per Chess.com API policy.
 
 const CHESSCOM_API_BASE = 'https://api.chess.com';
-const USER_AGENT = 'ChessReps/1.0 (https://github.com/chess-reps)';
+const USER_AGENT = 'Chessstack/1.0 (https://github.com/PvtTwinkle/Chessstack)';
 const DELAY_BETWEEN_ARCHIVES_MS = 1000;
 
 // ── Types ────────────────────────────────────────────────────────────────────

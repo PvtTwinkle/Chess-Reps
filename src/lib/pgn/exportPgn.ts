@@ -62,8 +62,8 @@ export function exportRepertoirePgn(opts: ExportOptions): string {
 	const black = repertoireColor === 'BLACK' ? repertoireName : '?';
 
 	const headers = [
-		`[Event "Chess-Reps Repertoire"]`,
-		`[Site "Chess-Reps"]`,
+		`[Event "Chessstack Repertoire"]`,
+		`[Site "Chessstack"]`,
 		`[Date "${dateStr}"]`,
 		`[White "${escapeHeader(white)}"]`,
 		`[Black "${escapeHeader(black)}"]`,

@@ -1,5 +1,5 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# Chess Reps — SvelteKit application
+# Chessstack — SvelteKit application
 #
 # Multi-stage build. Two stages keep the final image small:
 #

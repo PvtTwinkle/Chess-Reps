@@ -14,15 +14,15 @@
 #
 # To restore on another instance (after the app has started and created tables):
 #   gunzip -c chessmont-moves-dump.sql.gz | \
-#     docker exec -i chess-reps-postgres psql -U chess_reps chess_reps
+#     docker exec -i chessstack-postgres psql -U chessstack chessstack
 # ─────────────────────────────────────────────────────────────────────────────
 
 set -euo pipefail
 
 OUTFILE="${1:-chessmont-moves-dump.sql.gz}"
-CONTAINER="chess-reps-postgres"
-DB_USER="chess_reps"
-DB_NAME="chess_reps"
+CONTAINER="chessstack-postgres"
+DB_USER="chessstack"
+DB_NAME="chessstack"
 
 echo "[export] Dumping chessmont_moves from ${CONTAINER}..."
 docker exec "${CONTAINER}" pg_dump -U "${DB_USER}" \

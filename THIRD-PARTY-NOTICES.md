@@ -1,6 +1,6 @@
 # Third-Party Notices
 
-Chess Reps uses the following third-party data and assets. Thank you to these
+Chessstack uses the following third-party data and assets. Thank you to these
 projects and their contributors.
 
 ---

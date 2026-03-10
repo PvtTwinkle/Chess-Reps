@@ -9,7 +9,7 @@
 </script>
 
 <svelte:head>
-	<title>Sign In — Chess Reps</title>
+	<title>Sign In — Chessstack</title>
 </svelte:head>
 
 <div class="login-page">
@@ -20,7 +20,7 @@
 					d="M19 22H5v-2h14v2M13 2c-1.25 0-2.42.62-3.11 1.66L7 8l2 2 2.1-2.81a1 1 0 0 1 1.34-.28c.48.3.63.94.33 1.42L10.5 12H7.5c-.28 0-.5.22-.5.5v2c0 .28.22.5.5.5h5.1l-1.1 5h3l1.5-5.34c.5-1.76.16-3.62-.9-5.16l.9-1.5c1 .75 1.6 1.94 1.6 3.2V14h2V11.3c0-2.35-1.1-4.55-2.94-5.97L18 3.66C17.03 2.63 15.58 2 14 2h-1Z"
 				/>
 			</svg>
-			<span class="logo-text">Chess Reps</span>
+			<span class="logo-text">Chessstack</span>
 		</div>
 		<h1>Sign in</h1>
 

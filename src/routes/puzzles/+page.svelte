@@ -433,15 +433,15 @@
 		<p>
 			Or download <code>puzzles-dump.sql.gz</code> manually from the
 			<a
-				href="https://github.com/PvtTwinkle/Chess-Reps/releases?q=data-v"
+				href="https://github.com/PvtTwinkle/Chessstack/releases?q=data-v"
 				target="_blank"
 				rel="noopener">GitHub Releases</a
 			> page and restore with:
 		</p>
 		<p>
 			<code
-				>gunzip -c puzzles-dump.sql.gz | docker exec -i chess-reps-postgres psql -U chess_reps
-				chess_reps</code
+				>gunzip -c puzzles-dump.sql.gz | docker exec -i chessstack-postgres psql -U chessstack
+				chessstack</code
 			>
 		</p>
 	</div>

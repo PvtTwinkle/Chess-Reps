@@ -12,9 +12,9 @@
 
 set -euo pipefail
 
-CONTAINER="chess-reps-postgres"
-DB_USER="chess_reps"
-DB_NAME="chess_reps"
+CONTAINER="chessstack-postgres"
+DB_USER="chessstack"
+DB_NAME="chessstack"
 OUTPUT_DIR="."
 
 # Parse arguments
@@ -34,7 +34,7 @@ done
 
 mkdir -p "${OUTPUT_DIR}"
 
-echo "=== Chess Reps Data Export ==="
+echo "=== Chessstack Data Export ==="
 echo ""
 
 # Export chessmont_moves

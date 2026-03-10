@@ -1,5 +1,5 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# Chess Reps — Docker Compose
+# Chessstack — Docker Compose
 #
 # Two services:
 #   app        — the SvelteKit application (Node.js HTTP server + Stockfish)
@@ -22,8 +22,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: ghcr.io/pvttwinkle/chess-reps:latest
-    container_name: chess-reps-app
+    image: ghcr.io/pvttwinkle/chessstack:latest
+    container_name: chessstack-app
     restart: unless-stopped
 
     ports:
@@ -37,7 +37,7 @@ services:
       # PostgreSQL connection string.
       # The hostname "postgres" resolves to the database container on the
       # internal Docker network. Credentials must match the postgres service below.
-      - DATABASE_URL=postgresql://chess_reps:chess_reps_secret@postgres:5432/chess_reps
+      - DATABASE_URL=postgresql://chessstack:chessstack_secret@postgres:5432/chessstack
 
       # The canonical URL of this instance. SvelteKit uses this to validate
       # cross-site request forgery (CSRF) protection.
@@ -87,22 +87,22 @@ services:
   # ── PostgreSQL ──────────────────────────────────────────────────────────────
   postgres:
     image: postgres:17-alpine
-    container_name: chess-reps-postgres
+    container_name: chessstack-postgres
     restart: unless-stopped
 
     environment:
-      POSTGRES_DB: chess_reps
-      POSTGRES_USER: chess_reps
-      POSTGRES_PASSWORD: chess_reps_secret
+      POSTGRES_DB: chessstack
+      POSTGRES_USER: chessstack
+      POSTGRES_PASSWORD: chessstack_secret
 
     volumes:
       # Named volume for persistent database storage.
       # Data survives container recreation and upgrades.
-      # Back up with: docker exec chess-reps-postgres pg_dump -U chess_reps chess_reps > backup.sql
+      # Back up with: docker exec chessstack-postgres pg_dump -U chessstack chessstack > backup.sql
       - pgdata:/var/lib/postgresql/data
 
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U chess_reps']
+      test: ['CMD-SHELL', 'pg_isready -U chessstack']
       interval: 10s
       timeout: 5s
       retries: 5

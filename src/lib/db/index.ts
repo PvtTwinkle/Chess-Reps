@@ -26,7 +26,7 @@ import { user } from './schema';
 // Configuration via environment variables
 //
 // DATABASE_URL:    PostgreSQL connection string.
-//                 Development default: postgresql://chess_reps:chess_reps@localhost:5432/chess_reps
+//                 Development default: postgresql://chessstack:chessstack@localhost:5432/chessstack
 //                 Docker: set in docker-compose.yml pointing to the postgres service.
 //
 // DEFAULT_USERNAME: Username for the automatically created first user.
@@ -38,7 +38,7 @@ import { user } from './schema';
 // ─────────────────────────────────────────────────────────────────────────────
 
 const DATABASE_URL =
-	process.env.DATABASE_URL ?? 'postgresql://chess_reps:chess_reps@localhost:5432/chess_reps';
+	process.env.DATABASE_URL ?? 'postgresql://chessstack:chessstack@localhost:5432/chessstack';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Lazy connection — the postgres.js client and Drizzle instance are created on
@@ -108,9 +108,9 @@ async function initDatabase(): Promise<void> {
 			createdAt: new Date()
 		});
 
-		console.log(`[chess-reps] Default user "${username}" created on first run.`);
+		console.log(`[chessstack] Default user "${username}" created on first run.`);
 		console.log(
-			'[chess-reps] Set DEFAULT_USERNAME and DEFAULT_PASSWORD environment variables to customise this.'
+			'[chessstack] Set DEFAULT_USERNAME and DEFAULT_PASSWORD environment variables to customise this.'
 		);
 	}
 }
