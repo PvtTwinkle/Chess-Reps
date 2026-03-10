@@ -109,3 +109,4 @@ services:
 
 volumes:
   pgdata:
+    name: chessstack-pgdata
