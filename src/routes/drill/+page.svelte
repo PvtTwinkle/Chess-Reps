@@ -221,6 +221,15 @@
 	let tempoTimerId: ReturnType<typeof setInterval> | undefined;
 	let tempoStartTime = 0;
 
+	// ── Blindfold mode ───────────────────────────────────────────────────────
+	let blindfoldEnabled = $state(false);
+	let blindfoldAnnouncement = $state<string | null>(null);
+
+	function toggleBlindfold(): void {
+		blindfoldEnabled = !blindfoldEnabled;
+		if (!blindfoldEnabled) blindfoldAnnouncement = null;
+	}
+
 	function startTempoTimer(): void {
 		stopTempoTimer();
 		if (!tempoEnabled || tempoSeconds <= 0) return;
@@ -704,6 +713,7 @@
 			if (idx >= pathMoves.length) {
 				// Reached the due position — hand control to the user.
 				phase = 'waiting';
+				blindfoldAnnouncement = null;
 				return;
 			}
 
@@ -713,6 +723,7 @@
 				const result = chess.move(san);
 				if (!result) {
 					phase = 'waiting'; // move failed, show what we have
+					blindfoldAnnouncement = null;
 					return;
 				}
 				const entry: NavEntry = {
@@ -729,12 +740,14 @@
 				navHistory = history;
 				currentFen = fen;
 				lastMove = [result.from, result.to];
+				if (blindfoldEnabled) blindfoldAnnouncement = san;
 
 				// Play the appropriate sound for this auto-played move.
 				if (result.captured) playCapture();
 				else playMove();
 			} catch {
 				phase = 'waiting';
+				blindfoldAnnouncement = null;
 				return;
 			}
 
@@ -1033,6 +1046,7 @@
 			if (s.isUserMove) {
 				lineStepIdx = idx;
 				phase = 'waiting';
+				blindfoldAnnouncement = null;
 				return;
 			}
 
@@ -1059,12 +1073,14 @@
 				navHistory = history;
 				currentFen = fen;
 				lastMove = [result.from, result.to];
+				if (blindfoldEnabled) blindfoldAnnouncement = s.san;
 
 				if (result.captured) playCapture();
 				else playMove();
 			} catch {
 				lineStepIdx = idx;
 				phase = 'waiting';
+				blindfoldAnnouncement = null;
 				return;
 			}
 
@@ -1244,14 +1260,14 @@
 <div class="page">
 	<!-- ── Board column ──────────────────────────────────────────────────────── -->
 	<div class="board-col">
-		<div class="board-wrap">
+		<div class="board-wrap" class:blindfold={blindfoldEnabled}>
 			{#key boardKey}
 				<ChessBoard
 					fen={currentFen}
 					{orientation}
 					boardTheme={data.settings?.boardTheme ?? 'blue'}
 					interactive={phase === 'waiting'}
-					{lastMove}
+					lastMove={blindfoldEnabled ? undefined : lastMove}
 					autoShapes={hintShapes}
 					onMove={handleMove}
 				/>
@@ -1264,6 +1280,11 @@
 					class:flash-correct={flashColor === 'green'}
 					class:flash-incorrect={flashColor === 'red'}
 				></div>
+			{/if}
+
+			<!-- Blindfold move announcement -->
+			{#if blindfoldAnnouncement}
+				<div class="blindfold-announce">{blindfoldAnnouncement}</div>
 			{/if}
 
 			<!-- Auto-play indicator -->
@@ -1294,6 +1315,15 @@
 				aria-label={soundEnabled ? 'Mute sounds' : 'Unmute sounds'}
 			>
 				{soundEnabled ? '🔊' : '🔇'}
+			</button>
+			<button
+				class="mute-btn"
+				class:muted={blindfoldEnabled}
+				onclick={toggleBlindfold}
+				title={blindfoldEnabled ? 'Disable blindfold' : 'Enable blindfold'}
+				aria-label={blindfoldEnabled ? 'Disable blindfold' : 'Enable blindfold'}
+			>
+				{blindfoldEnabled ? '🙈' : '👁️'}
 			</button>
 		</div>
 
@@ -1978,6 +2008,37 @@
 
 	.mute-btn.muted {
 		opacity: 0.35;
+	}
+
+	/* ── Blindfold mode ─────────────────────────────────────────────────────── */
+	.board-wrap.blindfold :global(.cg-wrap piece) {
+		opacity: 0 !important;
+	}
+
+	.board-wrap.blindfold :global(cg-board square.move-dest) {
+		background: none !important;
+	}
+
+	.board-wrap.blindfold :global(cg-board square.oc.move-dest) {
+		background: none !important;
+	}
+
+	.board-wrap.blindfold :global(cg-board square.selected) {
+		background-color: transparent !important;
+	}
+
+	.blindfold-announce {
+		position: absolute;
+		inset: 0;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		font-size: 2.5rem;
+		font-weight: 700;
+		color: white;
+		text-shadow: 0 2px 8px rgba(0, 0, 0, 0.7);
+		pointer-events: none;
+		z-index: 3;
 	}
 
 	/* ── Hint button ──────────────────────────────────────────────────────────── */

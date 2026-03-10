@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Start screen on the Drill page — see how many cards are due with a depth breakdown before you begin, choose your drill type and filters, then hit Start Drilling (or press Space)
 - Line-based drilling — toggle between Cards and Lines mode in Drill to practice complete variations from start to leaf, with auto-grading and automatic opponent moves
+- Blindfold mode in Drill — hide all pieces and play from memory, with move announcements displayed on the board during auto-play
 - Configurable gap threshold dropdown on the dashboard widget — filter gaps by minimum master games played (10 / 100 / 1,000 / 10,000)
 - Drill All mode to practice every card in the repertoire regardless of schedule
 - Dark/light theme toggle in Settings
