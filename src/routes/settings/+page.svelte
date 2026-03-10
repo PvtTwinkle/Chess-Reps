@@ -1,9 +1,29 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import { invalidateAll } from '$app/navigation';
+	import { onDestroy } from 'svelte';
 	import ChessBoard from '$lib/components/ChessBoard.svelte';
 
 	let { data }: { data: PageData } = $props();
+
+	// Timer cleanup — track all setTimeout IDs so we can clear them on unmount.
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- not reactive, used only for cleanup
+	const timers = new Set<ReturnType<typeof setTimeout>>();
+	function safeTimeout(fn: () => void, ms: number) {
+		const id = setTimeout(() => {
+			timers.delete(id);
+			fn();
+		}, ms);
+		timers.add(id);
+	}
+
+	onDestroy(() => {
+		clearTimeout(depthTimeout);
+		clearTimeout(timeoutDebounce);
+		clearTimeout(tempoDebounce);
+		for (const id of timers) clearTimeout(id);
+		timers.clear();
+	});
 
 	// ── App Theme (dark / light) ────────────────────────────────────────────
 	// eslint-disable-next-line svelte/prefer-writable-derived
@@ -64,7 +84,7 @@
 			// Refresh layout data so other pages pick up the new theme
 			await invalidateAll();
 			themeStatus = 'Saved';
-			setTimeout(() => (themeStatus = ''), 2000);
+			safeTimeout(() => (themeStatus = ''), 2000);
 		} catch {
 			themeStatus = 'Error saving';
 		}
@@ -122,7 +142,7 @@
 			if (!res.ok) throw new Error('Failed to save');
 			await invalidateAll();
 			depthStatus = 'Saved';
-			setTimeout(() => (depthStatus = ''), 2000);
+			safeTimeout(() => (depthStatus = ''), 2000);
 		} catch {
 			depthStatus = 'Error saving';
 		}
@@ -156,7 +176,7 @@
 			if (!res.ok) throw new Error('Failed to save');
 			await invalidateAll();
 			timeoutStatus = 'Saved';
-			setTimeout(() => (timeoutStatus = ''), 2000);
+			safeTimeout(() => (timeoutStatus = ''), 2000);
 		} catch {
 			timeoutStatus = 'Error saving';
 		}
@@ -210,7 +230,7 @@
 			if (!res.ok) throw new Error('Failed to save');
 			await invalidateAll();
 			tempoStatus = 'Saved';
-			setTimeout(() => (tempoStatus = ''), 2000);
+			safeTimeout(() => (tempoStatus = ''), 2000);
 		} catch {
 			tempoStatus = 'Error saving';
 		}
@@ -247,7 +267,7 @@
 			if (!res.ok) throw new Error('Failed to save');
 			await invalidateAll();
 			lichessStatus = 'Saved';
-			setTimeout(() => (lichessStatus = ''), 2000);
+			safeTimeout(() => (lichessStatus = ''), 2000);
 		} catch {
 			lichessStatus = 'Error saving';
 		} finally {
@@ -267,7 +287,7 @@
 			if (!res.ok) throw new Error('Failed to save');
 			await invalidateAll();
 			chesscomStatus = 'Saved';
-			setTimeout(() => (chesscomStatus = ''), 2000);
+			safeTimeout(() => (chesscomStatus = ''), 2000);
 		} catch {
 			chesscomStatus = 'Error saving';
 		} finally {

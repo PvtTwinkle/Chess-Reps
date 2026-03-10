@@ -229,15 +229,23 @@
 		exportDropdown = false;
 	}
 
+	let copyMsgTimeout: ReturnType<typeof setTimeout> | undefined;
+
 	async function handleCopy() {
 		const ok = await copyToClipboard(exportPgn);
 		exportDropdown = false;
 		exportMsg = ok ? 'Copied!' : 'Copy failed';
-		if (ok) setTimeout(() => (exportMsg = ''), 2000);
+		if (ok) {
+			clearTimeout(copyMsgTimeout);
+			copyMsgTimeout = setTimeout(() => (exportMsg = ''), 2000);
+		}
 	}
 
 	onMount(() => {
 		initSounds();
+		return () => {
+			clearTimeout(copyMsgTimeout);
+		};
 	});
 
 	let { data }: { data: PageData } = $props();

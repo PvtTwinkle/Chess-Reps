@@ -87,6 +87,17 @@
 	let puzzlesSolved = $state(0);
 	let puzzlesFailed = $state(0);
 
+	// Timer cleanup — track all setTimeout IDs so we can clear them on unmount.
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- not reactive, used only for cleanup
+	const timers = new Set<ReturnType<typeof setTimeout>>();
+	function safeTimeout(fn: () => void, ms: number) {
+		const id = setTimeout(() => {
+			timers.delete(id);
+			fn();
+		}, ms);
+		timers.add(id);
+	}
+
 	// Hint support
 	let hintShapes = $state<DrawShape[]>([]);
 
@@ -190,7 +201,7 @@
 			phase = 'setup';
 
 			// Auto-play the setup move after a brief delay
-			setTimeout(() => playSetupMove(), 600);
+			safeTimeout(() => playSetupMove(), 600);
 		} catch {
 			phase = 'idle';
 		}
@@ -264,14 +275,14 @@
 				phase = 'solved';
 				flashColor = 'green';
 				playCorrect();
-				setTimeout(() => (flashColor = null), 600);
+				safeTimeout(() => (flashColor = null), 600);
 				puzzlesSolved++;
 				recordAttempt(true);
 			} else {
 				// More moves: auto-play the opponent's response
 				phase = 'correct';
 				flashColor = 'green';
-				setTimeout(() => {
+				safeTimeout(() => {
 					flashColor = null;
 					playOpponentResponse();
 				}, 500);
@@ -281,12 +292,12 @@
 			phase = 'incorrect';
 			flashColor = 'red';
 			playIncorrect();
-			setTimeout(() => (flashColor = null), 600);
+			safeTimeout(() => (flashColor = null), 600);
 			puzzlesFailed++;
 			recordAttempt(false);
 
 			// Show the correct move after a moment
-			setTimeout(() => {
+			safeTimeout(() => {
 				showCorrectMove();
 			}, 800);
 		}
@@ -324,7 +335,7 @@
 			phase = 'solved';
 			flashColor = 'green';
 			playCorrect();
-			setTimeout(() => (flashColor = null), 600);
+			safeTimeout(() => (flashColor = null), 600);
 			puzzlesSolved++;
 			recordAttempt(true);
 		} else {
@@ -407,6 +418,10 @@
 		initSounds();
 		soundEnabled = data.settings?.soundEnabled ?? true;
 		setSoundEnabled(soundEnabled);
+		return () => {
+			for (const id of timers) clearTimeout(id);
+			timers.clear();
+		};
 	});
 
 	$effect(() => {

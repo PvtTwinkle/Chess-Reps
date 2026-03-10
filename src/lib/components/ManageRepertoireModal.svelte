@@ -13,6 +13,7 @@
 
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
+	import { onDestroy } from 'svelte';
 	import { downloadTextFile } from '$lib/download';
 
 	interface Repertoire {
@@ -169,6 +170,8 @@
 	}
 
 	// ── Export a repertoire as PGN ────────────────────────────────────────────────
+	let exportMsgTimeout: ReturnType<typeof setTimeout> | undefined;
+
 	async function handleExport(id: number) {
 		if (exportingId) return;
 		exportingId = id;
@@ -179,14 +182,20 @@
 			const { pgn, filename } = await res.json();
 			downloadTextFile(pgn, filename);
 			exportMsg = 'Downloaded!';
-			setTimeout(() => (exportMsg = ''), 2000);
+			clearTimeout(exportMsgTimeout);
+			exportMsgTimeout = setTimeout(() => (exportMsg = ''), 2000);
 		} catch {
 			exportMsg = 'Export failed';
-			setTimeout(() => (exportMsg = ''), 3000);
+			clearTimeout(exportMsgTimeout);
+			exportMsgTimeout = setTimeout(() => (exportMsg = ''), 3000);
 		} finally {
 			exportingId = null;
 		}
 	}
+
+	onDestroy(() => {
+		clearTimeout(exportMsgTimeout);
+	});
 </script>
 
 {#if open}
