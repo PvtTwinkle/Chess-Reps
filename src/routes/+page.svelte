@@ -8,15 +8,10 @@
 	let { data }: { data: PageData } = $props();
 
 	// ── Gap Finder threshold ────────────────────────────────────────────
-	let gapMinGames = $state(1000);
-
-	$effect(() => {
-		gapMinGames = data.settings?.gapMinGames ?? 1000;
-	});
+	let gapMinGames = $derived.by(() => data.settings?.gapMinGames ?? 1000);
 
 	async function updateGapThreshold(e: Event) {
 		const value = Number((e.target as HTMLSelectElement).value);
-		gapMinGames = value;
 		await fetch(`${base}/api/settings`, {
 			method: 'PATCH',
 			headers: { 'Content-Type': 'application/json' },
