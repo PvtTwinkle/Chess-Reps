@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Compact move suggestions in Build Mode — book and masters candidates now use a denser single-line layout with inline WDL bars, scrollable after 5 rows
+
+### Added
+
+- Drill All mode to practice every card in the repertoire regardless of schedule
+- Dark/light theme toggle in Settings
+- Undo button for drill grades so you can correct a mis-tap
+- Keyboard shortcuts and move preview arrows in Build Mode
+- Explore Mode on the Build page — try moves on the board without saving them to your repertoire
+- Repertoire health score widget on the Dashboard
+- Tempo training — optional countdown timer for Drill Mode (configurable 3–30 seconds per move in Settings; auto-fails if time runs out)
+
+### Fixed
+
+- Drill auto-play sounds no longer continue playing after navigating away from Drill Mode
+- Dashboard grid layout no longer breaks with the health score widget
+
 ---
 
 ## [1.0.2] — 2026-03-06

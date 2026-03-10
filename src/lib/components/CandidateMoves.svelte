@@ -286,6 +286,15 @@
 		return 'eval-equal';
 	}
 
+	// ── Scroll-into-view for keyboard navigation ─────────────────────────
+	let listEl = $state<HTMLDivElement | null>(null);
+
+	$effect(() => {
+		if (highlightedIndex == null || !listEl) return;
+		const row = listEl.children[highlightedIndex] as HTMLElement | undefined;
+		row?.scrollIntoView({ block: 'nearest' });
+	});
+
 	// The subtitle shown below a book move — opening name takes priority.
 	function bookSubtitle(c: Candidate): string | null {
 		return c.openingName ?? c.annotation ?? null;
@@ -337,7 +346,7 @@
 		{:else if bookCandidates.length === 0}
 			<p class="empty-hint">No book moves at this position.</p>
 		{:else}
-			<div class="candidate-list">
+			<div class="candidate-list" bind:this={listEl}>
 				{#each bookCandidates as c, idx (c.uci)}
 					<button
 						class="candidate-row"
@@ -349,16 +358,17 @@
 					>
 						<div class="candidate-main">
 							<span class="candidate-san">{c.san}</span>
-							<span class="spacer"></span>
+							{#if bookSubtitle(c)}
+								<span class="opening-name" title={bookSubtitle(c)}>{bookSubtitle(c)}</span>
+							{:else}
+								<span class="spacer"></span>
+							{/if}
 							{#if c.evalMate !== null || c.evalCp !== null}
 								<span class="eval {evalColorClass(c.evalCp, c.evalMate)}">
 									{formatEval(c.evalCp, c.evalMate)}
 								</span>
 							{/if}
 						</div>
-						{#if bookSubtitle(c)}
-							<div class="opening-name">{bookSubtitle(c)}</div>
-						{/if}
 					</button>
 				{/each}
 			</div>
@@ -373,7 +383,7 @@
 		{:else if mastersMoves.length === 0}
 			<p class="empty-hint">No master games from this position.</p>
 		{:else}
-			<div class="candidate-list">
+			<div class="candidate-list" bind:this={listEl}>
 				{#each mastersMoves as m, idx (m.san)}
 					{@const winPct = m.totalGames > 0 ? (m.white / m.totalGames) * 100 : 0}
 					{@const drawPct = m.totalGames > 0 ? (m.draws / m.totalGames) * 100 : 0}
@@ -388,18 +398,20 @@
 					>
 						<div class="candidate-main">
 							<span class="candidate-san">{m.san}</span>
-							<span class="spacer"></span>
+							<span
+								class="wdl-bar-inline"
+								title="{winPct.toFixed(1)}% W / {drawPct.toFixed(1)}% D / {lossPct.toFixed(1)}% L"
+							>
+								<span class="wdl-white" style="width: {winPct}%"></span>
+								<span class="wdl-draw" style="width: {drawPct}%"></span>
+								<span class="wdl-black" style="width: {lossPct}%"></span>
+							</span>
 							<span class="masters-games">{formatCount(m.totalGames)}</span>
 						</div>
-						<div class="wdl-bar">
-							<div class="wdl-white" style="width: {winPct}%"></div>
-							<div class="wdl-draw" style="width: {drawPct}%"></div>
-							<div class="wdl-black" style="width: {lossPct}%"></div>
-						</div>
 						<div class="wdl-labels">
-							<span class="wdl-label wdl-label-white">{winPct.toFixed(0)}%</span>
-							<span class="wdl-label wdl-label-draw">{drawPct.toFixed(0)}%</span>
-							<span class="wdl-label wdl-label-black">{lossPct.toFixed(0)}%</span>
+							<span class="wdl-label-white">{winPct.toFixed(0)}%</span>
+							<span class="wdl-label-draw">{drawPct.toFixed(0)}%</span>
+							<span class="wdl-label-black">{lossPct.toFixed(0)}%</span>
 						</div>
 					</button>
 				{/each}
@@ -416,7 +428,7 @@
 			{engineAvailable ? 'No engine suggestions available.' : 'Stockfish engine is not available.'}
 		</p>
 	{:else}
-		<div class="candidate-list">
+		<div class="candidate-list" bind:this={listEl}>
 			{#each engineCandidates as c, idx (c.uci)}
 				<button
 					class="candidate-row"
@@ -512,6 +524,10 @@
 		display: flex;
 		flex-direction: column;
 		gap: 2px;
+		max-height: 180px;
+		overflow-y: auto;
+		scrollbar-width: thin;
+		scrollbar-color: var(--color-border) transparent;
 	}
 
 	.candidate-row {
@@ -581,11 +597,15 @@
 	}
 
 	.opening-name {
+		flex: 1;
+		min-width: 0;
 		font-size: 11px;
 		color: var(--color-text-muted);
 		font-style: italic;
 		line-height: 1.3;
-		white-space: normal;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
 	}
 
 	/* ── Masters tab — stats and W/D/L bar ──────────────────────────────────── */
@@ -597,12 +617,13 @@
 		flex-shrink: 0;
 	}
 
-	.wdl-bar {
+	.wdl-bar-inline {
+		flex: 1;
 		display: flex;
-		height: 4px;
-		border-radius: 2px;
+		height: 6px;
+		border-radius: 3px;
 		overflow: hidden;
-		width: 100%;
+		min-width: 0;
 	}
 
 	.wdl-white {
@@ -622,10 +643,6 @@
 		justify-content: space-between;
 		font-size: 10px;
 		font-variant-numeric: tabular-nums;
-	}
-
-	.wdl-label {
-		line-height: 1;
 	}
 
 	.wdl-label-white {
@@ -656,6 +673,7 @@
 		.candidate-list {
 			display: grid;
 			grid-template-columns: 1fr 1fr;
+			max-height: 180px;
 		}
 
 		.opening-name {
