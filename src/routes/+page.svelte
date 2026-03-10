@@ -7,6 +7,24 @@
 
 	let { data }: { data: PageData } = $props();
 
+	// ── Gap Finder threshold ────────────────────────────────────────────
+	let gapMinGames = $state(1000);
+
+	$effect(() => {
+		gapMinGames = data.settings?.gapMinGames ?? 1000;
+	});
+
+	async function updateGapThreshold(e: Event) {
+		const value = Number((e.target as HTMLSelectElement).value);
+		gapMinGames = value;
+		await fetch(`${base}/api/settings`, {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ gapMinGames: value })
+		});
+		await invalidateAll();
+	}
+
 	// ── Puzzle Goal state ───────────────────────────────────────────────
 	let editingGoal = $state(false);
 	let goalCountInput = $state<number | undefined>(undefined);
@@ -351,24 +369,42 @@
 					<div class="widget-label">
 						<span class="gap-badge">{data.gaps.length}</span>
 						Gap{data.gaps.length === 1 ? '' : 's'} Found
+						<select class="gap-threshold" value={gapMinGames} onchange={updateGapThreshold}>
+							<option value={10000}>10,000+ games</option>
+							<option value={1000}>1,000+ games</option>
+							<option value={100}>100+ games</option>
+							<option value={10}>10+ games</option>
+						</select>
 					</div>
 					<ul class="gap-list">
 						{#each data.gaps.slice(0, 5) as gap (gap.toFen)}
 							<li class="gap-item">
-								<span class="gap-line">{formatLine(gap.line)}</span>
+								<div class="gap-info">
+									<span class="gap-line">{formatLine(gap.line)}</span>
+									{#if gap.gamesPlayed}
+										<span class="gap-popularity"
+											>Played {gap.gamesPlayed.toLocaleString()} times in master games</span
+										>
+									{/if}
+								</div>
 								<a href="{base}/build?line={encodeURIComponent(gap.line)}" class="gap-link">
 									Build
 								</a>
 							</li>
 						{/each}
 					</ul>
-					{#if data.gaps.length > 5}
-						<p class="gap-more">+ {data.gaps.length - 5} more</p>
-					{/if}
 				</div>
 			{:else}
 				<div class="widget widget-wide gap-covered">
-					<div class="widget-label">Gap Finder</div>
+					<div class="widget-label">
+						Gap Finder
+						<select class="gap-threshold" value={gapMinGames} onchange={updateGapThreshold}>
+							<option value={10000}>10,000+ games</option>
+							<option value={1000}>1,000+ games</option>
+							<option value={100}>100+ games</option>
+							<option value={10}>10+ games</option>
+						</select>
+					</div>
 					<p>No gaps — repertoire fully covered</p>
 				</div>
 			{/if}
@@ -444,6 +480,9 @@
 	}
 
 	.widget-label {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
 		font-size: 11px;
 		font-weight: 500;
 		color: var(--color-text-muted);
@@ -613,6 +652,17 @@
 
 	/* ── Gap Finder ───────────────────────────────────────────────────── */
 
+	.gap-threshold {
+		margin-left: auto;
+		padding: 2px 4px;
+		font-size: 11px;
+		background: var(--color-surface-alt);
+		color: var(--color-text-secondary);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-sm);
+		cursor: pointer;
+	}
+
 	.gap-badge {
 		display: inline-flex;
 		align-items: center;
@@ -646,8 +696,20 @@
 		font-size: 13px;
 	}
 
+	.gap-info {
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+		min-width: 0;
+	}
+
 	.gap-line {
 		color: var(--color-text-secondary);
+	}
+
+	.gap-popularity {
+		font-size: 11px;
+		color: var(--color-text-muted);
 	}
 
 	.gap-link {
@@ -660,12 +722,6 @@
 
 	.gap-link:hover {
 		color: var(--color-text-primary);
-	}
-
-	.gap-more {
-		margin: var(--space-2) 0 0;
-		color: var(--color-text-muted);
-		font-size: 12px;
 	}
 
 	.gap-covered p {

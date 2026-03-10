@@ -12,20 +12,22 @@ export { fenKey };
 /** The standard starting position FEN. */
 export const STARTING_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
-/** A single gap: a book move the user hasn't prepared a response to. */
+/** A single gap: a book/masters move the user hasn't prepared a response to. */
 export interface Gap {
 	fromFen: string; // opponent-turn position where the book move starts
 	bookMoveSan: string; // the book move with no user response
 	toFen: string; // position after that book move (user needs a move here)
 	line: string; // comma-separated SAN list for ?line= deep link to Build Mode
 	depth: number; // number of half-moves to reach toFen (for ranking)
+	gamesPlayed?: number; // masters DB game count (undefined for book-only gaps)
 }
 
-/** Minimal move shape — works with both userMove and bookMove row types. */
+/** Minimal move shape — works with userMove, bookMove, and chessmontMoves row types. */
 interface MoveRow {
 	fromFen: string;
 	toFen: string;
 	san: string;
+	gamesPlayed?: number;
 }
 
 /**
@@ -142,12 +144,18 @@ export function computeGaps(
 			bookMoveSan: bm.san,
 			toFen: bm.toFen,
 			line,
-			depth: pathToFrom.length + 1
+			depth: pathToFrom.length + 1,
+			gamesPlayed: bm.gamesPlayed
 		});
 	}
 
-	// Sort by depth ascending — earliest-game gaps are most urgent.
-	gaps.sort((a, b) => a.depth - b.depth);
+	// Sort masters gaps first (by games played descending), then book-only gaps by depth.
+	gaps.sort((a, b) => {
+		if (a.gamesPlayed && b.gamesPlayed) return b.gamesPlayed - a.gamesPlayed;
+		if (a.gamesPlayed) return -1;
+		if (b.gamesPlayed) return 1;
+		return a.depth - b.depth;
+	});
 
 	return gaps;
 }

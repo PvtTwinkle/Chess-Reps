@@ -106,6 +106,12 @@ export const PATCH: RequestHandler = async ({ locals, request }) => {
 		updates.appTheme = body.appTheme;
 	}
 
+	// Gap finder minimum master games: must be one of the preset values.
+	const VALID_GAP_MIN_GAMES = [10, 100, 1000, 10000];
+	if (typeof body.gapMinGames === 'number' && VALID_GAP_MIN_GAMES.includes(body.gapMinGames)) {
+		updates.gapMinGames = body.gapMinGames;
+	}
+
 	if (Object.keys(updates).length === 0) {
 		throw error(400, 'No recognised settings fields provided');
 	}

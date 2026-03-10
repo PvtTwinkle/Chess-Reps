@@ -15,6 +15,7 @@ import { db } from '$lib/db';
 import {
 	userMove,
 	bookMove,
+	chessmontMoves,
 	userRepertoireMove,
 	drillSession,
 	puzzleAttempt
@@ -74,7 +75,8 @@ export const load: PageServerLoad = async ({ parent, locals }) => {
 		.from(userMove)
 		.where(and(eq(userMove.repertoireId, activeRepertoireId), eq(userMove.userId, userId)));
 
-	// ── Gap Finder (existing logic) ────────────────────────────────────
+	// ── Gap Finder (masters-first, book fallback) ─────────────────────
+	const MIN_MASTER_GAMES = settings?.gapMinGames ?? 1000;
 	let gaps: Gap[] = [];
 	if (moves.length > 0) {
 		const opponentTurnChar = activeRep.color === 'WHITE' ? 'b' : 'w';
@@ -84,17 +86,50 @@ export const load: PageServerLoad = async ({ parent, locals }) => {
 			)
 		];
 
-		const relevantBookMoves =
-			opponentFens.length > 0
-				? await db.select().from(bookMove).where(inArray(bookMove.fromFen, opponentFens))
+		// Normalize to 4-field FEN keys for the masters table lookup.
+		const opponentFenKeys = [...new Set(opponentFens.map(fenKey))];
+
+		// Query masters database first — only moves played >= 1000 times.
+		const mastersMoves =
+			opponentFenKeys.length > 0
+				? await db
+						.select()
+						.from(chessmontMoves)
+						.where(
+							and(
+								inArray(chessmontMoves.positionFen, opponentFenKeys),
+								gte(chessmontMoves.gamesPlayed, MIN_MASTER_GAMES)
+							)
+						)
+						.orderBy(desc(chessmontMoves.gamesPlayed))
 				: [];
+
+		// Track which positions have masters data so we can fall back to book for the rest.
+		const mastersPositions = new Set(mastersMoves.map((m) => m.positionFen));
+
+		// Fall back to book moves for positions without masters data.
+		const bookFallbackFens = opponentFens.filter((f) => !mastersPositions.has(fenKey(f)));
+		const relevantBookMoves =
+			bookFallbackFens.length > 0
+				? await db.select().from(bookMove).where(inArray(bookMove.fromFen, bookFallbackFens))
+				: [];
+
+		// Map masters rows to the MoveRow shape expected by computeGaps.
+		const mastersAsMoveRows = mastersMoves.map((m) => ({
+			fromFen: m.positionFen,
+			toFen: m.resultingFen,
+			san: m.moveSan,
+			gamesPlayed: m.gamesPlayed
+		}));
+
+		const allOpponentMoves = [...mastersAsMoveRows, ...relevantBookMoves];
 
 		const startFens = getEffectiveStartFens(
 			activeRep.startFen ?? null,
 			moves,
 			activeRep.color as 'WHITE' | 'BLACK'
 		);
-		gaps = computeGaps(moves, relevantBookMoves, activeRep.color as 'WHITE' | 'BLACK', startFens);
+		gaps = computeGaps(moves, allOpponentMoves, activeRep.color as 'WHITE' | 'BLACK', startFens);
 	}
 
 	// ── SR cards for active repertoire ──────────────────────────────────

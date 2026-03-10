@@ -172,6 +172,7 @@ export const userSettings = pgTable('user_settings', {
 	tempoEnabled: boolean('tempo_enabled').notNull().default(false), // countdown timer during drill
 	tempoSeconds: integer('tempo_seconds').notNull().default(10), // seconds per move (3–30)
 	appTheme: text('app_theme').notNull().default('dark'), // 'dark' | 'light'
+	gapMinGames: integer('gap_min_games').notNull().default(1000), // min master games for gap finder (10|100|1000|10000)
 	updatedAt: timestamp('updated_at').notNull()
 });
 
