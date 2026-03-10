@@ -137,6 +137,9 @@
 	// Last move played (for yellow highlight on board).
 	let lastMove = $state<[string, string] | undefined>(undefined);
 
+	// Whether the user has clicked "Start Drilling" — false shows the summary screen.
+	let started = $state(false);
+
 	// Current phase of the drill state machine.
 	let phase = $state<Phase>('idle');
 
@@ -287,6 +290,13 @@
 			// Ignore other keypresses with modifiers.
 			if (e.ctrlKey || e.altKey || e.metaKey) return;
 
+			// Start screen: Space/Enter begins drilling.
+			if (!started && (e.key === ' ' || e.key === 'Enter')) {
+				e.preventDefault();
+				if (filteredCards.length > 0 || drillType === 'line') startDrilling();
+				return;
+			}
+
 			// Line mode: Space/Enter advances to the next line on the interstitial.
 			if (drillType === 'line' && lineComplete && (e.key === ' ' || e.key === 'Enter')) {
 				e.preventDefault();
@@ -359,10 +369,12 @@
 
 		untrack(() => {
 			resetBoard();
-			if (drillType === 'line') {
-				initLineMode();
-			} else {
-				startNextCard();
+			if (started) {
+				if (drillType === 'line') {
+					initLineMode();
+				} else {
+					startNextCard();
+				}
 			}
 		});
 	});
@@ -477,7 +489,7 @@
 		sessionId = null;
 		nextDueAt = null;
 		resetBoard();
-		startNextCard();
+		if (started) startNextCard();
 	}
 
 	// ── Hint ───────────────────────────────────────────────────────────────────
@@ -1175,6 +1187,8 @@
 		drillType = type;
 		resetBoard();
 
+		if (!started) return;
+
 		if (type === 'line') {
 			initLineMode();
 		} else {
@@ -1184,6 +1198,17 @@
 			correctCount = 0;
 			sessionId = null;
 			nextDueAt = null;
+			startNextCard();
+		}
+	}
+
+	// ── Start drilling ────────────────────────────────────────────────────────
+
+	function startDrilling(): void {
+		started = true;
+		if (drillType === 'line') {
+			initLineMode();
+		} else {
 			startNextCard();
 		}
 	}
@@ -1349,7 +1374,7 @@
 		{/if}
 
 		<!-- Progress bar -->
-		{#if drillType === 'card' && phase !== 'complete' && filteredCards.length > 0}
+		{#if started && drillType === 'card' && phase !== 'complete' && filteredCards.length > 0}
 			<div class="progress-section">
 				<div class="progress-label">
 					Card {Math.min(currentCardIdx + 1, filteredCards.length)} of {filteredCards.length}
@@ -1358,7 +1383,7 @@
 					<div class="progress-fill" style="width: {progress * 100}%"></div>
 				</div>
 			</div>
-		{:else if drillType === 'line' && phase !== 'complete' && allLines.length > 0}
+		{:else if started && drillType === 'line' && phase !== 'complete' && allLines.length > 0}
 			<div class="progress-section">
 				<div class="progress-label">
 					Line {Math.min(currentLineIdx + 1, allLines.length)} of {allLines.length}
@@ -1379,10 +1404,52 @@
 
 		<!-- ── Phase-specific content ─────────────────────────────────────────── -->
 
-		<!-- Empty-state check comes first: always show "All caught up!" when there
-		     are no due cards, regardless of phase. Prevents the "Session complete"
-		     screen appearing with 0 cards after all cards are pushed into the future. -->
-		{#if drillType === 'line' && lineComplete}
+		{#if !started}
+			<!-- Start screen — shown before the user begins drilling -->
+			{#if (drillType === 'card' && allDueCards.length === 0) || (drillType === 'line' && allDueCards.length === 0)}
+				<div class="empty-state">
+					<div class="empty-icon">✓</div>
+					<p class="empty-title">All caught up!</p>
+					<p class="empty-hint">
+						No cards due right now. Come back later or build more repertoire.
+					</p>
+					<a href="/build" class="btn btn--primary">Build Mode</a>
+					<a href="/drill?mode=all" class="btn btn--secondary">Drill all cards</a>
+				</div>
+			{:else}
+				<div class="start-screen">
+					<div class="start-count">
+						{drillType === 'card' ? filteredCards.length : allDueCards.length}
+					</div>
+					<div class="start-label">{drillType === 'card' ? 'cards' : 'lines'} to drill</div>
+
+					{#if drillType === 'card'}
+						<div class="start-breakdown">
+							<div class="start-breakdown-row">
+								<span>Foundations (1–5)</span>
+								<span>{sectionCounts.foundations}</span>
+							</div>
+							<div class="start-breakdown-row">
+								<span>Mainlines (6–15)</span>
+								<span>{sectionCounts.mainlines}</span>
+							</div>
+							<div class="start-breakdown-row">
+								<span>Deep Lines (16+)</span>
+								<span>{sectionCounts.deep}</span>
+							</div>
+						</div>
+					{/if}
+
+					<button
+						class="btn btn--primary start-btn"
+						disabled={drillType === 'card' && filteredCards.length === 0}
+						onclick={startDrilling}
+					>
+						Start Drilling <kbd>Space</kbd>
+					</button>
+				</div>
+			{/if}
+		{:else if drillType === 'line' && lineComplete}
 			<!-- Line-complete interstitial -->
 			<div class="line-complete-screen">
 				<div class="feedback feedback--correct">
@@ -2433,6 +2500,51 @@
 		font-size: 0.7rem;
 		color: var(--color-text-muted);
 		margin-top: 0.15rem;
+	}
+
+	/* ── Start screen ────────────────────────────────────────────────── */
+
+	.start-screen {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: var(--space-3);
+		padding: var(--space-4) 0;
+	}
+
+	.start-count {
+		font-size: 2.5rem;
+		font-weight: 700;
+		color: var(--color-text-primary);
+		line-height: 1;
+	}
+
+	.start-label {
+		font-size: 0.95rem;
+		color: var(--color-text-secondary);
+		margin-top: calc(-1 * var(--space-2));
+	}
+
+	.start-breakdown {
+		width: 100%;
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-1);
+		padding: var(--space-3) 0;
+		border-top: 1px solid var(--color-border);
+		border-bottom: 1px solid var(--color-border);
+	}
+
+	.start-breakdown-row {
+		display: flex;
+		justify-content: space-between;
+		font-size: 0.85rem;
+		color: var(--color-text-secondary);
+	}
+
+	.start-btn {
+		width: 100%;
+		margin-top: var(--space-2);
 	}
 
 	/* ── Mobile responsive ────────────────────────────────────────────── */
