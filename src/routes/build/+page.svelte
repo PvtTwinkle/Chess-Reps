@@ -32,6 +32,7 @@
 <script lang="ts">
 	import ChessBoard from '$lib/components/ChessBoard.svelte';
 	import CandidateMoves from '$lib/components/CandidateMoves.svelte';
+	import EvalBar from '$lib/components/EvalBar.svelte';
 	import OpeningName from '$lib/components/OpeningName.svelte';
 	import MoveList from '$lib/components/build/MoveList.svelte';
 	import MoveTree from '$lib/components/build/MoveTree.svelte';
@@ -61,6 +62,11 @@
 	let activeCandidates = $state<string[]>([]);
 	let requestedTab = $state<'book' | 'engine' | 'masters' | null>(null);
 	let currentCandidateTab = $state<'book' | 'engine' | 'masters'>('book');
+
+	// ── Eval bar state ────────────────────────────────────────────────────────
+	let evalCp = $state<number | null>(null);
+	let evalMate = $state<number | null>(null);
+	let evalLoading = $state(true);
 
 	const TAB_ORDER: Array<'book' | 'masters' | 'engine'> = ['book', 'masters', 'engine'];
 
@@ -289,6 +295,7 @@
 <div class="page">
 	<!-- ── Board column ─────────────────────────────────────────────────────── -->
 	<div class="board-col">
+		<EvalBar {evalCp} {evalMate} {orientation} loading={evalLoading} />
 		<!--
 				{#key boardKey} remounts ChessBoard when boardKey increments.
 				We increment boardKey to reject a move visually — it forces
@@ -531,6 +538,11 @@
 				currentCandidateTab = tab;
 				requestedTab = null;
 			}}
+			onEvalChanged={(cp, mate, loading) => {
+				evalCp = cp;
+				evalMate = mate;
+				evalLoading = loading;
+			}}
 		/>
 
 		<!-- Navigation controls -->
@@ -703,6 +715,9 @@
 
 	.board-col {
 		width: 100%;
+		display: flex;
+		align-items: stretch;
+		gap: var(--space-1, 4px);
 	}
 
 	.sidebar {

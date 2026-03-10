@@ -56,6 +56,8 @@
 		requestedTab?: 'book' | 'engine' | 'masters' | null;
 		/** Fires whenever the active tab changes. */
 		onTabChanged?: (tab: 'book' | 'engine' | 'masters') => void;
+		/** Fires whenever the top-line engine eval changes. */
+		onEvalChanged?: (evalCp: number | null, evalMate: number | null, loading: boolean) => void;
 	}
 
 	let {
@@ -67,7 +69,8 @@
 		highlightedIndex = null,
 		onCandidatesChanged,
 		requestedTab = null,
-		onTabChanged
+		onTabChanged,
+		onEvalChanged
 	}: Props = $props();
 
 	// ── Book state ────────────────────────────────────────────────────────────
@@ -118,6 +121,12 @@
 			activeTab = requestedTab;
 			userClickedTab = true;
 		}
+	});
+
+	// ── Notify parent of top-line engine eval ─────────────────────────────────
+	$effect(() => {
+		const top = engineCandidates[0];
+		onEvalChanged?.(top?.evalCp ?? null, top?.evalMate ?? null, engineLoading);
 	});
 
 	// ── Keyboard highlight triggers hover arrow ───────────────────────────────

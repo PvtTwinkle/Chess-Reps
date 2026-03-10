@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Drill All mode to practice every card in the repertoire regardless of schedule
 - Dark/light theme toggle in Settings
+- Evaluation bar next to the board in Build Mode showing the engine's position assessment at a glance
 - Undo button for drill grades so you can correct a mis-tap
 - Keyboard shortcuts and move preview arrows in Build Mode
 - Explore Mode on the Build page — try moves on the board without saving them to your repertoire
