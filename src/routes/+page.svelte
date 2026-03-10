@@ -20,6 +20,44 @@
 		await invalidateAll();
 	}
 
+	// ── Health prompt (actionable hint for the weakest factor) ─────────
+	let healthPrompt = $derived.by(() => {
+		if (data.totalCards === 0 || data.healthScore >= 80) return null;
+
+		const gapCount = data.gaps.length;
+		const coverage = Math.max(0, 100 - gapCount * 5);
+		const mastery = Math.round((data.masteredCount / data.totalCards) * 100);
+		const freshness = Math.round((1 - data.dueCount / data.totalCards) * 100);
+		const trouble = data.troubleCount ?? 0;
+		const stability = Math.round((1 - trouble / data.totalCards) * 100);
+
+		const learningCount = data.cardStates.new_ + data.cardStates.learning;
+		const factors = [
+			{
+				score: freshness,
+				text: `Drill ${data.dueCount} due card${data.dueCount === 1 ? '' : 's'} to improve`,
+				href: `${base}/drill`
+			},
+			{
+				score: coverage,
+				text: `Fix ${gapCount} gap${gapCount === 1 ? '' : 's'} to improve`,
+				href: `${base}/build`
+			},
+			{
+				score: mastery,
+				text: `Learn ${learningCount} new card${learningCount === 1 ? '' : 's'} to improve`,
+				href: `${base}/drill`
+			},
+			{
+				score: stability,
+				text: `Review ${trouble} trouble card${trouble === 1 ? '' : 's'} to improve`,
+				href: `${base}/drill`
+			}
+		];
+
+		return factors.reduce((worst, f) => (f.score < worst.score ? f : worst));
+	});
+
 	// ── Puzzle Goal state ───────────────────────────────────────────────
 	let editingGoal = $state(false);
 	let goalCountInput = $state<number | undefined>(undefined);
@@ -194,12 +232,10 @@
 				<div class="widget-hint">
 					{#if data.totalCards === 0}
 						No cards yet
-					{:else if data.healthScore >= 80}
-						Healthy
-					{:else if data.healthScore >= 50}
-						Needs work
+					{:else if healthPrompt}
+						<a href={healthPrompt.href} class="health-action">{healthPrompt.text}</a>
 					{:else}
-						At risk
+						Healthy
 					{/if}
 				</div>
 			</div>
@@ -554,6 +590,15 @@
 
 	.health-red {
 		color: var(--color-danger);
+	}
+
+	.health-action {
+		color: inherit;
+		text-decoration: none;
+	}
+
+	.health-action:hover {
+		text-decoration: underline;
 	}
 
 	/* ── Card State Breakdown ─────────────────────────────────────────── */

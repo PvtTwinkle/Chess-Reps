@@ -23,7 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Undo button for drill grades so you can correct a mis-tap
 - Keyboard shortcuts and move preview arrows in Build Mode
 - Explore Mode on the Build page — try moves on the board without saving them to your repertoire
-- Repertoire health score widget on the Dashboard
+- Repertoire health score widget on the Dashboard — now shows actionable tips (e.g. "Drill 12 due cards to improve") linking to the right page
 - Tempo training — optional countdown timer for Drill Mode (configurable 3–30 seconds per move in Settings; auto-fails if time runs out)
 
 ### Fixed
