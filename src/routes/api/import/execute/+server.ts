@@ -22,12 +22,14 @@ import { repertoire, userMove, userRepertoireMove } from '$lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { fenKey } from '$lib/pgn/index';
 
+// Transaction type extracted from db.transaction() callback parameter
+type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
 // Recursively deletes all moves reachable from startFen in the given repertoire,
 // including their SR cards. Works within a Drizzle transaction.
 // Mirrors the deleteSubtree logic in DELETE /api/moves/[id].
 async function deleteSubtreeInTx(
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	tx: any,
+	tx: Transaction,
 	userId: number,
 	repertoireId: number,
 	startFen: string
