@@ -95,6 +95,15 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # The seed dump files (~200 MB) are not committed to the repo — they
+      # ship inside the published Docker image only. Create empty gzipped
+      # placeholders so the Dockerfile COPY succeeds. The image scan only
+      # needs a valid build, not real seed data.
+      - name: Create placeholder seed dumps
+        run: |
+          gzip -n < /dev/null > chessmont-moves-dump.sql.gz
+          gzip -n < /dev/null > puzzles-dump.sql.gz
+
       - name: Build Docker image
         run: docker build -t chessstack:ci-scan .
 
