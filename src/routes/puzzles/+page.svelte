@@ -680,14 +680,32 @@
 
 	.page {
 		display: flex;
-		gap: var(--space-8);
-		align-items: flex-start;
-		max-width: 920px;
-		margin: 0 auto;
+		flex-direction: column;
+		gap: var(--space-4);
+		padding: var(--space-3);
 	}
 
 	.board-col {
-		flex-shrink: 0;
+		width: 100%;
+	}
+
+	@media (min-width: 768px) {
+		.page {
+			display: grid;
+			grid-template-columns: 1fr 260px;
+			gap: var(--space-4);
+			align-items: start;
+			padding: 0;
+		}
+	}
+
+	@media (min-width: 1024px) {
+		.page {
+			grid-template-columns: 1fr 300px;
+			gap: var(--space-8);
+			max-width: 920px;
+			margin: 0 auto;
+		}
 	}
 
 	.board-wrap {
@@ -696,9 +714,6 @@
 	}
 
 	.sidebar {
-		flex: 1;
-		min-width: 220px;
-		max-width: 340px;
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-4);
