@@ -110,3 +110,4 @@ services:
 volumes:
   pgdata:
     name: chessstack-pgdata
+    external: true
