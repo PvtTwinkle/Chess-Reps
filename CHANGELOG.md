@@ -45,6 +45,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed duplicate CSS rules and added missing aria-labels to icon-only buttons for accessibility
 - Docker volume warning resolved by marking the named volume as external
 
+### Removed
+
+- Unused Lichess API stub endpoint (game import was already handled elsewhere)
+
 ### Maintenance
 
 - Updated all devDependencies to latest compatible versions
