@@ -41,11 +41,17 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 	const { fens } = body as { fens: unknown[] };
 
-	// Validate that every element is a non-empty string.
+	// Validate that every element is a non-empty string with valid FEN structure.
 	// This is user-supplied data coming from the board position — sanitise it.
-	const fenList = fens.filter(
-		(f): f is string => typeof f === 'string' && f.length > 0 && f.length <= 100
-	);
+	const PIECE_PLACEMENT = /^[1-8pnbrqkPNBRQK/]+$/;
+	const fenList = fens.filter((f): f is string => {
+		if (typeof f !== 'string' || f.length === 0 || f.length > 100) return false;
+		const parts = f.split(' ');
+		if (parts.length < 4 || parts.length > 6) return false;
+		if (!PIECE_PLACEMENT.test(parts[0])) return false;
+		if (parts[1] !== 'w' && parts[1] !== 'b') return false;
+		return true;
+	});
 
 	// Cap at 50 FENs — a typical opening is 15–20 moves deep, so this is
 	// generous while preventing abuse of the IN clause.

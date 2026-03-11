@@ -32,6 +32,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Repertoire health score widget on the Dashboard — now shows actionable tips (e.g. "Drill 12 due cards to improve") linking to the right page
 - Tempo training — optional countdown timer for Drill Mode (configurable 3–30 seconds per move in Settings; auto-fails if time runs out)
 
+### Security
+
+- Drill undo now validates all FSRS fields (type, range, and format) before writing to the database
+- ECO lookup now validates FEN structure (field count, piece placement, side-to-move) before querying
+
 ### Fixed
 
 - Drill auto-play sounds no longer continue playing after navigating away from Drill Mode

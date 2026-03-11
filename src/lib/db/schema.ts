@@ -204,7 +204,7 @@ export const userMove = pgTable(
 		fromFen: text('from_fen').notNull(), // position before the move
 		toFen: text('to_fen').notNull(), // position after the move
 		san: text('san').notNull(), // move in Standard Algebraic Notation
-		source: text('source').notNull(), // "BOOK" (from shared book), "PERSONAL", or "STOCKFISH"
+		source: text('source').notNull(), // "BOOK" (from shared book), "PERSONAL", "STOCKFISH", or "PGN_IMPORT"
 		notes: text('notes'), // optional user annotation on this move
 		createdAt: timestamp('created_at').notNull()
 	},
