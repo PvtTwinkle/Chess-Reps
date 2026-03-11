@@ -75,7 +75,7 @@
 		{#if n.children.length > 1}
 			{#each n.children.slice(1) as branch (branch.toFenKey)}
 				{@const bk = branchKey(n.toFenKey, branch.san)}
-				<button class="branch-toggle" onclick={() => onToggle(bk)}
+				<button class="branch-toggle" aria-label="Toggle branch" onclick={() => onToggle(bk)}
 					>{expanded.has(bk) ? '▾' : '▸'}</button
 				>
 				{#if expanded.has(bk)}

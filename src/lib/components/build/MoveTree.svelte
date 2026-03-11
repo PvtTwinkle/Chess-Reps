@@ -88,8 +88,10 @@
 				{#each treeRoots as rootNode, i (rootNode.toFenKey)}
 					{#if i > 0}
 						{@const bk = `${fenKey(rootNode.fromFen)}|${rootNode.san}`}
-						<button class="branch-toggle" onclick={() => toggleBranch(bk)}
-							>{expanded.has(bk) ? '▾' : '▸'}</button
+						<button
+							class="branch-toggle"
+							aria-label="Toggle branch"
+							onclick={() => toggleBranch(bk)}>{expanded.has(bk) ? '▾' : '▸'}</button
 						>
 						{#if expanded.has(bk)}
 							<div class="branch-indent">

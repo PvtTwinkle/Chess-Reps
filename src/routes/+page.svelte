@@ -519,9 +519,6 @@
 		color: var(--color-text-muted);
 		text-transform: uppercase;
 		letter-spacing: 0.1em;
-		display: flex;
-		align-items: center;
-		gap: var(--space-2);
 	}
 
 	.widget-value {

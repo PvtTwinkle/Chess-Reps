@@ -403,7 +403,9 @@
 				<div class="banner banner--warn">
 					You already have <strong>{s.conflictSan}</strong> here. Remove it first to change your
 					move.
-					<button class="banner-dismiss" onclick={() => s.dismissConflict()}>✕</button>
+					<button class="banner-dismiss" aria-label="Dismiss" onclick={() => s.dismissConflict()}
+						>✕</button
+					>
 				</div>
 			{/if}
 		{/if}
@@ -412,7 +414,9 @@
 		{#if s.errorMsg}
 			<div class="banner banner--error">
 				{s.errorMsg}
-				<button class="banner-dismiss" onclick={() => s.dismissError()}>✕</button>
+				<button class="banner-dismiss" aria-label="Dismiss" onclick={() => s.dismissError()}
+					>✕</button
+				>
 			</div>
 		{/if}
 
@@ -421,7 +425,9 @@
 			<div class="banner banner--info">
 				<strong>Transposition</strong> — this position is already in your repertoire via a different
 				move order. Your existing preparation applies here.
-				<button class="banner-dismiss" onclick={() => s.dismissTransposition()}>✕</button>
+				<button class="banner-dismiss" aria-label="Dismiss" onclick={() => s.dismissTransposition()}
+					>✕</button
+				>
 			</div>
 		{/if}
 
