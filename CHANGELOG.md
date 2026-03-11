@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Resizable chessboard — drag the bottom-right corner handle to make the board larger or smaller; your preferred size is saved across sessions and shared across all pages
+
 ### Changed
 
 - Gap finder logic extracted into a shared utility, eliminating duplicated code between the dashboard and API endpoint

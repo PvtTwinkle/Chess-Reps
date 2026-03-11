@@ -92,6 +92,13 @@
 			"when": 1773600000000,
 			"tag": "0012_add_cascade_rules",
 			"breakpoints": true
+		},
+		{
+			"idx": 13,
+			"version": "6",
+			"when": 1773700000000,
+			"tag": "0013_board_size",
+			"breakpoints": true
 		}
 	]
 }

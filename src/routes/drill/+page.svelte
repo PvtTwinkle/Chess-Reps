@@ -24,6 +24,7 @@
 
 <script lang="ts">
 	import ChessBoard from '$lib/components/ChessBoard.svelte';
+	import ResizableBoard from '$lib/components/ResizableBoard.svelte';
 	import OpeningName from '$lib/components/OpeningName.svelte';
 	import { fenKey, STARTING_FEN } from '$lib/fen';
 	import { SvelteMap } from 'svelte/reactivity';
@@ -174,6 +175,16 @@
 
 	// Incrementing this forces ChessBoard to remount, snapping pieces back.
 	let boardKey = $state(0);
+
+	// ── Board resize ─────────────────────────────────────────────────────────
+	async function handleBoardResize(size: number) {
+		await fetch('/api/settings', {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ boardSize: size })
+		});
+		await invalidateAll();
+	}
 
 	// Timer handle for auto-play. Kept outside reactive state so it doesn't
 	// trigger re-renders when set/cleared.
@@ -1258,38 +1269,40 @@
 <div class="page">
 	<!-- ── Board column ──────────────────────────────────────────────────────── -->
 	<div class="board-col">
-		<div class="board-wrap" class:blindfold={blindfoldEnabled}>
-			{#key boardKey}
-				<ChessBoard
-					fen={currentFen}
-					{orientation}
-					boardTheme={data.settings?.boardTheme ?? 'blue'}
-					interactive={phase === 'waiting'}
-					lastMove={blindfoldEnabled ? undefined : lastMove}
-					autoShapes={hintShapes}
-					onMove={handleMove}
-				/>
-			{/key}
+		<ResizableBoard boardSize={data.settings?.boardSize ?? 0} onResize={handleBoardResize}>
+			<div class="board-wrap" class:blindfold={blindfoldEnabled}>
+				{#key boardKey}
+					<ChessBoard
+						fen={currentFen}
+						{orientation}
+						boardTheme={data.settings?.boardTheme ?? 'blue'}
+						interactive={phase === 'waiting'}
+						lastMove={blindfoldEnabled ? undefined : lastMove}
+						autoShapes={hintShapes}
+						onMove={handleMove}
+					/>
+				{/key}
 
-			<!-- Green/red flash overlay on correct/incorrect -->
-			{#if flashColor}
-				<div
-					class="flash-overlay"
-					class:flash-correct={flashColor === 'green'}
-					class:flash-incorrect={flashColor === 'red'}
-				></div>
-			{/if}
+				<!-- Green/red flash overlay on correct/incorrect -->
+				{#if flashColor}
+					<div
+						class="flash-overlay"
+						class:flash-correct={flashColor === 'green'}
+						class:flash-incorrect={flashColor === 'red'}
+					></div>
+				{/if}
 
-			<!-- Blindfold move announcement -->
-			{#if blindfoldAnnouncement}
-				<div class="blindfold-announce">{blindfoldAnnouncement}</div>
-			{/if}
+				<!-- Blindfold move announcement -->
+				{#if blindfoldAnnouncement}
+					<div class="blindfold-announce">{blindfoldAnnouncement}</div>
+				{/if}
 
-			<!-- Auto-play indicator -->
-			{#if phase === 'playing'}
-				<div class="autoplay-badge">▶ Playing through…</div>
-			{/if}
-		</div>
+				<!-- Auto-play indicator -->
+				{#if phase === 'playing'}
+					<div class="autoplay-badge">▶ Playing through…</div>
+				{/if}
+			</div>
+		</ResizableBoard>
 	</div>
 
 	<!-- ── Sidebar ───────────────────────────────────────────────────────────── -->

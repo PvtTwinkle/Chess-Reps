@@ -23,6 +23,7 @@
 
 <script lang="ts">
 	import ChessBoard from '$lib/components/ChessBoard.svelte';
+	import ResizableBoard from '$lib/components/ResizableBoard.svelte';
 	import { onMount } from 'svelte';
 	import { Chess } from 'chess.js';
 	import type { Key } from '@lichess-org/chessground/types';
@@ -38,6 +39,17 @@
 	} from '$lib/sounds';
 
 	type Phase = 'idle' | 'loading' | 'setup' | 'waiting' | 'correct' | 'incorrect' | 'solved';
+
+	// ── Board resize ─────────────────────────────────────────────────────────
+	async function handleBoardResize(size: number) {
+		await fetch('/api/settings', {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ boardSize: size })
+		});
+		const { invalidateAll } = await import('$app/navigation');
+		await invalidateAll();
+	}
 
 	// Shape of a puzzle row from the server.
 	interface Puzzle {
@@ -474,35 +486,37 @@
 	<div class="page">
 		<!-- ── Board column ────────────────────────────────────────────────── -->
 		<div class="board-col">
-			<div class="board-wrap">
-				{#key boardKey}
-					<ChessBoard
-						fen={currentFen}
-						{orientation}
-						boardTheme={data.settings?.boardTheme ?? 'blue'}
-						interactive={phase === 'waiting'}
-						{lastMove}
-						autoShapes={hintShapes}
-						onMove={handleMove}
-					/>
-				{/key}
+			<ResizableBoard boardSize={data.settings?.boardSize || 520} onResize={handleBoardResize}>
+				<div class="board-wrap">
+					{#key boardKey}
+						<ChessBoard
+							fen={currentFen}
+							{orientation}
+							boardTheme={data.settings?.boardTheme ?? 'blue'}
+							interactive={phase === 'waiting'}
+							{lastMove}
+							autoShapes={hintShapes}
+							onMove={handleMove}
+						/>
+					{/key}
 
-				<!-- Green/red flash overlay -->
-				{#if flashColor}
-					<div
-						class="flash-overlay"
-						class:flash-correct={flashColor === 'green'}
-						class:flash-incorrect={flashColor === 'red'}
-					></div>
-				{/if}
+					<!-- Green/red flash overlay -->
+					{#if flashColor}
+						<div
+							class="flash-overlay"
+							class:flash-correct={flashColor === 'green'}
+							class:flash-incorrect={flashColor === 'red'}
+						></div>
+					{/if}
 
-				<!-- Phase indicator -->
-				{#if phase === 'setup'}
-					<div class="autoplay-badge">Setting up...</div>
-				{:else if phase === 'loading'}
-					<div class="autoplay-badge">Loading puzzle...</div>
-				{/if}
-			</div>
+					<!-- Phase indicator -->
+					{#if phase === 'setup'}
+						<div class="autoplay-badge">Setting up...</div>
+					{:else if phase === 'loading'}
+						<div class="autoplay-badge">Loading puzzle...</div>
+					{/if}
+				</div>
+			</ResizableBoard>
 
 			<!-- Turn indicator -->
 			{#if currentPuzzle && (phase === 'waiting' || phase === 'setup')}
@@ -691,7 +705,6 @@
 	}
 
 	.board-col {
-		width: 520px;
 		flex-shrink: 0;
 	}
 

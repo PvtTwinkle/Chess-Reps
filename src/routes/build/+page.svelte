@@ -31,6 +31,7 @@
 
 <script lang="ts">
 	import ChessBoard from '$lib/components/ChessBoard.svelte';
+	import ResizableBoard from '$lib/components/ResizableBoard.svelte';
 	import CandidateMoves from '$lib/components/CandidateMoves.svelte';
 	import EvalBar from '$lib/components/EvalBar.svelte';
 	import OpeningName from '$lib/components/OpeningName.svelte';
@@ -67,6 +68,16 @@
 	let evalCp = $state<number | null>(null);
 	let evalMate = $state<number | null>(null);
 	let evalLoading = $state(true);
+
+	// ── Board resize ─────────────────────────────────────────────────────────
+	async function handleBoardResize(size: number) {
+		await fetch('/api/settings', {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ boardSize: size })
+		});
+		await invalidateAll();
+	}
 
 	const TAB_ORDER: Array<'book' | 'masters' | 'engine'> = ['book', 'masters', 'engine'];
 
@@ -302,25 +313,29 @@
 
 <div class="page">
 	<!-- ── Board column ─────────────────────────────────────────────────────── -->
+	<!--
+		{#key boardKey} remounts the board when boardKey increments.
+		We increment boardKey to reject a move visually — it forces
+		Chessground to reinitialize with `currentFen`, snapping the
+		piece back to where it was.
+	-->
 	<div class="board-col">
-		<EvalBar {evalCp} {evalMate} {orientation} loading={evalLoading} />
-		<!--
-				{#key boardKey} remounts ChessBoard when boardKey increments.
-				We increment boardKey to reject a move visually — it forces
-				Chessground to reinitialize with `currentFen`, snapping the
-				piece back to where it was.
-			-->
-		{#key s.boardKey}
-			<ChessBoard
-				fen={s.currentFen}
-				{orientation}
-				boardTheme={data.settings?.boardTheme ?? 'blue'}
-				interactive={!s.saving}
-				lastMove={s.lastMove}
-				onMove={s.handleMove}
-				autoShapes={boardShapes}
-			/>
-		{/key}
+		<ResizableBoard boardSize={data.settings?.boardSize ?? 0} onResize={handleBoardResize}>
+			<div class="board-inner">
+				<EvalBar {evalCp} {evalMate} {orientation} loading={evalLoading} />
+				{#key s.boardKey}
+					<ChessBoard
+						fen={s.currentFen}
+						{orientation}
+						boardTheme={data.settings?.boardTheme ?? 'blue'}
+						interactive={!s.saving}
+						lastMove={s.lastMove}
+						onMove={s.handleMove}
+						autoShapes={boardShapes}
+					/>
+				{/key}
+			</div>
+		</ResizableBoard>
 	</div>
 
 	<!-- ── Sidebar ──────────────────────────────────────────────────────────── -->
@@ -729,6 +744,9 @@
 
 	.board-col {
 		width: 100%;
+	}
+
+	.board-inner {
 		display: flex;
 		align-items: stretch;
 		gap: var(--space-1, 4px);

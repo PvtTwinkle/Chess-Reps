@@ -22,6 +22,7 @@
 <script lang="ts">
 	import { onMount, untrack } from 'svelte';
 	import ChessBoard from '$lib/components/ChessBoard.svelte';
+	import ResizableBoard from '$lib/components/ResizableBoard.svelte';
 	import OpeningName from '$lib/components/OpeningName.svelte';
 	import ReviewIssuePicker from '$lib/components/ReviewIssuePicker.svelte';
 	import { enhance } from '$app/forms';
@@ -36,6 +37,17 @@
 	import { STARTING_FEN } from '$lib/fen';
 
 	let { data, form }: { data: PageData; form: Record<string, unknown> | null } = $props();
+
+	// ── Board resize ─────────────────────────────────────────────────────────
+	async function handleBoardResize(size: number) {
+		await fetch('/api/settings', {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ boardSize: size })
+		});
+		const { invalidateAll } = await import('$app/navigation');
+		await invalidateAll();
+	}
 
 	// ── Input state ─────────────────────────────────────────────────────────────
 
@@ -1291,16 +1303,18 @@
 	<div class="page">
 		<!-- ── Board column ──────────────────────────────────────────────────────── -->
 		<div class="board-col">
-			<div class="board-wrap">
-				<ChessBoard
-					fen={currentFen}
-					{orientation}
-					boardTheme={data.settings?.boardTheme ?? 'blue'}
-					interactive={false}
-					{lastMove}
-					autoShapes={boardShapes}
-				/>
-			</div>
+			<ResizableBoard boardSize={data.settings?.boardSize ?? 0} onResize={handleBoardResize}>
+				<div class="board-wrap">
+					<ChessBoard
+						fen={currentFen}
+						{orientation}
+						boardTheme={data.settings?.boardTheme ?? 'blue'}
+						interactive={false}
+						{lastMove}
+						autoShapes={boardShapes}
+					/>
+				</div>
+			</ResizableBoard>
 
 			<!-- Move list — full game, colour-coded -->
 			<div class="move-list-wrap">

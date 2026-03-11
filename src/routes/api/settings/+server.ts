@@ -112,6 +112,12 @@ export const PATCH: RequestHandler = async ({ locals, request }) => {
 		updates.gapMinGames = body.gapMinGames;
 	}
 
+	// Board size: 0 = auto (fill container), positive integer clamped to 320–800px.
+	if (typeof body.boardSize === 'number') {
+		const val = Math.round(body.boardSize);
+		updates.boardSize = val === 0 ? 0 : Math.max(320, Math.min(800, val));
+	}
+
 	if (Object.keys(updates).length === 0) {
 		throw error(400, 'No recognised settings fields provided');
 	}

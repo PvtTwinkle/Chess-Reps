@@ -173,6 +173,7 @@ export const userSettings = pgTable('user_settings', {
 	tempoSeconds: integer('tempo_seconds').notNull().default(10), // seconds per move (3–30)
 	appTheme: text('app_theme').notNull().default('dark'), // 'dark' | 'light'
 	gapMinGames: integer('gap_min_games').notNull().default(1000), // min master games for gap finder (10|100|1000|10000)
+	boardSize: integer('board_size').notNull().default(0), // 0 = auto (fill container), >0 = pixel width (320–800)
 	updatedAt: timestamp('updated_at').notNull()
 });
 

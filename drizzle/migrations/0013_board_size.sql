@@ -1,0 +1,1 @@
+ALTER TABLE user_settings ADD COLUMN board_size integer NOT NULL DEFAULT 0;
