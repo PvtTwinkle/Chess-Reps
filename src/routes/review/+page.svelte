@@ -707,7 +707,10 @@
 			});
 			resolveIssue(issue.ply);
 		} catch (e) {
-			actionError.set(issue.ply, (e as Error).message || 'Failed to update card');
+			actionError.set(
+				issue.ply,
+				(e instanceof Error ? e.message : String(e)) || 'Failed to update card'
+			);
 		} finally {
 			actionLoading.set(issue.ply, false);
 		}
@@ -733,7 +736,10 @@
 			});
 			resolveIssue(issue.ply);
 		} catch (e) {
-			actionError.set(issue.ply, (e as Error).message || 'Failed to update repertoire');
+			actionError.set(
+				issue.ply,
+				(e instanceof Error ? e.message : String(e)) || 'Failed to update repertoire'
+			);
 		} finally {
 			actionLoading.set(issue.ply, false);
 		}
@@ -753,7 +759,10 @@
 			});
 			opponentMoveAdded.add(issue.ply);
 		} catch (e) {
-			actionError.set(issue.ply, (e as Error).message || 'Failed to add move');
+			actionError.set(
+				issue.ply,
+				(e instanceof Error ? e.message : String(e)) || 'Failed to add move'
+			);
 		} finally {
 			actionLoading.set(issue.ply, false);
 		}
@@ -789,7 +798,10 @@
 			newRepIssuePly = null;
 			newRepName = '';
 		} catch (e) {
-			actionError.set(issue.ply, (e as Error).message || 'Failed to create repertoire');
+			actionError.set(
+				issue.ply,
+				(e instanceof Error ? e.message : String(e)) || 'Failed to create repertoire'
+			);
 		} finally {
 			actionLoading.set(issue.ply, false);
 		}
@@ -838,7 +850,10 @@
 			chainExtensions.set(issuePly, { ...leg, opponentAdded: true });
 			currentPlyIdx = leg.plyInGame; // advance board to position after opponent's move
 		} catch (e) {
-			actionError.set(issuePly, (e as Error).message || 'Failed to add move');
+			actionError.set(
+				issuePly,
+				(e instanceof Error ? e.message : String(e)) || 'Failed to add move'
+			);
 		} finally {
 			actionLoading.set(issuePly, false);
 		}
@@ -879,7 +894,10 @@
 			}
 			resolveIssue(issue.ply);
 		} catch (e) {
-			actionError.set(issue.ply, (e as Error).message || 'Failed to add move');
+			actionError.set(
+				issue.ply,
+				(e instanceof Error ? e.message : String(e)) || 'Failed to add move'
+			);
 		} finally {
 			actionLoading.set(issue.ply, false);
 		}
@@ -910,7 +928,10 @@
 			chainExtensions.delete(issuePly);
 			resolveIssue(issuePly);
 		} catch (e) {
-			actionError.set(issuePly, (e as Error).message || 'Failed to add move');
+			actionError.set(
+				issuePly,
+				(e instanceof Error ? e.message : String(e)) || 'Failed to add move'
+			);
 		} finally {
 			actionLoading.set(issuePly, false);
 		}

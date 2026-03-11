@@ -143,7 +143,7 @@ export const session = pgTable(
 		id: text('id').primaryKey(), // random UUID — this is what goes in the cookie
 		userId: integer('user_id')
 			.notNull()
-			.references(() => user.id),
+			.references(() => user.id, { onDelete: 'cascade' }),
 		expiresAt: timestamp('expires_at').notNull() // 30 days from login
 	},
 	(table) => ({
@@ -157,7 +157,7 @@ export const userSettings = pgTable('user_settings', {
 	id: serial('id').primaryKey(),
 	userId: integer('user_id')
 		.notNull()
-		.references(() => user.id),
+		.references(() => user.id, { onDelete: 'cascade' }),
 	stockfishDepth: integer('stockfish_depth').notNull().default(15), // higher = stronger but slower
 	stockfishTimeout: integer('stockfish_timeout').notNull().default(10), // analysis timeout in seconds (3–30)
 	boardTheme: text('board_theme').notNull().default('blue'), // e.g. "blue", "green", "brown"
@@ -181,7 +181,7 @@ export const repertoire = pgTable('repertoire', {
 	id: serial('id').primaryKey(),
 	userId: integer('user_id')
 		.notNull()
-		.references(() => user.id),
+		.references(() => user.id, { onDelete: 'cascade' }),
 	name: text('name').notNull(), // e.g. "White - e4 lines"
 	color: text('color').notNull(), // "WHITE" or "BLACK" — which side the user plays
 	startFen: text('start_fen'), // custom start position FEN — null means "after user's first move" (default)
@@ -197,10 +197,10 @@ export const userMove = pgTable(
 		id: serial('id').primaryKey(),
 		userId: integer('user_id')
 			.notNull()
-			.references(() => user.id),
+			.references(() => user.id, { onDelete: 'cascade' }),
 		repertoireId: integer('repertoire_id')
 			.notNull()
-			.references(() => repertoire.id),
+			.references(() => repertoire.id, { onDelete: 'cascade' }),
 		fromFen: text('from_fen').notNull(), // position before the move
 		toFen: text('to_fen').notNull(), // position after the move
 		san: text('san').notNull(), // move in Standard Algebraic Notation
@@ -224,10 +224,10 @@ export const userRepertoireMove = pgTable(
 		id: serial('id').primaryKey(),
 		userId: integer('user_id')
 			.notNull()
-			.references(() => user.id),
+			.references(() => user.id, { onDelete: 'cascade' }),
 		repertoireId: integer('repertoire_id')
 			.notNull()
-			.references(() => repertoire.id),
+			.references(() => repertoire.id, { onDelete: 'cascade' }),
 		fromFen: text('from_fen').notNull(), // the position the user must respond to
 		san: text('san').notNull(), // the correct move
 
@@ -259,10 +259,10 @@ export const reviewedGame = pgTable(
 		id: serial('id').primaryKey(),
 		userId: integer('user_id')
 			.notNull()
-			.references(() => user.id),
+			.references(() => user.id, { onDelete: 'cascade' }),
 		repertoireId: integer('repertoire_id')
 			.notNull()
-			.references(() => repertoire.id),
+			.references(() => repertoire.id, { onDelete: 'cascade' }),
 		pgn: text('pgn').notNull(), // full PGN of the reviewed game
 		source: text('source').notNull(), // "MANUAL" (pasted) or "LICHESS" (imported)
 		lichessGameId: text('lichess_game_id'), // Lichess game ID, used to prevent duplicate imports
@@ -287,7 +287,7 @@ export const importedGame = pgTable(
 		id: serial('id').primaryKey(),
 		userId: integer('user_id')
 			.notNull()
-			.references(() => user.id),
+			.references(() => user.id, { onDelete: 'cascade' }),
 		pgn: text('pgn').notNull(), // full PGN from the platform
 		source: text('source').notNull(), // 'LICHESS' or 'CHESSCOM'
 		externalGameId: text('external_game_id').notNull(), // Lichess game ID or Chess.com game URL
@@ -300,7 +300,9 @@ export const importedGame = pgTable(
 		playedAt: timestamp('played_at'), // when the game was played on the platform
 		importedAt: timestamp('imported_at').notNull(), // when we fetched it
 		status: text('status').notNull().default('pending'), // 'pending', 'reviewed', 'skipped'
-		reviewedGameId: integer('reviewed_game_id').references(() => reviewedGame.id) // set when review is saved
+		reviewedGameId: integer('reviewed_game_id').references(() => reviewedGame.id, {
+			onDelete: 'set null'
+		}) // set when review is saved
 	},
 	(table) => ({
 		uniqueUserSourceGame: unique().on(table.userId, table.source, table.externalGameId),
@@ -316,10 +318,10 @@ export const drillSession = pgTable(
 		id: serial('id').primaryKey(),
 		userId: integer('user_id')
 			.notNull()
-			.references(() => user.id),
+			.references(() => user.id, { onDelete: 'cascade' }),
 		repertoireId: integer('repertoire_id')
 			.notNull()
-			.references(() => repertoire.id),
+			.references(() => repertoire.id, { onDelete: 'cascade' }),
 		cardsReviewed: integer('cards_reviewed').notNull().default(0),
 		cardsCorrect: integer('cards_correct').notNull().default(0),
 		startedAt: timestamp('started_at').notNull(),
@@ -338,10 +340,10 @@ export const puzzleAttempt = pgTable(
 		id: serial('id').primaryKey(),
 		userId: integer('user_id')
 			.notNull()
-			.references(() => user.id),
+			.references(() => user.id, { onDelete: 'cascade' }),
 		puzzleId: text('puzzle_id')
 			.notNull()
-			.references(() => puzzle.puzzleId),
+			.references(() => puzzle.puzzleId, { onDelete: 'cascade' }),
 		solved: boolean('solved').notNull(), // true if the user found all correct moves
 		timeMs: integer('time_ms'), // how long the attempt took in milliseconds
 		attemptedAt: timestamp('attempted_at').notNull()

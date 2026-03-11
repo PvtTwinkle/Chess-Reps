@@ -118,7 +118,7 @@ export const actions: Actions = {
 		try {
 			parsed = parsePgn(pgn);
 		} catch (e) {
-			return fail(400, { error: (e as Error).message });
+			return fail(400, { error: e instanceof Error ? e.message : String(e) });
 		}
 
 		// Format the first 2 full moves for error messages.

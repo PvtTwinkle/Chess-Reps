@@ -7,6 +7,10 @@
 // then 1...c5 and 1...e6 are gaps.
 
 import { fenKey, STARTING_FEN } from '$lib/fen';
+import { bookMove, chessmontMoves } from '$lib/db/schema';
+import { and, inArray, gte, desc } from 'drizzle-orm';
+import { getEffectiveStartFens } from '$lib/repertoire';
+import type { db } from '$lib/db';
 export { fenKey, STARTING_FEN };
 
 /** A single gap: a book/masters move the user hasn't prepared a response to. */
@@ -164,4 +168,73 @@ export function computeGaps(
 export function formatLine(line: string): string {
 	const sans = line.split(',');
 	return sans.map((san, i) => (i % 2 === 0 ? `${Math.floor(i / 2) + 1}. ${san}` : san)).join(' ');
+}
+
+/**
+ * Loads gap data for a repertoire by querying the masters DB and book table,
+ * then running computeGaps. This is the shared pipeline used by both the
+ * dashboard page and the /api/gaps endpoint.
+ *
+ * @param database     Drizzle db instance
+ * @param moves        All userMove rows for the repertoire
+ * @param repColor     "WHITE" or "BLACK"
+ * @param startFen     Custom start FEN or null for default
+ * @param minGames     Minimum master game count for gap inclusion
+ */
+export async function loadGapData(
+	database: typeof db,
+	moves: MoveRow[],
+	repColor: 'WHITE' | 'BLACK',
+	startFen: string | null,
+	minGames: number
+): Promise<Gap[]> {
+	if (moves.length === 0) return [];
+
+	const opponentTurnChar = repColor === 'WHITE' ? 'b' : 'w';
+	const opponentFens = [
+		...new Set(
+			moves.filter((m) => m.fromFen.split(' ')[1] === opponentTurnChar).map((m) => m.fromFen)
+		)
+	];
+
+	// Normalize to 4-field FEN keys for the masters table lookup.
+	const opponentFenKeys = [...new Set(opponentFens.map(fenKey))];
+
+	// Query masters database first — only moves played >= minGames times.
+	const mastersMoves =
+		opponentFenKeys.length > 0
+			? await database
+					.select()
+					.from(chessmontMoves)
+					.where(
+						and(
+							inArray(chessmontMoves.positionFen, opponentFenKeys),
+							gte(chessmontMoves.gamesPlayed, minGames)
+						)
+					)
+					.orderBy(desc(chessmontMoves.gamesPlayed))
+			: [];
+
+	// Track which positions have masters data so we can fall back to book for the rest.
+	const mastersPositions = new Set(mastersMoves.map((m) => m.positionFen));
+
+	// Fall back to book moves for positions without masters data.
+	const bookFallbackFens = opponentFens.filter((f) => !mastersPositions.has(fenKey(f)));
+	const relevantBookMoves =
+		bookFallbackFens.length > 0
+			? await database.select().from(bookMove).where(inArray(bookMove.fromFen, bookFallbackFens))
+			: [];
+
+	// Map masters rows to the MoveRow shape expected by computeGaps.
+	const mastersAsMoveRows = mastersMoves.map((m) => ({
+		fromFen: m.positionFen,
+		toFen: m.resultingFen,
+		san: m.moveSan,
+		gamesPlayed: m.gamesPlayed
+	}));
+
+	const allOpponentMoves = [...mastersAsMoveRows, ...relevantBookMoves];
+
+	const startFens = getEffectiveStartFens(startFen, moves, repColor);
+	return computeGaps(moves, allOpponentMoves, repColor, startFens);
 }

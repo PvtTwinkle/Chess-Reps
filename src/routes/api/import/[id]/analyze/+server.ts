@@ -50,7 +50,7 @@ export const POST: RequestHandler = async ({ locals, params }) => {
 	try {
 		parsed = parsePgn(game.pgn);
 	} catch (e) {
-		throw error(400, `Invalid PGN: ${(e as Error).message}`);
+		throw error(400, `Invalid PGN: ${e instanceof Error ? e.message : String(e)}`);
 	}
 
 	// Format the first 2 full moves for error messages so the user knows

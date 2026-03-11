@@ -64,8 +64,10 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 	}
 
 	if (themesParam) {
-		// Match puzzles that contain ANY of the specified themes
-		const themes = themesParam.split(',').filter((t) => t.length > 0);
+		// Match puzzles that contain ANY of the specified themes.
+		// Theme names are camelCase identifiers (e.g. "mateIn2", "fork") — reject
+		// anything else to prevent regex metacharacter injection.
+		const themes = themesParam.split(',').filter((t) => t.length > 0 && /^\w+$/.test(t));
 		if (themes.length > 0) {
 			// Each theme must appear as a word in the space-separated themes field
 			const themeConditions = themes.map((t) => sql`${puzzle.themes} ~ ${'\\m' + t + '\\M'}`);
@@ -73,24 +75,21 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		}
 	}
 
-	// Get puzzle IDs the user has already attempted
-	const attemptedRows = await db
+	// Subquery for puzzle IDs the user has already attempted — avoids loading
+	// all attempted IDs into memory by letting the database handle the filtering.
+	const attemptedSubquery = db
 		.select({ puzzleId: puzzleAttempt.puzzleId })
 		.from(puzzleAttempt)
 		.where(eq(puzzleAttempt.userId, userId));
-	const attemptedIds = attemptedRows.map((r) => r.puzzleId);
 
 	// Try to find an unattempted puzzle first
-	let result;
-	if (attemptedIds.length > 0) {
-		const unattemptedConditions = [...conditions, notInArray(puzzle.puzzleId, attemptedIds)];
-		[result] = await db
-			.select()
-			.from(puzzle)
-			.where(and(...unattemptedConditions))
-			.orderBy(sql`RANDOM()`)
-			.limit(1);
-	}
+	const unattemptedConditions = [...conditions, notInArray(puzzle.puzzleId, attemptedSubquery)];
+	let [result] = await db
+		.select()
+		.from(puzzle)
+		.where(and(...unattemptedConditions))
+		.orderBy(sql`RANDOM()`)
+		.limit(1);
 
 	// If no unattempted puzzle found, fall back to any matching puzzle
 	if (!result) {

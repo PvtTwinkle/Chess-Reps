@@ -71,7 +71,7 @@ async function runImportCycle(): Promise<void> {
 				} catch (e) {
 					console.error(
 						`[chessstack] Lichess import failed for user ${settings.userId}:`,
-						(e as Error).message
+						e instanceof Error ? e.message : String(e)
 					);
 				}
 				await sleep(DELAY_BETWEEN_USERS_MS);
@@ -90,7 +90,7 @@ async function runImportCycle(): Promise<void> {
 				} catch (e) {
 					console.error(
 						`[chessstack] Chess.com import failed for user ${settings.userId}:`,
-						(e as Error).message
+						e instanceof Error ? e.message : String(e)
 					);
 				}
 				await sleep(DELAY_BETWEEN_USERS_MS);
@@ -101,7 +101,10 @@ async function runImportCycle(): Promise<void> {
 			`[chessstack] Auto-import cycle complete. ${totalImported} new game${totalImported !== 1 ? 's' : ''} imported.`
 		);
 	} catch (e) {
-		console.error('[chessstack] Auto-import cycle error:', (e as Error).message);
+		console.error(
+			'[chessstack] Auto-import cycle error:',
+			e instanceof Error ? e.message : String(e)
+		);
 	}
 }
 

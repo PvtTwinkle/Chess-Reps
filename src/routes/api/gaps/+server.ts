@@ -6,10 +6,9 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
-import { repertoire, userMove, bookMove, chessmontMoves, userSettings } from '$lib/db/schema';
-import { eq, and, inArray, desc, gte } from 'drizzle-orm';
-import { computeGaps, fenKey } from '$lib/gaps';
-import { getEffectiveStartFens } from '$lib/repertoire';
+import { repertoire, userMove, userSettings } from '$lib/db/schema';
+import { eq, and } from 'drizzle-orm';
+import { loadGapData } from '$lib/gaps';
 
 export const GET: RequestHandler = async ({ locals, url }) => {
 	if (!locals.user) throw error(401, 'Not authenticated');
@@ -34,63 +33,19 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		.from(userMove)
 		.where(and(eq(userMove.repertoireId, repertoireId), eq(userMove.userId, locals.user.id)));
 
-	// Identify opponent-turn positions.
-	const opponentTurnChar = rep.color === 'WHITE' ? 'b' : 'w';
-	const opponentFens = [
-		...new Set(
-			moves.filter((m) => m.fromFen.split(' ')[1] === opponentTurnChar).map((m) => m.fromFen)
-		)
-	];
-
-	// Normalize to 4-field FEN keys for masters table lookup.
-	const opponentFenKeys = [...new Set(opponentFens.map(fenKey))];
-
 	// Read the user's gap threshold setting (default 1000).
 	const [userSettingsRow] = await db
 		.select({ gapMinGames: userSettings.gapMinGames })
 		.from(userSettings)
 		.where(eq(userSettings.userId, locals.user.id));
-	const MIN_MASTER_GAMES = userSettingsRow?.gapMinGames ?? 1000;
-	const mastersMoves =
-		opponentFenKeys.length > 0
-			? await db
-					.select()
-					.from(chessmontMoves)
-					.where(
-						and(
-							inArray(chessmontMoves.positionFen, opponentFenKeys),
-							gte(chessmontMoves.gamesPlayed, MIN_MASTER_GAMES)
-						)
-					)
-					.orderBy(desc(chessmontMoves.gamesPlayed))
-			: [];
 
-	// Track which positions have masters data so we can fall back to book for the rest.
-	const mastersPositions = new Set(mastersMoves.map((m) => m.positionFen));
-
-	// Fall back to book moves for positions without masters data.
-	const bookFallbackFens = opponentFens.filter((f) => !mastersPositions.has(fenKey(f)));
-	const relevantBookMoves =
-		bookFallbackFens.length > 0
-			? await db.select().from(bookMove).where(inArray(bookMove.fromFen, bookFallbackFens))
-			: [];
-
-	// Map masters rows to the MoveRow shape expected by computeGaps.
-	const mastersAsMoveRows = mastersMoves.map((m) => ({
-		fromFen: m.positionFen,
-		toFen: m.resultingFen,
-		san: m.moveSan,
-		gamesPlayed: m.gamesPlayed
-	}));
-
-	const allOpponentMoves = [...mastersAsMoveRows, ...relevantBookMoves];
-
-	const startFens = getEffectiveStartFens(
-		rep.startFen ?? null,
+	const gaps = await loadGapData(
+		db,
 		moves,
-		rep.color as 'WHITE' | 'BLACK'
+		rep.color as 'WHITE' | 'BLACK',
+		rep.startFen ?? null,
+		userSettingsRow?.gapMinGames ?? 1000
 	);
-	const gaps = computeGaps(moves, allOpponentMoves, rep.color as 'WHITE' | 'BLACK', startFens);
 
 	return json({ count: gaps.length, gaps });
 };

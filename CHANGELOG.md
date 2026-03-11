@@ -11,6 +11,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Gap finder logic extracted into a shared utility, eliminating duplicated code between the dashboard and API endpoint
+- Game import now runs in a single database transaction so the watermark stays in sync with inserted data
+- Theme query in request hooks is now skipped for API calls, reducing a database round-trip on every API request
+
+### Security
+
+- Added security headers (X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy) on all responses
+- Puzzle theme filter now rejects values containing regex metacharacters, preventing pattern injection
+- All `as Error` casts replaced with `instanceof Error` type guards for safer error handling
+
+### Fixed
+
+- Foreign keys now use ON DELETE CASCADE (or SET NULL for imported game links), preventing orphaned rows when users or repertoires are deleted
+- Puzzle finder now uses a database subquery instead of loading all attempted puzzle IDs into memory
+- Deleting a repertoire no longer leaves dangling references in the imported games table
+
+### Changed (prior)
+
 - Renamed project from "Chess Reps" to "Chessstack" across all branding, Docker images, database defaults, and documentation
   - **Breaking**: Default database credentials changed — existing installations must set explicit `DATABASE_URL`/`POSTGRES_*` env vars with old values, or back up and restore data
   - Session cookie renamed; existing sessions will be invalidated (sign in again)

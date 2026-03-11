@@ -17,6 +17,7 @@ import { fetchChesscomGames, ChesscomApiError } from '$lib/chesscom';
 
 export const POST: RequestHandler = async ({ locals, request }) => {
 	if (!locals.user) throw error(401, 'Not authenticated');
+	const userId = locals.user.id;
 
 	let body;
 	try {
@@ -31,10 +32,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	}
 
 	// Load user settings to get platform username and watermark.
-	const [settings] = await db
-		.select()
-		.from(userSettings)
-		.where(eq(userSettings.userId, locals.user.id));
+	const [settings] = await db.select().from(userSettings).where(eq(userSettings.userId, userId));
 
 	const username = source === 'LICHESS' ? settings?.lichessUsername : settings?.chesscomUsername;
 
@@ -71,71 +69,77 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 				throw error(404, e.message);
 			}
 		}
-		throw error(502, `Failed to fetch games from ${source}: ${(e as Error).message}`);
+		throw error(
+			502,
+			`Failed to fetch games from ${source}: ${e instanceof Error ? e.message : String(e)}`
+		);
 	}
 
-	// Insert each game, skip duplicates via the UNIQUE constraint.
+	// Insert all games and update the watermark in a single transaction so
+	// a crash mid-loop can't leave the watermark out of sync with the data.
 	let imported = 0;
 	let skipped = 0;
 	let latestPlayedAt: Date | null = watermark ?? null;
 
-	for (const game of games) {
-		try {
-			const rows = await db
-				.insert(importedGame)
-				.values({
-					userId: locals.user.id,
-					pgn: game.pgn,
-					source,
-					externalGameId: game.id,
-					playerColor: game.playerColor,
-					opponentName: game.opponentName,
-					opponentRating: game.opponentRating,
-					playerRating: game.playerRating,
-					timeControl: game.timeControl,
-					result: game.result,
-					playedAt: game.playedAt,
-					importedAt: new Date(),
-					status: 'pending'
-				})
-				.onConflictDoNothing()
-				.returning({ id: importedGame.id });
+	await db.transaction(async (tx) => {
+		for (const game of games) {
+			try {
+				const rows = await tx
+					.insert(importedGame)
+					.values({
+						userId: userId,
+						pgn: game.pgn,
+						source,
+						externalGameId: game.id,
+						playerColor: game.playerColor,
+						opponentName: game.opponentName,
+						opponentRating: game.opponentRating,
+						playerRating: game.playerRating,
+						timeControl: game.timeControl,
+						result: game.result,
+						playedAt: game.playedAt,
+						importedAt: new Date(),
+						status: 'pending'
+					})
+					.onConflictDoNothing()
+					.returning({ id: importedGame.id });
 
-			if (rows.length > 0) {
-				imported++;
-			} else {
+				if (rows.length > 0) {
+					imported++;
+				} else {
+					skipped++;
+				}
+
+				if (game.playedAt && (!latestPlayedAt || game.playedAt > latestPlayedAt)) {
+					latestPlayedAt = game.playedAt;
+				}
+			} catch {
 				skipped++;
 			}
+		}
 
-			if (game.playedAt && (!latestPlayedAt || game.playedAt > latestPlayedAt)) {
-				latestPlayedAt = game.playedAt;
+		// Update the watermark so the next import only fetches newer games.
+		if (latestPlayedAt) {
+			const watermarkField =
+				source === 'LICHESS'
+					? { lastLichessImport: latestPlayedAt }
+					: { lastChesscomImport: latestPlayedAt };
+
+			if (settings) {
+				await tx
+					.update(userSettings)
+					.set({ ...watermarkField, updatedAt: new Date() })
+					.where(eq(userSettings.userId, userId));
+			} else {
+				// No settings row yet — create one with the watermark.
+				await tx.insert(userSettings).values({
+					userId: userId,
+					updatedAt: new Date(),
+					...watermarkField
+				});
 			}
-		} catch {
-			skipped++;
 		}
-	}
-
-	// Update the watermark so the next import only fetches newer games.
-	if (latestPlayedAt) {
-		const watermarkField =
-			source === 'LICHESS'
-				? { lastLichessImport: latestPlayedAt }
-				: { lastChesscomImport: latestPlayedAt };
-
-		if (settings) {
-			await db
-				.update(userSettings)
-				.set({ ...watermarkField, updatedAt: new Date() })
-				.where(eq(userSettings.userId, locals.user.id));
-		} else {
-			// No settings row yet — create one with the watermark.
-			await db.insert(userSettings).values({
-				userId: locals.user.id,
-				updatedAt: new Date(),
-				...watermarkField
-			});
-		}
-	}
+	});
 
 	return json({ imported, skipped, total: games.length });
 };

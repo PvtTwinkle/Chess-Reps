@@ -109,8 +109,9 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 	// Look up the user's preferred app theme so we can inject it into the HTML
 	// during SSR. This prevents a flash of the wrong theme on page load.
+	// Skipped for API requests — they don't render HTML and don't need the theme.
 	let appTheme = 'dark';
-	if (event.locals.user) {
+	if (event.locals.user && !pathname.startsWith('/api/')) {
 		const [settings] = await db
 			.select({ appTheme: userSettings.appTheme })
 			.from(userSettings)
@@ -119,8 +120,16 @@ export const handle: Handle = async ({ event, resolve }) => {
 	}
 
 	// All checks passed — continue to the actual page or API handler.
-	return resolve(event, {
+	const response = await resolve(event, {
 		transformPageChunk: ({ html }) =>
 			html.replace('<html lang="en">', `<html lang="en" data-theme="${appTheme}">`)
 	});
+
+	// Security headers — defence-in-depth even for a self-hosted app.
+	response.headers.set('X-Frame-Options', 'SAMEORIGIN');
+	response.headers.set('X-Content-Type-Options', 'nosniff');
+	response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+	response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+
+	return response;
 };
