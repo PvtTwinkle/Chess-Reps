@@ -52,7 +52,7 @@ repos:
       # License compliance — only allow approved open-source licenses
       - id: license-checker
         name: license compliance check
-        entry: npx license-checker --excludePrivatePackages --onlyAllow 'MIT;ISC;BSD-2-Clause;BSD-3-Clause;Apache-2.0;MPL-2.0;GPL-3.0-or-later;Python-2.0;Unlicense;CC0-1.0;CC-BY-3.0;CC-BY-4.0;(MIT OR WTFPL);(MIT AND CC-BY-3.0);(BSD-2-Clause OR MIT OR Apache-2.0)'
+        entry: npx license-checker --excludePrivatePackages --onlyAllow 'MIT;ISC;BSD-2-Clause;BSD-3-Clause;Apache-2.0;MPL-2.0;GPL-3.0-or-later;Python-2.0;Unlicense;CC0-1.0;CC-BY-3.0;CC-BY-4.0;BlueOak-1.0.0;(MIT OR WTFPL);(MIT AND CC-BY-3.0);(BSD-2-Clause OR MIT OR Apache-2.0)'
         language: system
         pass_filenames: false
         always_run: true
