@@ -6,12 +6,19 @@
 	import type { LayoutData } from './$types';
 	import RepertoireSelector from '$lib/components/RepertoireSelector.svelte';
 	import ManageRepertoireModal from '$lib/components/ManageRepertoireModal.svelte';
+	import TutorialOverlay from '$lib/components/tutorial/TutorialOverlay.svelte';
 	import { manageRepertoiresOpen } from '$lib/stores/manageRepertoires';
+	import { tutorialStep } from '$lib/stores/tutorial';
 
 	// `data` comes from +layout.server.ts and includes `user`, `repertoires`,
 	// and `activeRepertoireId`.
 	// `children` is the content of the current page — rendered with {@render children()}.
 	let { children, data }: { children: Snippet; data: LayoutData } = $props();
+
+	// Sync tutorial step from server data into the shared store
+	$effect(() => {
+		$tutorialStep = data.settings?.tutorialStep ?? null;
+	});
 
 	// Mobile hamburger menu state
 	let mobileMenuOpen = $state(false);
@@ -116,6 +123,7 @@
 <!-- Rendered outside the header so it's not trapped in the header's stacking context (z-index: 900). -->
 {#if data.user}
 	<ManageRepertoireModal bind:open={$manageRepertoiresOpen} repertoires={data.repertoires} />
+	<TutorialOverlay />
 {/if}
 
 <style>

@@ -118,6 +118,15 @@ export const PATCH: RequestHandler = async ({ locals, request }) => {
 		updates.boardSize = val === 0 ? 0 : Math.max(320, Math.min(800, val));
 	}
 
+	// Tutorial step: null = completed/skipped, integer 0–5 = active step.
+	if (body.tutorialStep !== undefined) {
+		if (body.tutorialStep === null) {
+			updates.tutorialStep = null;
+		} else if (typeof body.tutorialStep === 'number') {
+			updates.tutorialStep = Math.max(0, Math.min(5, Math.round(body.tutorialStep)));
+		}
+	}
+
 	if (Object.keys(updates).length === 0) {
 		throw error(400, 'No recognised settings fields provided');
 	}

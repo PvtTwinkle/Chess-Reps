@@ -16,8 +16,8 @@
 -->
 
 <script lang="ts">
-	import { invalidateAll } from '$app/navigation';
-	import { base } from '$app/paths';
+	import { invalidateAll, goto } from '$app/navigation';
+	import { resolveRoute } from '$app/paths';
 
 	// ── Form state ──────────────────────────────────────────────────────────────
 	let name = $state('');
@@ -53,9 +53,16 @@
 			body: JSON.stringify({ id: created.id })
 		});
 
-		// Step 3: Re-run all load functions. The layout will re-fetch repertoires,
-		// the count will be 1, and the parent page will hide this welcome screen.
+		// Step 3: Start the tutorial by setting tutorial_step = 1
+		await fetch('/api/settings', {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ tutorialStep: 1 })
+		});
+
+		// Step 4: Re-run all load functions, then redirect to Build Mode
 		await invalidateAll();
+		await goto(resolveRoute('/build')); // eslint-disable-line svelte/no-navigation-without-resolve
 	}
 </script>
 
@@ -70,33 +77,10 @@
 			</svg>
 			<h1 class="welcome-title">Welcome to Chessstack</h1>
 			<p class="welcome-subtitle">
-				Your personal chess opening trainer. Build your repertoire once, drill it forever.
+				Your personal chess opening trainer. Build your repertoire, drill it with spaced repetition,
+				and review your games — all in one place. Create your first repertoire below and we'll walk
+				you through the basics.
 			</p>
-		</div>
-
-		<!-- Mode explanations -->
-		<div class="modes-row">
-			<div class="mode-card">
-				<div class="mode-icon">⚒</div>
-				<h2 class="mode-name">Build Mode</h2>
-				<p class="mode-desc">
-					Play out moves on an interactive board to build your opening repertoire. The app suggests
-					known book moves and Stockfish engine recommendations at every step. You choose one
-					response for your turns and select which opponent lines to prepare for.
-				</p>
-				<a href="{base}/build" class="mode-link">Go to Build →</a>
-			</div>
-
-			<div class="mode-card">
-				<div class="mode-icon">🎯</div>
-				<h2 class="mode-name">Drill Mode</h2>
-				<p class="mode-desc">
-					The app uses spaced repetition (the same algorithm behind Anki) to surface positions you
-					are likely to forget. You play through each line from move 1 for context, grade yourself,
-					and the algorithm schedules the next review automatically.
-				</p>
-				<a href="{base}/drill" class="mode-link">Go to Drill →</a>
-			</div>
 		</div>
 
 		<!-- Create form -->
@@ -191,71 +175,6 @@
 		font-size: 14px;
 		color: var(--color-text-secondary);
 		line-height: 1.6;
-	}
-
-	/* ── Mode cards row ─────────────────────────────────────────────────────── */
-
-	.modes-row {
-		display: grid;
-		grid-template-columns: 1fr 1fr;
-		gap: var(--space-4);
-	}
-
-	@media (max-width: 560px) {
-		.modes-row {
-			grid-template-columns: 1fr;
-		}
-	}
-
-	.mode-card {
-		background: var(--color-surface);
-		border: 1px solid var(--color-border);
-		border-radius: var(--radius-lg);
-		padding: var(--space-6) var(--space-6) var(--space-5);
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-3);
-		box-shadow: var(--shadow-surface);
-		transition:
-			border-color var(--dur-base) var(--ease-snap),
-			box-shadow var(--dur-base) var(--ease-snap);
-	}
-
-	.mode-card:hover {
-		border-color: var(--color-accent);
-		box-shadow: var(--glow-accent);
-	}
-
-	.mode-icon {
-		font-size: 1.5rem;
-		line-height: 1;
-	}
-
-	.mode-name {
-		margin: 0;
-		font-family: var(--font-body);
-		font-size: 1.1rem;
-		color: var(--color-accent);
-	}
-
-	.mode-desc {
-		margin: 0;
-		font-size: 13px;
-		color: var(--color-text-secondary);
-		line-height: 1.6;
-		flex: 1;
-	}
-
-	.mode-link {
-		font-size: 12px;
-		color: var(--color-accent-dim);
-		text-decoration: none;
-		margin-top: var(--space-1);
-		transition: color var(--dur-fast) var(--ease-snap);
-	}
-
-	.mode-link:hover {
-		color: var(--color-accent);
 	}
 
 	/* ── Create section ─────────────────────────────────────────────────────── */

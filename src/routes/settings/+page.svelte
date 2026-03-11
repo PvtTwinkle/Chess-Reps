@@ -1,8 +1,10 @@
 <script lang="ts">
 	import type { PageData } from './$types';
-	import { invalidateAll } from '$app/navigation';
+	import { invalidateAll, goto } from '$app/navigation';
+	import { resolveRoute } from '$app/paths';
 	import { onDestroy } from 'svelte';
 	import ChessBoard from '$lib/components/ChessBoard.svelte';
+	import { tutorialStep } from '$lib/stores/tutorial';
 
 	let { data }: { data: PageData } = $props();
 
@@ -344,6 +346,21 @@
 			changingPassword = false;
 		}
 	}
+
+	// ── Tutorial ──────────────────────────────────────────────────────────────
+	let restartingTutorial = $state(false);
+
+	async function restartTutorial() {
+		if (restartingTutorial) return;
+		restartingTutorial = true;
+		await fetch('/api/settings', {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ tutorialStep: 1 })
+		});
+		await invalidateAll();
+		await goto(resolveRoute('/build')); // eslint-disable-line svelte/no-navigation-without-resolve
+	}
 </script>
 
 <div class="settings-page">
@@ -548,6 +565,23 @@
 				{/if}
 			</div>
 		</section>
+
+		<!-- ── Tutorial ────────────────────────────────────────────────────── -->
+		{#if $tutorialStep === null}
+			<section class="settings-section">
+				<h2>Tutorial</h2>
+
+				<div class="setting-row">
+					<span class="setting-label">Guided Walkthrough</span>
+					<p class="setting-hint">
+						Replay the first-time tutorial that walks through Build, Drill, Puzzles, and Review.
+					</p>
+					<button class="btn-primary" onclick={restartTutorial} disabled={restartingTutorial}>
+						{restartingTutorial ? 'Restarting...' : 'Restart Tutorial'}
+					</button>
+				</div>
+			</section>
+		{/if}
 
 		<!-- ── Account ─────────────────────────────────────────────────────── -->
 		<section class="settings-section">

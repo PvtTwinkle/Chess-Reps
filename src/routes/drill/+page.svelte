@@ -43,6 +43,7 @@
 		playCorrect,
 		playIncorrect
 	} from '$lib/sounds';
+	import { tutorialStep } from '$lib/stores/tutorial';
 
 	// Shape of a move row from the server (user_move table).
 	interface RepertoireMove {
@@ -889,6 +890,15 @@
 
 		grading = false;
 		awaitingNext = true;
+
+		// Tutorial: after grading 2+ cards, advance to step 4 (puzzles)
+		if ($tutorialStep === 3 && totalReviewed >= 2) {
+			fetch('/api/settings', {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ tutorialStep: 4 })
+			}).then(() => invalidateAll());
+		}
 	}
 
 	// Undo the last grade — restore the card's FSRS state and re-show grade buttons.

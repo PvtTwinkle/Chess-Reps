@@ -48,6 +48,7 @@
 	import { Chess } from 'chess.js';
 	import type { DrawShape } from '@lichess-org/chessground/draw';
 	import type { Key } from '@lichess-org/chessground/types';
+	import { tutorialStep } from '$lib/stores/tutorial';
 
 	let importOpen = $state(false);
 	let exporting = $state(false);
@@ -306,6 +307,19 @@
 		// board back to the starting position when the saves complete.
 		if (jumpLine) {
 			untrack(() => s.saveJumpLineMoves());
+		}
+	});
+
+	// ── Tutorial: advance after 8 half-moves ─────────────────────────────────
+	$effect(() => {
+		if ($tutorialStep !== 1) return;
+		// navHistory length = number of half-moves in the current line
+		if (s.navHistory.length >= 8) {
+			fetch('/api/settings', {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ tutorialStep: 2 })
+			}).then(() => invalidateAll());
 		}
 	});
 </script>

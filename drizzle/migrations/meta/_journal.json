@@ -99,6 +99,13 @@
 			"when": 1773700000000,
 			"tag": "0013_board_size",
 			"breakpoints": true
+		},
+		{
+			"idx": 14,
+			"version": "6",
+			"when": 1773800000000,
+			"tag": "0014_tutorial_step",
+			"breakpoints": true
 		}
 	]
 }

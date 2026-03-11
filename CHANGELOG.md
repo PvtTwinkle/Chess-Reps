@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Guided tutorial for first-time users — a floating card walks new users through Build, Drill, Puzzles, and Review step by step
+- "Restart Tutorial" button in Settings to replay the walkthrough at any time
+
 ### Fixed
 
 - Color indicators for imported games now use explicit colored dots instead of Unicode chess pieces that rendered as the wrong color on dark backgrounds

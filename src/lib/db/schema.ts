@@ -174,6 +174,7 @@ export const userSettings = pgTable('user_settings', {
 	appTheme: text('app_theme').notNull().default('dark'), // 'dark' | 'light'
 	gapMinGames: integer('gap_min_games').notNull().default(1000), // min master games for gap finder (10|100|1000|10000)
 	boardSize: integer('board_size').notNull().default(0), // 0 = auto (fill container), >0 = pixel width (320–800)
+	tutorialStep: integer('tutorial_step'), // null = done/skipped, 0-6 = active tutorial step
 	updatedAt: timestamp('updated_at').notNull()
 });
 
