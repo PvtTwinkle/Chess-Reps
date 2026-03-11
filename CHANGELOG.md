@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Move suggestion tabs (Book/Masters/Engine) no longer jump back to Book after selecting a move — the tab stays on whichever view you're using unless it has no results for the new position
 - Color indicators for imported games now use explicit colored dots instead of Unicode chess pieces that rendered as the wrong color on dark backgrounds
 - Chess.com and Lichess game import now checks both player names explicitly and falls back to PGN headers, preventing color misdetection
 

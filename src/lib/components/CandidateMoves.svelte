@@ -152,8 +152,7 @@
 		bookLoading = true;
 		bookError = false;
 		bookCandidates = [];
-		// Reset tab and user-click flag on every position change.
-		activeTab = 'book';
+		// Reset user-click flag so auto-cascade can fire if the current tab is empty.
 		userClickedTab = false;
 
 		fetch('/api/stockfish', {
@@ -170,7 +169,7 @@
 				bookCandidates = (data.candidates as Candidate[]).filter((c) => c.isBook);
 				// Auto-switch to masters if no book moves and user hasn't clicked a tab.
 				// Masters is now instant (local DB), so cascade: book → masters → engine.
-				if (bookCandidates.length === 0 && !userClickedTab) {
+				if (bookCandidates.length === 0 && activeTab === 'book' && !userClickedTab) {
 					activeTab = 'masters';
 				}
 			})
