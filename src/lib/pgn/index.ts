@@ -9,7 +9,7 @@
 // the repertoire rows from the DB before calling analyzeGame.
 
 import { Chess } from 'chess.js';
-import { fenKey } from '$lib/fen';
+import { fenKey, STARTING_FEN } from '$lib/fen';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -216,7 +216,6 @@ export function analyzeGame(
 
 	// Build full navigation data from ALL game moves (before the analysis loop)
 	// so users can navigate the complete game even if analysis stops early.
-	const STARTING_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 	const fenHistory: string[] = [STARTING_FEN];
 	const sanHistory: string[] = [];
 	const fromSquares: string[] = [];
@@ -237,8 +236,8 @@ export function analyzeGame(
 
 	for (let i = 0; i < parsed.moves.length; i++) {
 		const move = parsed.moves[i];
-		const fromFen = move.before;
-		const toFen = move.after;
+		const fromFen = fenKey(move.before);
+		const toFen = fenKey(move.after);
 		const san = move.san;
 		const ply = i + 1;
 
@@ -305,7 +304,7 @@ export function analyzeGame(
 				// Peek ahead to capture what the user played in response.
 				const nextMove = parsed.moves[i + 1];
 				const userResponseSan = nextMove ? nextMove.san : null;
-				const userResponseToFen = nextMove ? nextMove.after : null;
+				const userResponseToFen = nextMove ? fenKey(nextMove.after) : null;
 
 				issues.push({
 					type: 'OPPONENT_SURPRISE',

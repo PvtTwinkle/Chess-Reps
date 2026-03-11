@@ -12,6 +12,7 @@ import {
 	drillSession
 } from '$lib/db/schema';
 import { and, eq } from 'drizzle-orm';
+import { fenKey } from '$lib/fen';
 
 // ── PATCH ──────────────────────────────────────────────────────────────────────
 // Expects JSON body: { name?: string, startFen?: string | null }
@@ -59,7 +60,7 @@ export const PATCH: RequestHandler = async ({ locals, request, params }) => {
 		if (typeof startFen === 'string' && startFen.length > 100) {
 			throw error(400, 'startFen is too long');
 		}
-		updates.startFen = startFen;
+		updates.startFen = typeof startFen === 'string' ? fenKey(startFen) : null;
 	}
 
 	if (Object.keys(updates).length === 0) {

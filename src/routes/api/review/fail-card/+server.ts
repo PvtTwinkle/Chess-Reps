@@ -13,6 +13,7 @@ import { db } from '$lib/db';
 import { repertoire, userMove, userRepertoireMove } from '$lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { gradeCard, Rating } from '$lib/fsrs';
+import { fenKey } from '$lib/fen';
 
 export const POST: RequestHandler = async ({ locals, request }) => {
 	if (!locals.user) throw error(401, 'Not authenticated');
@@ -23,11 +24,14 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	} catch {
 		throw error(400, 'Invalid JSON body');
 	}
-	const { repertoireId, fromFen } = body;
+	const { repertoireId } = body;
 
 	if (typeof repertoireId !== 'number') throw error(400, 'repertoireId must be a number');
-	if (!fromFen || typeof fromFen !== 'string') throw error(400, 'fromFen is required');
-	if (fromFen.length > 100) throw error(400, 'fromFen is too long');
+	if (!body.fromFen || typeof body.fromFen !== 'string') throw error(400, 'fromFen is required');
+	if (body.fromFen.length > 100) throw error(400, 'fromFen is too long');
+
+	// Normalize to 4-field FEN so transpositions always match.
+	const fromFen = fenKey(body.fromFen);
 
 	// Verify the repertoire belongs to this user.
 	const [rep] = await db

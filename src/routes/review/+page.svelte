@@ -33,8 +33,7 @@
 	import type { DrawShape } from '@lichess-org/chessground/draw';
 	import type { Key } from '@lichess-org/chessground/types';
 	import { Chess } from 'chess.js';
-
-	const STARTING_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+	import { STARTING_FEN } from '$lib/fen';
 
 	let { data, form }: { data: PageData; form: Record<string, unknown> | null } = $props();
 

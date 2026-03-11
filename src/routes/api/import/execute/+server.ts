@@ -20,7 +20,7 @@ import { Chess } from 'chess.js';
 import { db } from '$lib/db';
 import { repertoire, userMove, userRepertoireMove } from '$lib/db/schema';
 import { eq, and } from 'drizzle-orm';
-import { fenKey } from '$lib/pgn/index';
+import { fenKey } from '$lib/fen';
 
 // Transaction type extracted from db.transaction() callback parameter
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -137,8 +137,8 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			const notes = typeof raw === 'string' && raw.trim() ? raw.trim().slice(0, 500) : null;
 
 			validatedMoves.push({
-				fromFen: m.fromFen,
-				toFen: chess.fen(),
+				fromFen: fenKey(m.fromFen),
+				toFen: fenKey(chess.fen()),
 				san: result.san, // normalized SAN from Chess.js
 				isUserTurn,
 				notes

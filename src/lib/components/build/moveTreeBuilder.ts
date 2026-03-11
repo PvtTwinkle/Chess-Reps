@@ -6,9 +6,7 @@
  */
 
 import type { TreeNode } from './MoveTreeLine.svelte';
-import { fenKey } from '$lib/fen';
-
-const STARTING_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+import { fenKey, STARTING_FEN } from '$lib/fen';
 
 export { fenKey };
 

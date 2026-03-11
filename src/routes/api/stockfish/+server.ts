@@ -21,6 +21,7 @@ import { db } from '$lib/db';
 import { bookMove, ecoOpening, userSettings } from '$lib/db/schema';
 import { eq, inArray } from 'drizzle-orm';
 import { Chess } from 'chess.js';
+import { fenKey } from '$lib/fen';
 
 // How many engine candidates to return.
 const DEFAULT_ENGINE_MOVES = 3;
@@ -81,11 +82,14 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	if (!fen || typeof fen !== 'string') throw error(400, 'fen is required');
 	if (fen.length > 100) throw error(400, 'fen is too long');
 
+	// Normalize to 4-field FEN for DB lookups (book and eco tables store 4-field).
+	const fenNorm = fenKey(fen);
+
 	// ── 1. Book lookup ────────────────────────────────────────────────────────
 	// Find all known opening moves from this exact position.
 	// Skipped when mode is 'engine' (caller only wants Stockfish results).
 	const bookMoves =
-		mode !== 'engine' ? await db.select().from(bookMove).where(eq(bookMove.fromFen, fen)) : [];
+		mode !== 'engine' ? await db.select().from(bookMove).where(eq(bookMove.fromFen, fenNorm)) : [];
 
 	// ── 2. Stockfish analysis ─────────────────────────────────────────────────
 	// Request exactly numMoves PVs — the engine section is independent of the

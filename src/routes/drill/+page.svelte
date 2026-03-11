@@ -25,7 +25,7 @@
 <script lang="ts">
 	import ChessBoard from '$lib/components/ChessBoard.svelte';
 	import OpeningName from '$lib/components/OpeningName.svelte';
-	import { fenKey } from '$lib/fen';
+	import { fenKey, STARTING_FEN } from '$lib/fen';
 	import { SvelteMap } from 'svelte/reactivity';
 	import { untrack } from 'svelte';
 	import { onMount } from 'svelte';
@@ -42,8 +42,6 @@
 		playCorrect,
 		playIncorrect
 	} from '$lib/sounds';
-
-	const STARTING_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
 	// Shape of a move row from the server (user_move table).
 	interface RepertoireMove {

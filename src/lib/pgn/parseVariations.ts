@@ -9,7 +9,7 @@
 // [%cal ...] are filtered out since they're not human-readable.
 
 import { Chess } from 'chess.js';
-import { fenKey } from './index';
+import { fenKey, STARTING_FEN } from '$lib/fen';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -177,7 +177,7 @@ function replayTree(
 	const chess = new Chess(startFen);
 
 	for (const node of nodes) {
-		const fromFen = chess.fen();
+		const fromFen = fenKey(chess.fen());
 
 		// Try to play the move
 		let result;
@@ -194,7 +194,7 @@ function replayTree(
 			return;
 		}
 
-		const toFen = chess.fen();
+		const toFen = fenKey(chess.fen());
 		const san = result.san; // Use Chess.js's normalized SAN
 
 		// Determine if this is the user's turn
@@ -260,7 +260,6 @@ export function parseVariationPgn(
 	if (tree.length === 0) throw new Error('PGN contains no moves');
 
 	// Replay through Chess.js to compute FENs
-	const STARTING_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 	const edges = new Map<string, PgnEdge>();
 	const errors: string[] = [];
 

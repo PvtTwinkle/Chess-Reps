@@ -10,6 +10,9 @@ export function fenKey(fen: string): string {
 	return fen.split(' ').slice(0, 4).join(' ');
 }
 
+/** The standard starting position FEN (4-field — no halfmove clock or fullmove counter). */
+export const STARTING_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -';
+
 /** Maximum length of a valid FEN string (generous upper bound). */
 const MAX_FEN_LENGTH = 100;
 

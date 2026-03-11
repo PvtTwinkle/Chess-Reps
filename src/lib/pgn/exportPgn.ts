@@ -7,9 +7,7 @@
  * Pure function — no database or framework dependency.
  */
 
-import { fenKey } from './index';
-
-const STARTING_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+import { fenKey, STARTING_FEN } from '$lib/fen';
 
 // ── Public types ─────────────────────────────────────────────────────────────
 

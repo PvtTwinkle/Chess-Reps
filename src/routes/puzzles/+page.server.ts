@@ -12,8 +12,7 @@ import { db } from '$lib/db';
 import { userMove, ecoOpening, puzzle } from '$lib/db/schema';
 import { eq, and, inArray, sql, count } from 'drizzle-orm';
 import { normalizeOpening, removeParentNames, getDeepestEcoNames } from '$lib/puzzleMatching';
-import { fenKey } from '$lib/fen';
-import { STARTING_FEN } from '$lib/gaps';
+import { fenKey, STARTING_FEN } from '$lib/fen';
 
 export const load: PageServerLoad = async ({ locals, parent }) => {
 	const { activeRepertoireId, repertoires } = await parent();

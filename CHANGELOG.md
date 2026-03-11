@@ -39,6 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Drill auto-play now works correctly for positions reached via transpositions (different move orders to the same board position)
 - Drill auto-play sounds no longer continue playing after navigating away from Drill Mode
 - Dashboard grid layout no longer breaks with the health score widget
 - Pending timers on the Puzzles, Settings, Build, and Manage Repertoire pages are now cleared on navigation, preventing stale callbacks from firing after unmount

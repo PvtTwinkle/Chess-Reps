@@ -6,11 +6,8 @@
 // and 1...e6 as responses, but the user only has lines after 1...e5,
 // then 1...c5 and 1...e6 are gaps.
 
-import { fenKey } from '$lib/fen';
-export { fenKey };
-
-/** The standard starting position FEN. */
-export const STARTING_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+import { fenKey, STARTING_FEN } from '$lib/fen';
+export { fenKey, STARTING_FEN };
 
 /** A single gap: a book/masters move the user hasn't prepared a response to. */
 export interface Gap {

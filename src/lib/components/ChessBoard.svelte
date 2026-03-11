@@ -50,7 +50,7 @@
 		autoShapes?: DrawShape[];
 	}
 
-	const STARTING_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+	const STARTING_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -';
 
 	let {
 		fen = STARTING_FEN,

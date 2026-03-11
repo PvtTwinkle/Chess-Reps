@@ -20,6 +20,7 @@ import { Chess } from 'chess.js';
 import { db } from '$lib/db';
 import { repertoire, userMove, userRepertoireMove } from '$lib/db/schema';
 import { eq, and } from 'drizzle-orm';
+import { fenKey } from '$lib/fen';
 
 // ── GET ────────────────────────────────────────────────────────────────────────
 
@@ -64,14 +65,18 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	// by applying the move to fromFen. Accepting it from the client would allow
 	// a crafted request to store an arbitrary FEN as the destination position,
 	// corrupting the move tree.
-	const { repertoireId, fromFen, san } = body;
+	const { repertoireId, san } = body;
 
 	// Input validation
 	if (!repertoireId || typeof repertoireId !== 'number') {
 		throw error(400, 'repertoireId is required and must be a number');
 	}
-	if (!fromFen || typeof fromFen !== 'string') throw error(400, 'fromFen is required');
-	if (fromFen.length > 100) throw error(400, 'fromFen is too long');
+	if (!body.fromFen || typeof body.fromFen !== 'string') throw error(400, 'fromFen is required');
+	if (body.fromFen.length > 100) throw error(400, 'fromFen is too long');
+
+	// Normalize to 4-field FEN (strip halfmove clock and fullmove counter) so
+	// transpositions always match regardless of move order.
+	const fromFen = fenKey(body.fromFen);
 	if (!san || typeof san !== 'string') throw error(400, 'san is required');
 
 	// Verify the repertoire exists and belongs to this user.
@@ -97,7 +102,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		// Apply the move to validate it and compute the resulting position.
 		const result = chess.move(san);
 		if (!result) throw new Error('Illegal move');
-		toFen = chess.fen();
+		toFen = fenKey(chess.fen());
 	} catch {
 		throw error(400, 'Invalid FEN or move');
 	}

@@ -12,6 +12,7 @@ import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
 import { repertoire, reviewedGame, importedGame } from '$lib/db/schema';
 import { eq, and } from 'drizzle-orm';
+import { fenKey } from '$lib/fen';
 
 export const POST: RequestHandler = async ({ locals, request }) => {
 	if (!locals.user) throw error(401, 'Not authenticated');
@@ -58,7 +59,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			pgn,
 			source,
 			lichessGameId,
-			deviationFen: typeof deviationFen === 'string' ? deviationFen : null,
+			deviationFen: typeof deviationFen === 'string' ? fenKey(deviationFen) : null,
 			playedAt,
 			reviewedAt: new Date(),
 			notes: typeof notes === 'string' && notes.trim() ? notes.trim() : null

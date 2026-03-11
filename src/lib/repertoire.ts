@@ -12,7 +12,7 @@
 //
 // When startFen is set (custom), that single FEN is used.
 
-import { fenKey, STARTING_FEN } from '$lib/gaps';
+import { fenKey, STARTING_FEN } from '$lib/fen';
 
 /** Minimal move shape — works with userMove rows. */
 interface MoveRow {

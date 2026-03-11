@@ -9,11 +9,9 @@
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import { Chess } from 'chess.js';
 import { playMove, playCapture } from '$lib/sounds';
-import { fenKey } from '$lib/fen';
+import { fenKey, STARTING_FEN } from '$lib/fen';
 
-export { fenKey };
-
-export const STARTING_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+export { fenKey, STARTING_FEN };
 
 // Shape of a move row as returned by the server / API.
 export interface RepertoireMove {
