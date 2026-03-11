@@ -70,13 +70,14 @@
 	let evalLoading = $state(true);
 
 	// ── Board resize ─────────────────────────────────────────────────────────
-	async function handleBoardResize(size: number) {
-		await fetch('/api/settings', {
+	// Fire-and-forget: the ResizableBoard component already shows the new size
+	// via localWidth; no invalidateAll() needed (which would reset nav state).
+	function handleBoardResize(size: number) {
+		fetch('/api/settings', {
 			method: 'PATCH',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({ boardSize: size })
 		});
-		await invalidateAll();
 	}
 
 	const TAB_ORDER: Array<'book' | 'masters' | 'engine'> = ['book', 'masters', 'engine'];

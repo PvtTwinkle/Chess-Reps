@@ -27,6 +27,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Board resize no longer resets navigation state on build, drill, review, or puzzle pages
+- Puzzles page now respects "auto" board size instead of always defaulting to 520px
 - Foreign keys now use ON DELETE CASCADE (or SET NULL for imported game links), preventing orphaned rows when users or repertoires are deleted
 - Puzzle finder now uses a database subquery instead of loading all attempted puzzle IDs into memory
 - Deleting a repertoire no longer leaves dangling references in the imported games table

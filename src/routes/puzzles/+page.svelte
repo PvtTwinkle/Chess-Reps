@@ -41,14 +41,14 @@
 	type Phase = 'idle' | 'loading' | 'setup' | 'waiting' | 'correct' | 'incorrect' | 'solved';
 
 	// ── Board resize ─────────────────────────────────────────────────────────
-	async function handleBoardResize(size: number) {
-		await fetch('/api/settings', {
+	// Fire-and-forget: the ResizableBoard component already shows the new size
+	// via localWidth; no invalidateAll() needed (which would reset puzzle state).
+	function handleBoardResize(size: number) {
+		fetch('/api/settings', {
 			method: 'PATCH',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({ boardSize: size })
 		});
-		const { invalidateAll } = await import('$app/navigation');
-		await invalidateAll();
 	}
 
 	// Shape of a puzzle row from the server.
@@ -486,7 +486,7 @@
 	<div class="page">
 		<!-- ── Board column ────────────────────────────────────────────────── -->
 		<div class="board-col">
-			<ResizableBoard boardSize={data.settings?.boardSize || 520} onResize={handleBoardResize}>
+			<ResizableBoard boardSize={data.settings?.boardSize ?? 0} onResize={handleBoardResize}>
 				<div class="board-wrap">
 					{#key boardKey}
 						<ChessBoard

@@ -10,6 +10,7 @@
 -->
 
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import type { Snippet } from 'svelte';
 
 	// ---------------------------------------------------------------------------
@@ -48,11 +49,12 @@
 	let localWidth = $state<number | null>(null);
 
 	// If the parent passes an updated boardSize (e.g. after navigation), clear
-	// the local override so we respect the prop.
+	// the local override so we respect the prop. Skip during an active drag so
+	// an async data reload can't snap the board back mid-resize.
 	$effect(() => {
 		// Read boardSize to subscribe to it.
 		void boardSize;
-		localWidth = null;
+		if (!untrack(() => dragging)) localWidth = null;
 	});
 
 	/** The effective width style to apply. */
@@ -102,7 +104,7 @@
 	<div
 		class="resize-handle"
 		role="separator"
-		aria-orientation="vertical"
+		aria-orientation="horizontal"
 		aria-label="Resize chessboard"
 		onpointerdown={onPointerDown}
 		onpointermove={onPointerMove}
@@ -137,6 +139,7 @@
 		width: 20px;
 		height: 20px;
 		cursor: nwse-resize;
+		touch-action: none;
 		z-index: 10;
 		opacity: 0;
 		transition: opacity 0.15s ease;

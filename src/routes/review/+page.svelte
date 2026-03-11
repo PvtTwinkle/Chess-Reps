@@ -39,14 +39,14 @@
 	let { data, form }: { data: PageData; form: Record<string, unknown> | null } = $props();
 
 	// ── Board resize ─────────────────────────────────────────────────────────
-	async function handleBoardResize(size: number) {
-		await fetch('/api/settings', {
+	// Fire-and-forget: the ResizableBoard component already shows the new size
+	// via localWidth; no invalidateAll() needed (which would reset review state).
+	function handleBoardResize(size: number) {
+		fetch('/api/settings', {
 			method: 'PATCH',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({ boardSize: size })
 		});
-		const { invalidateAll } = await import('$app/navigation');
-		await invalidateAll();
 	}
 
 	// ── Input state ─────────────────────────────────────────────────────────────

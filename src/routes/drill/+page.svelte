@@ -177,13 +177,14 @@
 	let boardKey = $state(0);
 
 	// ── Board resize ─────────────────────────────────────────────────────────
-	async function handleBoardResize(size: number) {
-		await fetch('/api/settings', {
+	// Fire-and-forget: the ResizableBoard component already shows the new size
+	// via localWidth; no invalidateAll() needed (which would reset drill state).
+	function handleBoardResize(size: number) {
+		fetch('/api/settings', {
 			method: 'PATCH',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({ boardSize: size })
 		});
-		await invalidateAll();
 	}
 
 	// Timer handle for auto-play. Kept outside reactive state so it doesn't
