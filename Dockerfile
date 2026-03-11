@@ -50,11 +50,12 @@ FROM node:22-bookworm-slim AS runner
 
 WORKDIR /app
 
-# Install Stockfish (the chess engine) and wget (needed for the healthcheck).
+# Install Stockfish (the chess engine), wget (needed for the healthcheck), and
+# postgresql-client (psql — used to restore seed data on first boot).
 # --no-install-recommends keeps the install lean.
 # rm -rf removes the package index after install to reduce the layer size.
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends stockfish wget && \
+    apt-get install -y --no-install-recommends stockfish wget postgresql-client && \
     rm -rf /var/lib/apt/lists/*
 
 # Copy the pruned production node_modules from the builder stage.
@@ -70,6 +71,11 @@ COPY --from=builder /app/drizzle ./drizzle
 # Copy package.json. Node.js needs it to understand this is an ES module
 # project ("type": "module" in package.json).
 COPY --from=builder /app/package.json ./
+
+# Copy the compressed database seed dumps. On first boot, the app checks if
+# the masters and puzzle tables are empty and restores these via psql.
+# Placed late in the Dockerfile so source code changes don't bust this ~200 MB layer.
+COPY chessmont-moves-dump.sql.gz puzzles-dump.sql.gz ./data/
 
 # Remove system npm — the app is already built and doesn't need a package
 # manager at runtime. This also eliminates CVEs in npm's bundled dependencies
@@ -89,7 +95,7 @@ EXPOSE 3000
 # Health check — Docker polls this to know whether the container is healthy.
 # Waits 30s for the app to start, then checks every 30s.
 # The /api/health endpoint returns 200 + JSON and requires no authentication.
-HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=180s --retries=3 \
     CMD wget -qO- http://localhost:3000/api/health || exit 1
 
 # Run as the non-root "node" user (uid 1000) that ships with the node:alpine image.

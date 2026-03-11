@@ -89,42 +89,19 @@ Log in with the username and password you set above.
 
 ---
 
-## Optional Data
+## Included Data
 
-Chessstack ships with ECO opening names and a small starter book, but two larger
-datasets are available as separate downloads:
+The Docker image ships with two large reference datasets that are loaded
+automatically on first startup (no extra steps required):
 
 | Dataset              | Description                                                                                           | Approx. Size |
 | -------------------- | ----------------------------------------------------------------------------------------------------- | ------------ |
 | **Masters Database** | ~8.8M moves from master-level games (Chessmont, ELO >= 2500). Powers the "Masters" tab in Build Mode. | ~131 MB      |
 | **Lichess Puzzles**  | Opening-tagged tactical puzzles. Powers the Puzzles page.                                             | ~69 MB       |
 
-Without these datasets, the Masters tab falls back to Stockfish
-engine analysis, and the Puzzles page shows setup instructions.
-
-### One-Command Install
-
-After starting the app (`docker compose up -d`), run:
-
-```bash
-curl -sL https://raw.githubusercontent.com/PvtTwinkle/Chessstack/main/scripts/data-restore.sh | bash
-```
-
-This downloads the latest data from GitHub Releases and loads it into your database.
-
-### Manual Install
-
-1. Download `chessmont-moves-dump.sql.gz` and `puzzles-dump.sql.gz` from the
-   [latest data release](https://github.com/PvtTwinkle/Chessstack/releases?q=data).
-2. Restore each file:
-
-```bash
-gunzip -c chessmont-moves-dump.sql.gz | \
-  docker exec -i chessstack-postgres psql -U chessstack chessstack
-
-gunzip -c puzzles-dump.sql.gz | \
-  docker exec -i chessstack-postgres psql -U chessstack chessstack
-```
+The first boot takes a little longer while the data loads into PostgreSQL.
+Check `docker compose logs -f app` for progress. Subsequent startups skip
+this step entirely.
 
 ---
 

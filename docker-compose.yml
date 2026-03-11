@@ -25,7 +25,6 @@ services:
     image: ghcr.io/pvttwinkle/chessstack:latest
     container_name: chessstack-app
     restart: unless-stopped
-
     ports:
       # HOST_PORT:CONTAINER_PORT
       # Change the left side if you want to run on a different host port, e.g. 8080:3000
@@ -110,4 +109,3 @@ services:
 volumes:
   pgdata:
     name: chessstack-pgdata
-    external: true

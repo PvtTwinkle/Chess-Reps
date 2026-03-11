@@ -447,29 +447,11 @@
 
 {#if !data.hasImportedPuzzles}
 	<div class="empty-state">
-		<h2>No Puzzles Imported</h2>
-		<p>The puzzle database hasn't been loaded yet. To get started:</p>
-		<ol>
-			<li>Make sure your containers are running: <code>docker compose up -d</code></li>
-			<li>
-				Run the restore script:
-				<code>./scripts/data-restore.sh --puzzles-only</code>
-			</li>
-			<li>Refresh this page</li>
-		</ol>
+		<h2>Puzzles Loading</h2>
 		<p>
-			Or download <code>puzzles-dump.sql.gz</code> manually from the
-			<a
-				href="https://github.com/PvtTwinkle/Chessstack/releases?q=data-v"
-				target="_blank"
-				rel="noopener">GitHub Releases</a
-			> page and restore with:
-		</p>
-		<p>
-			<code
-				>gunzip -c puzzles-dump.sql.gz | docker exec -i chessstack-postgres psql -U chessstack
-				chessstack</code
-			>
+			The puzzle database is loaded automatically on first startup. If you just started the app, it
+			may still be loading &mdash; check the container logs for progress and refresh this page in a
+			minute.
 		</p>
 	</div>
 {:else if data.openingFamilies.length === 0}
@@ -1141,20 +1123,6 @@
 	.empty-state p {
 		color: var(--color-text-secondary);
 		line-height: 1.6;
-	}
-
-	.empty-state ol {
-		text-align: left;
-		color: var(--color-text-secondary);
-		line-height: 1.8;
-	}
-
-	.empty-state code {
-		background: var(--color-surface);
-		padding: var(--space-1) var(--space-2);
-		border-radius: var(--radius-sm);
-		font-size: 0.85rem;
-		color: var(--color-gold);
 	}
 
 	.empty-state a {

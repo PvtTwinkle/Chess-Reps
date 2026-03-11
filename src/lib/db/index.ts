@@ -21,6 +21,7 @@ import bcrypt from 'bcryptjs';
 import path from 'path';
 import * as schema from './schema';
 import { user } from './schema';
+import { loadSeedData } from './seed-data';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Configuration via environment variables
@@ -90,6 +91,10 @@ async function initDatabase(): Promise<void> {
 	await migrate(realDb, {
 		migrationsFolder: path.join(process.cwd(), 'drizzle', 'migrations')
 	});
+
+	// Seed large reference tables (masters + puzzles) from embedded dump files.
+	// Skips silently in local dev (no dump files) or if tables already have data.
+	await loadSeedData();
 
 	// Default user creation — same logic as before, now async.
 	const [existingUserCount] = await realDb.select({ count: count() }).from(user);
