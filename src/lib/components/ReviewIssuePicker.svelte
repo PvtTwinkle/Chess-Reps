@@ -103,8 +103,8 @@
 		gap: var(--space-2);
 		width: 100%;
 		padding: var(--space-2) var(--space-3);
-		background: rgba(226, 183, 20, 0.1);
-		border: 1px solid rgba(226, 183, 20, 0.35);
+		background: rgba(91, 127, 164, 0.1);
+		border: 1px solid rgba(91, 127, 164, 0.35);
 		border-radius: var(--radius-sm);
 		cursor: pointer;
 		font-family: var(--font-body);
@@ -116,8 +116,8 @@
 	}
 
 	.game-move-row:hover:not(:disabled) {
-		border-color: var(--color-gold);
-		background: rgba(226, 183, 20, 0.18);
+		border-color: var(--color-accent);
+		background: rgba(91, 127, 164, 0.18);
 	}
 
 	.game-move-row:disabled {
@@ -135,7 +135,7 @@
 
 	.game-move-san {
 		font-weight: 600;
-		color: var(--color-gold);
+		color: var(--color-accent);
 	}
 
 	.game-move-eval {

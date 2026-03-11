@@ -1,28 +1,28 @@
 /* ============================================================
    Chessstack Design Tokens
-   Refined dark luxury — high-end chess club meets trading terminal
+   Classic, professional — analytical chess tool
    ============================================================ */
 
 :root {
 	/* ── Colors ───────────────────────────────────────────────── */
-	--color-base: #0f0f1a;
-	--color-surface: #1a1a2e;
-	--color-surface-alt: #1e1e35;
-	--color-border: #2a2a45;
-	--color-gold: #e2b714;
-	--color-gold-dim: #b8920f;
-	--color-gold-glow: rgba(226, 183, 20, 0.15);
-	--color-text-primary: #f0eeea;
-	--color-text-secondary: #8b8ba0;
-	--color-text-muted: #52526a;
-	--color-success: #4ade80;
-	--color-danger: #f87171;
-	--color-explore: #67e8f9;
-	--color-explore-glow: rgba(103, 232, 249, 0.15);
+	--color-base: #09090b;
+	--color-surface: #181a1f;
+	--color-surface-alt: #1f2128;
+	--color-border: #282a32;
+	--color-border-strong: #343740;
+	--color-accent: #4a8ac2;
+	--color-accent-dim: #3a6d9e;
+	--color-accent-glow: rgba(74, 138, 194, 0.18);
+	--color-text-primary: #ececef;
+	--color-text-secondary: #a0a2ac;
+	--color-text-muted: #5c5c66;
+	--color-success: #3fb06e;
+	--color-danger: #e05454;
+	--color-explore: #67b8d4;
+	--color-explore-glow: rgba(103, 184, 212, 0.15);
 
 	/* ── Typography ───────────────────────────────────────────── */
-	--font-display: 'DM Serif Display', Georgia, serif;
-	--font-body: 'JetBrains Mono', 'Fira Code', monospace;
+	--font-body: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 
 	/* ── Spacing (4px base) ───────────────────────────────────── */
 	--space-1: 4px;
@@ -38,19 +38,18 @@
 
 	/* ── Shape ─────────────────────────────────────────────────── */
 	--radius-sm: 4px;
-	--radius-md: 8px;
-	--radius-lg: 12px;
-	--radius-xl: 16px;
+	--radius-md: 6px;
+	--radius-lg: 8px;
+	--radius-xl: 12px;
 
 	/* ── Header / Drawer backgrounds ─────────────────────────── */
-	--color-header-bg: rgba(26, 26, 46, 0.85);
-	--color-header-bg-solid: rgba(26, 26, 46, 0.95);
+	--color-header-bg: #181b22;
+	--color-header-bg-solid: #181a1f;
 
-	/* ── Shadows & Glow ───────────────────────────────────────── */
-	--shadow-surface: 0 1px 3px rgba(0, 0, 0, 0.4), 0 4px 12px rgba(0, 0, 0, 0.3);
-	--shadow-elevated: 0 8px 24px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.4);
-	--shadow-gold: 0 0 0 1px var(--color-gold-glow), 0 4px 16px rgba(226, 183, 20, 0.1);
-	--glow-gold: 0 0 12px rgba(226, 183, 20, 0.3);
+	/* ── Shadows & Glow ──────────────────────────────────────── */
+	--shadow-surface: 0 1px 2px rgba(0, 0, 0, 0.3), 0 2px 8px rgba(0, 0, 0, 0.2);
+	--shadow-elevated: 0 4px 16px rgba(0, 0, 0, 0.3), 0 1px 4px rgba(0, 0, 0, 0.2);
+	--glow-accent: 0 0 10px rgba(74, 138, 194, 0.25);
 
 	/* ── Motion ────────────────────────────────────────────────── */
 	--ease-snap: cubic-bezier(0.4, 0, 0.2, 1);
@@ -73,28 +72,28 @@
 
 [data-theme='light'] {
 	/* ── Colors ───────────────────────────────────────────────── */
-	--color-base: #e8e5df;
-	--color-surface: #f5f3ef;
-	--color-surface-alt: #ddd9d1;
-	--color-border: #b8b3a8;
-	--color-gold: #b08e00;
-	--color-gold-dim: #8a6f00;
-	--color-gold-glow: rgba(176, 142, 0, 0.15);
-	--color-text-primary: #12121f;
-	--color-text-secondary: #44445a;
-	--color-text-muted: #6e6e85;
+	--color-base: #f0efed;
+	--color-surface: #e4e2de;
+	--color-surface-alt: #d9d7d2;
+	--color-border: #c8c5be;
+	--color-border-strong: #adaaa3;
+	--color-accent: #2e6da4;
+	--color-accent-dim: #1e5280;
+	--color-accent-glow: rgba(46, 109, 164, 0.15);
+	--color-text-primary: #1a1a1e;
+	--color-text-secondary: #5a5a64;
+	--color-text-muted: #8a8a94;
 	--color-success: #15803d;
 	--color-danger: #b91c1c;
 	--color-explore: #0e7490;
 	--color-explore-glow: rgba(14, 116, 144, 0.15);
 
 	/* ── Header / Drawer backgrounds ─────────────────────────── */
-	--color-header-bg: rgba(232, 229, 223, 0.9);
-	--color-header-bg-solid: rgba(232, 229, 223, 0.97);
+	--color-header-bg: #e4e2de;
+	--color-header-bg-solid: #e4e2de;
 
-	/* ── Shadows & Glow ───────────────────────────────────────── */
-	--shadow-surface: 0 1px 3px rgba(0, 0, 0, 0.12), 0 4px 12px rgba(0, 0, 0, 0.08);
-	--shadow-elevated: 0 8px 24px rgba(0, 0, 0, 0.14), 0 2px 6px rgba(0, 0, 0, 0.1);
-	--shadow-gold: 0 0 0 1px rgba(176, 142, 0, 0.2), 0 4px 16px rgba(176, 142, 0, 0.12);
-	--glow-gold: 0 0 12px rgba(176, 142, 0, 0.25);
+	/* ── Shadows & Glow ──────────────────────────────────────── */
+	--shadow-surface: 0 1px 2px rgba(0, 0, 0, 0.06), 0 2px 8px rgba(0, 0, 0, 0.04);
+	--shadow-elevated: 0 4px 16px rgba(0, 0, 0, 0.1), 0 1px 4px rgba(0, 0, 0, 0.06);
+	--glow-accent: 0 0 10px rgba(46, 109, 164, 0.2);
 }

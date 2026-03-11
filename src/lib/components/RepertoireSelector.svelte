@@ -168,7 +168,7 @@
 	}
 
 	.selector-btn:hover {
-		border-color: var(--color-gold-dim);
+		border-color: var(--color-accent-dim);
 	}
 
 	.rep-name {
@@ -232,7 +232,7 @@
 	}
 
 	.dropdown-item.is-active {
-		color: var(--color-gold);
+		color: var(--color-accent);
 	}
 
 	.item-name {
@@ -243,7 +243,7 @@
 	}
 
 	.check {
-		color: var(--color-gold);
+		color: var(--color-accent);
 		font-size: 0.75rem;
 		flex-shrink: 0;
 	}

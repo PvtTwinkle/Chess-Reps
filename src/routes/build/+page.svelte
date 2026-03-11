@@ -759,13 +759,18 @@
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-4);
+		background: var(--color-surface);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-lg);
+		padding: var(--space-4);
+		box-shadow: var(--shadow-surface);
 	}
 
 	/* Tablet (768px – 1023px) — --bp-md */
 	@media (min-width: 768px) {
 		.page {
 			display: grid;
-			grid-template-columns: 1fr 260px;
+			grid-template-columns: 1fr 280px;
 			gap: var(--space-4);
 			align-items: start;
 			padding: 0;
@@ -775,9 +780,9 @@
 	/* Desktop (≥1024px) — --bp-lg */
 	@media (min-width: 1024px) {
 		.page {
-			grid-template-columns: 1fr 300px;
-			gap: var(--space-8);
-			max-width: 920px;
+			grid-template-columns: 1fr 340px;
+			gap: var(--space-6);
+			max-width: 1100px;
 			margin: 0 auto;
 		}
 	}
@@ -845,8 +850,9 @@
 	}
 
 	.import-btn:hover:not(:disabled) {
-		border-color: var(--color-gold-dim);
-		color: var(--color-gold);
+		border-color: var(--color-accent-dim);
+		color: var(--color-accent);
+		box-shadow: var(--glow-accent);
 	}
 
 	.import-btn:disabled {
@@ -897,7 +903,7 @@
 
 	.export-option:hover {
 		background: var(--color-surface-alt);
-		color: var(--color-gold);
+		color: var(--color-accent);
 	}
 
 	.export-cancel {
@@ -946,9 +952,10 @@
 
 	.mode-btn--active {
 		background: var(--color-surface-alt);
-		color: var(--color-gold);
+		color: var(--color-accent);
 		font-weight: 600;
 		cursor: default;
+		box-shadow: inset 0 -2px 0 var(--color-accent);
 	}
 
 	.mode-btn + .mode-btn {
@@ -971,9 +978,9 @@
 	}
 
 	.turn-indicator.user-turn {
-		background: var(--color-gold-glow);
-		border-color: rgba(226, 183, 20, 0.3);
-		color: var(--color-gold);
+		background: var(--color-accent-glow);
+		border-color: rgba(91, 127, 164, 0.3);
+		color: var(--color-accent);
 	}
 
 	.turn-indicator.opp-turn {
@@ -1008,9 +1015,9 @@
 	}
 
 	.banner--warn {
-		background: rgba(226, 183, 20, 0.08);
-		border: 1px solid rgba(226, 183, 20, 0.25);
-		color: var(--color-gold);
+		background: rgba(91, 127, 164, 0.08);
+		border: 1px solid rgba(91, 127, 164, 0.25);
+		color: var(--color-accent);
 	}
 
 	.banner--error {
@@ -1057,6 +1064,7 @@
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-2);
+		box-shadow: var(--shadow-surface);
 	}
 
 	.section-label {
@@ -1100,8 +1108,9 @@
 
 	.move-nav-btn:hover,
 	.move-nav-btn--highlighted {
-		border-color: var(--color-gold-dim);
-		color: var(--color-gold);
+		border-color: var(--color-accent-dim);
+		color: var(--color-accent);
+		box-shadow: var(--glow-accent);
 	}
 
 	.move-delete-btn {

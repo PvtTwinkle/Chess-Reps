@@ -77,7 +77,7 @@
 
 	.eco-code {
 		font-weight: 700;
-		color: var(--color-gold);
+		color: var(--color-accent);
 		letter-spacing: 0.04em;
 		flex-shrink: 0;
 	}

@@ -503,8 +503,8 @@
 	}
 
 	.tab.active {
-		color: var(--color-gold);
-		border-bottom-color: var(--color-gold);
+		color: var(--color-accent);
+		border-bottom-color: var(--color-accent);
 	}
 
 	.tab:disabled {
@@ -560,8 +560,9 @@
 
 	.candidate-row:hover:not(:disabled),
 	.candidate-row.candidate-highlighted:not(:disabled) {
-		border-color: var(--color-gold-dim);
+		border-color: var(--color-accent-dim);
 		background: rgba(30, 30, 53, 0.8);
+		box-shadow: var(--glow-accent);
 	}
 
 	.candidate-row:disabled {

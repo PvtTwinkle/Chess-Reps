@@ -16,6 +16,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Complete UI redesign: switched from DM Serif Display + JetBrains Mono to Manrope font family
+- New color palette with warm tones, updated accent color, and refined border/shadow/radius tokens
+- Refreshed styling across all components — modals, buttons, tabs, move lists, onboarding, login/register, settings, and admin pages
+- Sidebar panels on Build, Drill, Puzzles, and Review pages now have a visible card background for better visual separation
+- Wider page layouts across the site reduce blank space on desktop screens
+- Light theme background is now a warm light gray instead of near-white
+- Board-to-sidebar spacing tightened so the sidebar sits closer to the chessboard
+- Dashboard stat widgets now display as a clean 2×3 grid instead of 4 columns with empty space
+- Import buttons on the Review page now have a distinct background against their card panel
 - Gap finder logic extracted into a shared utility, eliminating duplicated code between the dashboard and API endpoint
 - Game import now runs in a single database transaction so the watermark stays in sync with inserted data
 - Theme query in request hooks is now skipped for API calls, reducing a database round-trip on every API request

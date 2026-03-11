@@ -366,7 +366,7 @@
 
 	.modal-header h2 {
 		margin: 0;
-		font-family: var(--font-display);
+		font-family: var(--font-body);
 		font-size: 1.1rem;
 		color: var(--color-text-primary);
 		font-weight: 600;
@@ -486,8 +486,8 @@
 
 	.rename-input:focus {
 		outline: none;
-		border-color: var(--color-gold);
-		box-shadow: 0 0 0 3px var(--color-gold-glow);
+		border-color: var(--color-accent);
+		box-shadow: 0 0 0 3px var(--color-accent-glow);
 	}
 
 	/* ── Empty state ────────────────────────────────────────────────────────── */
@@ -534,8 +534,8 @@
 
 	.text-input:focus {
 		outline: none;
-		border-color: var(--color-gold);
-		box-shadow: 0 0 0 3px var(--color-gold-glow);
+		border-color: var(--color-accent);
+		box-shadow: 0 0 0 3px var(--color-accent-glow);
 	}
 
 	.color-row {
@@ -554,7 +554,7 @@
 	}
 
 	.color-label input[type='radio'] {
-		accent-color: var(--color-gold);
+		accent-color: var(--color-accent);
 		cursor: pointer;
 	}
 
@@ -568,7 +568,7 @@
 
 	.btn-primary {
 		padding: var(--space-2) var(--space-4);
-		background: var(--color-gold);
+		background: var(--color-accent);
 		border: none;
 		border-radius: var(--radius-md);
 		color: var(--color-base);
@@ -580,7 +580,8 @@
 	}
 
 	.btn-primary:hover:not(:disabled) {
-		box-shadow: var(--glow-gold);
+		opacity: 0.88;
+		box-shadow: var(--glow-accent);
 	}
 
 	.btn-primary:disabled {
@@ -695,19 +696,6 @@
 			max-height: 100%;
 			border-radius: 0;
 			padding-top: var(--space-8);
-		}
-
-		/* Drag handle affordance */
-		.modal::before {
-			content: '';
-			position: absolute;
-			top: var(--space-2);
-			left: 50%;
-			transform: translateX(-50%);
-			width: 36px;
-			height: 4px;
-			border-radius: 2px;
-			background: var(--color-border);
 		}
 	}
 </style>

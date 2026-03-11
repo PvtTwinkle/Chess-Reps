@@ -1792,13 +1792,18 @@
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-4);
+		background: var(--color-surface);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-lg);
+		padding: var(--space-4);
+		box-shadow: var(--shadow-surface);
 	}
 
 	/* Tablet (768px – 1023px) — --bp-md */
 	@media (min-width: 768px) {
 		.page {
 			display: grid;
-			grid-template-columns: 1fr 260px;
+			grid-template-columns: 1fr 280px;
 			gap: var(--space-4);
 			align-items: start;
 			padding: 0;
@@ -1808,9 +1813,9 @@
 	/* Desktop (≥1024px) — --bp-lg */
 	@media (min-width: 1024px) {
 		.page {
-			grid-template-columns: 1fr 300px;
-			gap: var(--space-8);
-			max-width: 920px;
+			grid-template-columns: 1fr 340px;
+			gap: var(--space-6);
+			max-width: 1100px;
 			margin: 0 auto;
 		}
 	}
@@ -1844,14 +1849,14 @@
 	}
 
 	.section-tab:hover {
-		border-color: var(--color-gold);
+		border-color: var(--color-accent);
 		color: var(--color-text-primary);
 	}
 
 	.section-tab.active {
-		background: rgba(226, 183, 20, 0.15);
-		border-color: var(--color-gold);
-		color: var(--color-text-primary);
+		background: rgba(91, 127, 164, 0.15);
+		border-color: var(--color-accent);
+		color: var(--color-accent);
 	}
 
 	.section-tab.dimmed {
@@ -2059,9 +2064,9 @@
 		width: 100%;
 		padding: 0.45rem;
 		border-radius: var(--radius-md);
-		border: 1px solid rgba(226, 183, 20, 0.35);
-		background: rgba(226, 183, 20, 0.08);
-		color: var(--color-gold);
+		border: 1px solid rgba(91, 127, 164, 0.35);
+		background: rgba(91, 127, 164, 0.08);
+		color: var(--color-accent);
 		font-size: 0.8rem;
 		font-family: var(--font-body);
 		cursor: pointer;
@@ -2070,6 +2075,7 @@
 
 	.hint-btn:hover {
 		filter: brightness(1.2);
+		box-shadow: var(--glow-accent);
 	}
 
 	.hint-active {
@@ -2078,10 +2084,10 @@
 		gap: var(--space-1);
 		padding: var(--space-2) var(--space-3);
 		border-radius: var(--radius-md);
-		border: 1px solid rgba(226, 183, 20, 0.25);
-		background: rgba(226, 183, 20, 0.06);
+		border: 1px solid rgba(91, 127, 164, 0.25);
+		background: rgba(91, 127, 164, 0.06);
 		font-size: 0.78rem;
-		color: var(--color-gold-dim);
+		color: var(--color-accent-dim);
 	}
 
 	.hint-penalty {
@@ -2124,6 +2130,7 @@
 		display: flex;
 		flex-direction: column;
 		gap: 0.3rem;
+		box-shadow: var(--shadow-surface);
 	}
 
 	.progress-label {
@@ -2141,7 +2148,7 @@
 
 	.progress-fill {
 		height: 100%;
-		background: var(--color-gold);
+		background: var(--color-accent);
 		border-radius: var(--radius-sm);
 		transition: width var(--dur-base) ease;
 	}
@@ -2194,9 +2201,9 @@
 	}
 
 	.turn-indicator.user-turn {
-		background: rgba(226, 183, 20, 0.1);
-		border-color: rgba(226, 183, 20, 0.3);
-		color: var(--color-gold);
+		background: rgba(91, 127, 164, 0.1);
+		border-color: rgba(91, 127, 164, 0.3);
+		color: var(--color-accent);
 	}
 
 	.turn-dot {
@@ -2223,6 +2230,7 @@
 		border-radius: var(--radius-md);
 		font-size: 0.9rem;
 		font-weight: 600;
+		box-shadow: var(--shadow-surface);
 	}
 
 	.feedback--correct {
@@ -2276,9 +2284,9 @@
 	}
 
 	.grade-btn--unsure {
-		background: rgba(226, 183, 20, 0.15);
-		border-color: rgba(226, 183, 20, 0.4);
-		color: var(--color-gold);
+		background: rgba(91, 127, 164, 0.15);
+		border-color: rgba(91, 127, 164, 0.4);
+		color: var(--color-accent);
 	}
 
 	.grade-btn--easy {
@@ -2292,7 +2300,7 @@
 	.revealed-move {
 		font-size: 1.4rem;
 		font-weight: 700;
-		color: var(--color-gold);
+		color: var(--color-accent);
 		padding: 0.3rem 0;
 	}
 
@@ -2401,9 +2409,13 @@
 	}
 
 	.btn--primary {
-		background: var(--color-gold);
-		border-color: var(--color-gold);
+		background: var(--color-accent);
+		border-color: var(--color-accent);
 		color: var(--color-base);
+	}
+
+	.btn--primary:hover:not(:disabled) {
+		box-shadow: var(--glow-accent);
 	}
 
 	.btn--secondary {
@@ -2413,7 +2425,7 @@
 	}
 
 	.btn--secondary:hover {
-		border-color: var(--color-gold);
+		border-color: var(--color-accent);
 		color: var(--color-text-primary);
 	}
 
@@ -2425,8 +2437,8 @@
 		gap: 0.25rem;
 		padding: var(--space-2) var(--space-3);
 		border-radius: var(--radius-sm);
-		border-left: 3px solid var(--color-gold);
-		background: var(--color-gold-glow);
+		border-left: 3px solid var(--color-accent);
+		background: var(--color-accent-glow);
 	}
 
 	.note-label {
@@ -2434,7 +2446,7 @@
 		font-family: var(--font-body);
 		font-weight: 700;
 		letter-spacing: 0.12em;
-		color: var(--color-gold);
+		color: var(--color-accent);
 		text-transform: uppercase;
 	}
 
@@ -2479,7 +2491,7 @@
 	}
 
 	.undo-btn:hover {
-		border-color: var(--color-gold);
+		border-color: var(--color-accent);
 		color: var(--color-text-primary);
 	}
 
@@ -2509,7 +2521,7 @@
 	}
 
 	.tempo-bar-fill.tempo-warning {
-		background: var(--color-gold);
+		background: var(--color-accent);
 	}
 
 	.tempo-bar-fill.tempo-danger {
@@ -2549,14 +2561,14 @@
 	}
 
 	.drill-type-btn:hover {
-		border-color: var(--color-gold);
+		border-color: var(--color-accent);
 		color: var(--color-text-primary);
 	}
 
 	.drill-type-btn.active {
-		background: rgba(226, 183, 20, 0.15);
-		border-color: var(--color-gold);
-		color: var(--color-text-primary);
+		background: rgba(91, 127, 164, 0.15);
+		border-color: var(--color-accent);
+		color: var(--color-accent);
 	}
 
 	/* ── Line-complete interstitial ───────────────────────────────────── */

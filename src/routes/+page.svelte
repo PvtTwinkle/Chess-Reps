@@ -462,7 +462,7 @@
 <style>
 	h1 {
 		margin: 0 0 var(--space-4);
-		font-family: var(--font-display);
+		font-family: var(--font-body);
 		font-size: 1.5rem;
 		color: var(--color-text-primary);
 	}
@@ -470,26 +470,32 @@
 	/* ── Widget Grid ──────────────────────────────────────────────────── */
 
 	.page-wrapper {
-		max-width: 720px;
+		max-width: 840px;
 		margin: 0 auto;
 	}
 
 	.widget-grid {
 		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+		grid-template-columns: repeat(2, 1fr);
 		gap: var(--space-3);
+	}
+
+	@media (min-width: 640px) {
+		.widget-grid {
+			grid-template-columns: repeat(3, 1fr);
+		}
 	}
 
 	.widget {
 		background: var(--color-surface);
 		border: 1px solid var(--color-border);
 		border-radius: var(--radius-lg);
-		box-shadow: var(--shadow-surface);
 		padding: var(--space-5) var(--space-4);
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-1);
 		overflow: hidden;
+		box-shadow: var(--shadow-surface);
 		transition:
 			border-color var(--dur-base) var(--ease-snap),
 			box-shadow var(--dur-base) var(--ease-snap);
@@ -506,8 +512,8 @@
 	}
 
 	.widget-link:hover {
-		border-color: var(--color-gold-dim);
-		box-shadow: var(--shadow-gold);
+		border-color: var(--color-border-strong);
+		box-shadow: var(--glow-accent);
 	}
 
 	.widget-label {
@@ -554,7 +560,7 @@
 	/* ── Due Now accent ───────────────────────────────────────────────── */
 
 	.due-positive {
-		color: var(--color-gold);
+		color: var(--color-accent);
 	}
 
 	/* ── Mastered accent ──────────────────────────────────────────────── */
@@ -566,7 +572,7 @@
 	/* ── Streak accent ────────────────────────────────────────────────── */
 
 	.streak-value {
-		color: var(--color-gold-dim);
+		color: var(--color-accent-dim);
 	}
 
 	/* ── Next Review accent ───────────────────────────────────────────── */
@@ -582,7 +588,7 @@
 	}
 
 	.health-yellow {
-		color: var(--color-gold-dim);
+		color: var(--color-accent-dim);
 	}
 
 	.health-red {
@@ -614,11 +620,11 @@
 	}
 
 	.state-new {
-		background: var(--color-gold);
+		background: var(--color-accent);
 	}
 
 	.state-learning {
-		background: var(--color-gold-dim);
+		background: var(--color-accent-dim);
 	}
 
 	.state-review {
@@ -672,7 +678,7 @@
 	}
 
 	.acc-yellow {
-		background: var(--color-gold-dim);
+		background: var(--color-accent-dim);
 	}
 
 	.acc-red {
@@ -707,7 +713,7 @@
 		min-width: 20px;
 		height: 20px;
 		border-radius: 10px;
-		background: var(--color-gold);
+		background: var(--color-accent);
 		color: var(--color-base);
 		font-weight: 700;
 		font-size: 11px;
@@ -750,7 +756,7 @@
 	}
 
 	.gap-link {
-		color: var(--color-gold);
+		color: var(--color-accent);
 		text-decoration: none;
 		font-size: 12px;
 		white-space: nowrap;
@@ -815,7 +821,7 @@
 	}
 
 	.goal-progress {
-		color: var(--color-gold);
+		color: var(--color-accent);
 	}
 
 	.goal-bar {
@@ -828,7 +834,7 @@
 
 	.goal-bar-fill {
 		height: 100%;
-		background: var(--color-gold);
+		background: var(--color-accent);
 		border-radius: 3px;
 		transition: width var(--dur-slow);
 		min-width: 2px;
@@ -840,7 +846,7 @@
 
 	.goal-link {
 		font-size: 12px;
-		color: var(--color-gold);
+		color: var(--color-accent);
 		text-decoration: none;
 		margin-top: var(--space-1);
 		transition: color var(--dur-fast) var(--ease-snap);
@@ -884,7 +890,7 @@
 
 	.goal-input:focus {
 		outline: none;
-		border-color: var(--color-gold);
+		border-color: var(--color-accent);
 	}
 
 	.goal-freq-select {
@@ -907,7 +913,7 @@
 	}
 
 	.goal-save-btn {
-		background: var(--color-gold);
+		background: var(--color-accent);
 		color: var(--color-base);
 		border: none;
 		border-radius: var(--radius-sm);

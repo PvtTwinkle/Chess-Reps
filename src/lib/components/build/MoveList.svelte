@@ -99,14 +99,14 @@
 
 	.move-san:hover {
 		background: var(--color-surface-alt);
-		color: var(--color-gold);
+		color: var(--color-accent);
 	}
 
 	.move-san.is-current {
 		background: var(--color-surface-alt);
-		color: var(--color-gold);
+		color: var(--color-accent);
 		font-weight: 600;
-		border-left: 2px solid var(--color-gold);
+		border-left: 2px solid var(--color-accent);
 	}
 
 	/* Black's moves are slightly dimmer to visually distinguish them. */

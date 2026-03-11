@@ -144,7 +144,7 @@
 	}
 
 	.tree-toggle:hover {
-		color: var(--color-gold);
+		color: var(--color-accent);
 	}
 
 	.tree-container {
@@ -173,7 +173,7 @@
 	}
 
 	.branch-toggle:hover {
-		color: var(--color-gold);
+		color: var(--color-accent);
 	}
 
 	.branch-indent {

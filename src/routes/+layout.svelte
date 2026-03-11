@@ -136,12 +136,12 @@
 	}
 
 	:global(::selection) {
-		background: var(--color-gold);
-		color: var(--color-base);
+		background: var(--color-accent);
+		color: #fff;
 	}
 
 	:global(:focus-visible) {
-		outline: 2px solid var(--color-gold);
+		outline: 2px solid var(--color-accent);
 		outline-offset: 2px;
 	}
 
@@ -199,9 +199,8 @@
 		padding: 0 var(--space-6);
 		height: 56px;
 		background: var(--color-header-bg);
-		backdrop-filter: blur(12px);
-		-webkit-backdrop-filter: blur(12px);
 		border-bottom: 1px solid var(--color-border);
+		box-shadow: 0 1px 8px rgba(0, 0, 0, 0.15);
 	}
 
 	/* ── Brand ─────────────────────────────────────────────────────────── */
@@ -218,14 +217,15 @@
 	.brand-icon {
 		width: 22px;
 		height: 22px;
-		color: var(--color-gold);
+		color: var(--color-accent);
 	}
 
 	.brand-text {
-		font-family: var(--font-display);
-		font-size: 1.15rem;
+		font-family: var(--font-body);
+		font-size: 1.05rem;
+		font-weight: 600;
 		color: var(--color-text-primary);
-		letter-spacing: 0.01em;
+		letter-spacing: -0.01em;
 	}
 
 	/* ── Desktop nav links ─────────────────────────────────────────────── */
@@ -244,7 +244,7 @@
 		font-size: 13px;
 		font-weight: 500;
 		text-transform: uppercase;
-		letter-spacing: 0.08em;
+		letter-spacing: 0.05em;
 		transition: color var(--dur-fast) var(--ease-snap);
 	}
 
@@ -252,9 +252,9 @@
 		color: var(--color-text-primary);
 	}
 
-	/* Gold underline on active link */
+	/* Accent underline on active link */
 	.nav-link.active {
-		color: var(--color-gold);
+		color: var(--color-accent);
 	}
 
 	.nav-link.active::after {
@@ -264,7 +264,7 @@
 		left: var(--space-3);
 		right: var(--space-3);
 		height: 2px;
-		background: var(--color-gold);
+		background: var(--color-accent);
 		border-radius: 1px;
 		animation: navUnderline var(--dur-base) var(--ease-snap);
 	}
@@ -309,8 +309,8 @@
 	}
 
 	.signout-btn:hover {
-		border-color: var(--color-gold-dim);
-		color: var(--color-gold);
+		border-color: var(--color-border-strong);
+		color: var(--color-text-primary);
 	}
 
 	/* ── Hamburger (mobile only) ──────────────────────────────────────── */
@@ -363,8 +363,6 @@
 		z-index: 899;
 		flex-direction: column;
 		background: var(--color-header-bg-solid);
-		backdrop-filter: blur(12px);
-		-webkit-backdrop-filter: blur(12px);
 		border-bottom: 1px solid var(--color-border);
 		padding: var(--space-2) 0;
 		animation: drawerSlide var(--dur-base) var(--ease-snap);
@@ -389,7 +387,7 @@
 		font-size: 14px;
 		font-weight: 500;
 		text-transform: uppercase;
-		letter-spacing: 0.08em;
+		letter-spacing: 0.05em;
 		transition:
 			color var(--dur-fast) var(--ease-snap),
 			background var(--dur-fast) var(--ease-snap);
@@ -401,14 +399,14 @@
 	}
 
 	.mobile-link.active {
-		color: var(--color-gold);
-		border-left: 2px solid var(--color-gold);
+		color: var(--color-accent);
+		border-left: 2px solid var(--color-accent);
 	}
 
 	/* ── Main content area ────────────────────────────────────────────── */
 
 	.app-main {
-		max-width: 1200px;
+		max-width: 1400px;
 		margin: 0 auto;
 		padding: var(--space-6);
 		padding-top: calc(56px + var(--space-6));

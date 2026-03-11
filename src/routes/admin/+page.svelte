@@ -349,13 +349,13 @@
 	/* ── Page Layout ──────────────────────────────────────────────── */
 
 	.admin-page {
-		max-width: 700px;
+		max-width: 820px;
 		margin: 0 auto;
 	}
 
 	h1 {
 		margin: 0 0 var(--space-4);
-		font-family: var(--font-display);
+		font-family: var(--font-body);
 		font-size: 1.5rem;
 		color: var(--color-text-primary);
 	}
@@ -381,8 +381,8 @@
 		background: var(--color-surface);
 		border: 1px solid var(--color-border);
 		border-radius: var(--radius-lg);
-		box-shadow: var(--shadow-surface);
 		padding: var(--space-6);
+		box-shadow: var(--shadow-surface);
 	}
 
 	/* ── Info Bar ─────────────────────────────────────────────────── */
@@ -446,8 +446,8 @@
 
 	.create-form input:focus {
 		outline: none;
-		border-color: var(--color-gold);
-		box-shadow: 0 0 0 3px var(--color-gold-glow);
+		border-color: var(--color-accent);
+		box-shadow: 0 0 0 3px var(--color-accent-glow);
 	}
 
 	.form-actions {
@@ -461,7 +461,7 @@
 		padding: var(--space-2) var(--space-4);
 		border: none;
 		border-radius: var(--radius-md);
-		background: var(--color-gold);
+		background: var(--color-accent);
 		color: var(--color-base);
 		font-family: var(--font-body);
 		font-weight: 600;
@@ -473,7 +473,7 @@
 	}
 
 	.btn-primary:hover:not(:disabled) {
-		box-shadow: var(--glow-gold);
+		box-shadow: var(--glow-accent);
 	}
 
 	.btn-primary:active:not(:disabled) {
@@ -521,7 +521,7 @@
 	}
 
 	.user-card:hover {
-		border-color: var(--color-gold-dim);
+		border-color: var(--color-accent-dim);
 	}
 
 	.user-card.disabled {
@@ -561,9 +561,9 @@
 	}
 
 	.role-badge.role-admin {
-		background: rgba(226, 183, 20, 0.1);
-		color: var(--color-gold);
-		border-color: rgba(226, 183, 20, 0.3);
+		background: var(--color-accent-glow);
+		color: var(--color-accent);
+		border-color: var(--color-accent-dim);
 	}
 
 	.status-badge {
@@ -654,8 +654,8 @@
 
 	.inline-form input:focus {
 		outline: none;
-		border-color: var(--color-gold);
-		box-shadow: 0 0 0 3px var(--color-gold-glow);
+		border-color: var(--color-accent);
+		box-shadow: 0 0 0 3px var(--color-accent-glow);
 	}
 
 	.error-msg {

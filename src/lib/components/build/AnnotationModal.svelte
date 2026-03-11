@@ -138,8 +138,8 @@
 
 	.annotation-textarea:focus {
 		outline: none;
-		border-color: var(--color-gold);
-		box-shadow: 0 0 0 3px var(--color-gold-glow);
+		border-color: var(--color-accent);
+		box-shadow: 0 0 0 3px var(--color-accent-glow);
 	}
 
 	.annotation-textarea:disabled {
@@ -195,14 +195,15 @@
 	}
 
 	.modal-btn--save {
-		background: var(--color-gold);
-		border: 1px solid var(--color-gold);
+		background: var(--color-accent);
+		border: 1px solid var(--color-accent);
 		color: var(--color-base);
 		font-weight: 600;
 	}
 
 	.modal-btn--save:hover:not(:disabled) {
-		box-shadow: var(--glow-gold);
+		opacity: 0.88;
+		box-shadow: var(--glow-accent);
 	}
 
 	.modal-btn--save:active:not(:disabled) {

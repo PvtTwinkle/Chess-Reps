@@ -102,11 +102,11 @@
 	.logo-icon {
 		width: 28px;
 		height: 28px;
-		color: var(--color-gold);
+		color: var(--color-accent);
 	}
 
 	.logo-text {
-		font-family: var(--font-display);
+		font-family: var(--font-body);
 		font-size: 1.5rem;
 		color: var(--color-text-primary);
 	}
@@ -150,8 +150,8 @@
 
 	input:focus {
 		outline: none;
-		border-color: var(--color-gold);
-		box-shadow: 0 0 0 3px var(--color-gold-glow);
+		border-color: var(--color-accent);
+		box-shadow: 0 0 0 3px var(--color-accent-glow);
 	}
 
 	.hint {
@@ -174,7 +174,7 @@
 	button {
 		width: 100%;
 		padding: var(--space-3);
-		background: var(--color-gold);
+		background: var(--color-accent);
 		color: var(--color-base);
 		border: none;
 		border-radius: var(--radius-md);
@@ -184,12 +184,13 @@
 		cursor: pointer;
 		margin-top: var(--space-2);
 		transition:
-			box-shadow var(--dur-fast) var(--ease-snap),
+			filter var(--dur-fast) var(--ease-snap),
 			transform var(--dur-fast) var(--ease-snap);
 	}
 
 	button:hover {
-		box-shadow: var(--glow-gold);
+		box-shadow: var(--glow-accent);
+		filter: brightness(1.1);
 	}
 
 	button:active {
@@ -204,7 +205,7 @@
 	}
 
 	.signin-link a {
-		color: var(--color-gold);
+		color: var(--color-accent);
 		text-decoration: none;
 	}
 

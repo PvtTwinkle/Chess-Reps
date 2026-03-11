@@ -123,12 +123,12 @@
 
 	.tree-san:hover {
 		background: var(--color-surface-alt);
-		color: var(--color-gold);
+		color: var(--color-accent);
 	}
 
 	.tree-san.is-current {
 		background: var(--color-surface-alt);
-		color: var(--color-gold);
+		color: var(--color-accent);
 		font-weight: 600;
 	}
 
@@ -144,7 +144,7 @@
 	}
 
 	.branch-toggle:hover {
-		color: var(--color-gold);
+		color: var(--color-accent);
 	}
 
 	.branch-indent {

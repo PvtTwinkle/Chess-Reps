@@ -565,8 +565,8 @@
 
 	.pgn-textarea:focus {
 		outline: none;
-		border-color: var(--color-gold);
-		box-shadow: var(--glow-gold);
+		border-color: var(--color-accent);
+		box-shadow: 0 0 0 3px var(--color-accent-glow);
 	}
 
 	.input-actions {
@@ -623,8 +623,8 @@
 	}
 
 	.stat--warn {
-		border-color: var(--color-gold-dim);
-		background: var(--color-gold-glow);
+		border-color: var(--color-accent-dim);
+		background: var(--color-accent-glow);
 	}
 
 	.stat-value {
@@ -634,7 +634,7 @@
 	}
 
 	.stat--warn .stat-value {
-		color: var(--color-gold);
+		color: var(--color-accent);
 	}
 
 	.stat-label {
@@ -646,8 +646,8 @@
 
 	.warnings {
 		padding: var(--space-2) var(--space-3);
-		background: var(--color-gold-glow);
-		border: 1px solid var(--color-gold-dim);
+		background: var(--color-accent-glow);
+		border: 1px solid var(--color-accent-dim);
 		border-radius: var(--radius-sm);
 		margin-bottom: var(--space-4);
 	}
@@ -655,7 +655,7 @@
 	.warnings-label {
 		margin: 0 0 var(--space-1);
 		font-size: 0.8rem;
-		color: var(--color-gold);
+		color: var(--color-accent);
 		font-weight: 600;
 	}
 
@@ -675,7 +675,7 @@
 	.conflict-section h3 {
 		margin: 0 0 var(--space-3);
 		font-size: 0.85rem;
-		color: var(--color-gold);
+		color: var(--color-accent);
 		font-weight: 600;
 	}
 
@@ -729,7 +729,7 @@
 	}
 
 	.choice-btn:hover {
-		border-color: var(--color-gold);
+		border-color: var(--color-accent);
 		background: var(--color-surface);
 	}
 
@@ -796,7 +796,7 @@
 		width: 32px;
 		height: 32px;
 		border: 3px solid var(--color-border);
-		border-top-color: var(--color-gold);
+		border-top-color: var(--color-accent);
 		border-radius: 50%;
 		animation: spin 0.8s linear infinite;
 	}
@@ -842,7 +842,7 @@
 
 	.btn-primary {
 		padding: var(--space-2) var(--space-4);
-		background: var(--color-gold);
+		background: var(--color-accent);
 		border: none;
 		border-radius: var(--radius-md);
 		color: var(--color-base);
@@ -855,6 +855,7 @@
 
 	.btn-primary:hover:not(:disabled) {
 		opacity: 0.88;
+		box-shadow: var(--glow-accent);
 	}
 
 	.btn-primary:disabled {
