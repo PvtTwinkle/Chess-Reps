@@ -43,9 +43,9 @@
 	// Derived: the repertoire object that is currently active (or null if none).
 	const active = $derived(repertoires.find((r) => r.id === activeRepertoireId) ?? null);
 
-	// White pawn for WHITE repertoires, black pawn for BLACK.
-	function colorIcon(color: string): string {
-		return color === 'WHITE' ? '♙' : '♟';
+	// CSS class for the color dot indicator.
+	function colorDotClass(color: string): string {
+		return color === 'WHITE' ? 'color-dot color-dot--white' : 'color-dot color-dot--black';
 	}
 
 	// ── Switch active repertoire ─────────────────────────────────────────────────
@@ -96,7 +96,7 @@
 		title="Switch repertoire"
 	>
 		{#if active}
-			<span class="color-icon">{colorIcon(active.color)}</span>
+			<span class="color-icon"><span class={colorDotClass(active.color)}></span></span>
 			<span class="rep-name">{active.name}</span>
 		{:else}
 			<span class="no-rep">No repertoire</span>
@@ -114,7 +114,7 @@
 					aria-selected={rep.id === activeRepertoireId}
 					onclick={() => switchTo(rep.id)}
 				>
-					<span class="color-icon">{colorIcon(rep.color)}</span>
+					<span class="color-icon"><span class={colorDotClass(rep.color)}></span></span>
 					<span class="item-name">{rep.name}</span>
 					{#if rep.id === activeRepertoireId}
 						<span class="check">✓</span>

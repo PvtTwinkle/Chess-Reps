@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Color indicators for imported games now use explicit colored dots instead of Unicode chess pieces that rendered as the wrong color on dark backgrounds
+- Chess.com and Lichess game import now checks both player names explicitly and falls back to PGN headers, preventing color misdetection
+
 ### Added
 
 - Masters database and puzzle database now ship pre-loaded in the Docker image — no manual download or restore steps required; data is seeded automatically on first boot

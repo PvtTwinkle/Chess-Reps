@@ -127,11 +127,11 @@
 				<div class="color-row">
 					<label class="color-label" class:selected={color === 'WHITE'}>
 						<input type="radio" name="color" value="WHITE" bind:group={color} disabled={busy} />
-						<span class="color-opt">♙ White</span>
+						<span class="color-opt"><span class="color-dot color-dot--white"></span> White</span>
 					</label>
 					<label class="color-label" class:selected={color === 'BLACK'}>
 						<input type="radio" name="color" value="BLACK" bind:group={color} disabled={busy} />
-						<span class="color-opt">♟ Black</span>
+						<span class="color-opt"><span class="color-dot color-dot--black"></span> Black</span>
 					</label>
 				</div>
 			</div>

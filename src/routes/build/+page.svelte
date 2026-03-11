@@ -343,7 +343,13 @@
 	<div class="sidebar">
 		<!-- Repertoire identity -->
 		<div class="rep-header">
-			<span class="rep-icon">{data.repertoire.color === 'WHITE' ? '♙' : '♟'}</span>
+			<span class="rep-icon"
+				><span
+					class="color-dot {data.repertoire.color === 'WHITE'
+						? 'color-dot--white'
+						: 'color-dot--black'}"
+				></span></span
+			>
 			<span class="rep-name">{data.repertoire.name}</span>
 			<span
 				class="color-badge"

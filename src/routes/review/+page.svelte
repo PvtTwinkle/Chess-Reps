@@ -1039,11 +1039,11 @@
 						<span class="color-label">I played as:</span>
 						<label class="color-opt" class:selected={playerColor === 'WHITE'}>
 							<input type="radio" name="playerColor" value="WHITE" bind:group={playerColor} />
-							♙ White
+							<span class="color-dot color-dot--white"></span> White
 						</label>
 						<label class="color-opt" class:selected={playerColor === 'BLACK'}>
 							<input type="radio" name="playerColor" value="BLACK" bind:group={playerColor} />
-							♟ Black
+							<span class="color-dot color-dot--black"></span> Black
 						</label>
 					</div>
 
@@ -1176,7 +1176,11 @@
 										{game.source === 'LICHESS' ? 'Li' : 'CC'}
 									</span>
 									<span class="import-color">
-										{game.playerColor === 'WHITE' ? '♙' : '♟'}
+										<span
+											class="color-dot {game.playerColor === 'WHITE'
+												? 'color-dot--white'
+												: 'color-dot--black'}"
+										></span>
 									</span>
 									<span class="import-opponent">
 										vs {game.opponentName ?? 'Unknown'}
@@ -1371,7 +1375,13 @@
 		<div class="sidebar">
 			<!-- Repertoire identity -->
 			<div class="rep-header">
-				<span class="rep-icon">{analysedPlayerColor === 'WHITE' ? '♙' : '♟'}</span>
+				<span class="rep-icon"
+					><span
+						class="color-dot {analysedPlayerColor === 'WHITE'
+							? 'color-dot--white'
+							: 'color-dot--black'}"
+					></span></span
+				>
 				<span class="rep-name">{analysisRepName ?? data.repertoire.name}</span>
 				<span
 					class="color-badge"

@@ -65,6 +65,26 @@
 	--bp-xl: 1280px; /* desktop */
 }
 
+/* ── Piece color indicators ─────────────────────────────── */
+.color-dot {
+	display: inline-block;
+	width: 14px;
+	height: 14px;
+	border-radius: 50%;
+	vertical-align: middle;
+	flex-shrink: 0;
+}
+
+.color-dot--white {
+	background: #f0f0f0;
+	border: 1.5px solid #888;
+}
+
+.color-dot--black {
+	background: #333;
+	border: 1.5px solid #888;
+}
+
 /* ============================================================
    Light Theme Overrides
    Warm, paper-like tones — not clinical white

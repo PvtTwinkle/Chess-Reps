@@ -53,9 +53,9 @@
 	let busy = $state(false);
 	let errorMsg = $state('');
 
-	// White pawn for WHITE repertoires, black pawn for BLACK.
-	function colorIcon(color: string): string {
-		return color === 'WHITE' ? '♙' : '♟';
+	// CSS class for the color dot indicator.
+	function colorDotClass(color: string): string {
+		return color === 'WHITE' ? 'color-dot color-dot--white' : 'color-dot color-dot--black';
 	}
 
 	// ── Create a new repertoire ──────────────────────────────────────────────────
@@ -233,7 +233,7 @@
 							</div>
 						{:else if editingId === rep.id}
 							<!-- Inline rename input replaces the name label -->
-							<span class="row-icon">{colorIcon(rep.color)}</span>
+							<span class="row-icon"><span class={colorDotClass(rep.color)}></span></span>
 							<input
 								class="rename-input"
 								type="text"
@@ -251,7 +251,7 @@
 							</div>
 						{:else}
 							<!-- Normal row -->
-							<span class="row-icon">{colorIcon(rep.color)}</span>
+							<span class="row-icon"><span class={colorDotClass(rep.color)}></span></span>
 							<span class="row-name">{rep.name}</span>
 							<span
 								class="color-badge"
@@ -309,11 +309,11 @@
 				<div class="color-row">
 					<label class="color-label">
 						<input type="radio" name="rep-color" value="WHITE" bind:group={newColor} />
-						<span class="color-opt">♙ White</span>
+						<span class="color-opt"><span class="color-dot color-dot--white"></span> White</span>
 					</label>
 					<label class="color-label">
 						<input type="radio" name="rep-color" value="BLACK" bind:group={newColor} />
-						<span class="color-opt">♟ Black</span>
+						<span class="color-opt"><span class="color-dot color-dot--black"></span> Black</span>
 					</label>
 				</div>
 

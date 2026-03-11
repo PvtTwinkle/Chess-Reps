@@ -196,10 +196,26 @@ async function fetchArchiveGames(
 
 function parseChesscomGame(raw: ChesscomRawGame, username: string): ChesscomGame {
 	// Determine which color the user played (case-insensitive match).
-	const userLower = username.toLowerCase();
-	const isWhite = raw.white.username.toLowerCase() === userLower;
-	const playerColor: 'WHITE' | 'BLACK' = isWhite ? 'WHITE' : 'BLACK';
+	// Check both sides explicitly rather than assuming "not white = black",
+	// with a PGN header fallback in case the JSON usernames don't match.
+	const userLower = username.trim().toLowerCase();
+	const whiteMatch = raw.white.username.trim().toLowerCase() === userLower;
+	const blackMatch = raw.black.username.trim().toLowerCase() === userLower;
 
+	let playerColor: 'WHITE' | 'BLACK';
+	if (whiteMatch) {
+		playerColor = 'WHITE';
+	} else if (blackMatch) {
+		playerColor = 'BLACK';
+	} else {
+		// Fallback: check PGN [White] / [Black] headers
+		const whiteHeader = extractPgnHeader(raw.pgn, 'White')?.trim().toLowerCase();
+		const blackHeader = extractPgnHeader(raw.pgn, 'Black')?.trim().toLowerCase();
+		playerColor =
+			whiteHeader === userLower ? 'WHITE' : blackHeader === userLower ? 'BLACK' : 'WHITE';
+	}
+
+	const isWhite = playerColor === 'WHITE';
 	const opponentInfo = isWhite ? raw.black : raw.white;
 	const playerInfo = isWhite ? raw.white : raw.black;
 
@@ -245,6 +261,14 @@ function mapChesscomResult(whiteResult: string, blackResult: string): string | n
 	if (lossResults.includes(blackResult)) return '1-0';
 
 	return null;
+}
+
+/** Extract a single PGN header value by tag name, e.g. extractPgnHeader(pgn, 'White'). */
+function extractPgnHeader(pgn: string, tag: string): string | null {
+	// eslint-disable-next-line security/detect-non-literal-regexp -- tag is always a hardcoded literal from our own code
+	const re = new RegExp(`\\[${tag}\\s+"([^"]*)"\\]`);
+	const m = pgn.match(re);
+	return m ? m[1] : null;
 }
 
 function sleep(ms: number): Promise<void> {
