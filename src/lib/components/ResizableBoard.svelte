@@ -57,10 +57,11 @@
 		if (!untrack(() => dragging)) localWidth = null;
 	});
 
-	/** The effective width style to apply. */
+	/** The effective width style to apply. Uses CSS min() to cap at viewport height. */
 	let effectiveWidth = $derived.by(() => {
 		const w = localWidth ?? (boardSize > 0 ? boardSize : 0);
-		return w > 0 ? `${w}px` : '100%';
+		if (w <= 0) return 'calc(100vh - 100px)';
+		return `min(${w}px, calc(100vh - 100px))`;
 	});
 
 	// ---------------------------------------------------------------------------
@@ -82,7 +83,11 @@
 	function onPointerMove(e: PointerEvent) {
 		if (!dragging) return;
 		const delta = e.clientX - dragStartX;
-		const newWidth = Math.max(MIN_SIZE, Math.min(MAX_SIZE, Math.round(dragStartWidth + delta)));
+		const maxForViewport = Math.min(MAX_SIZE, window.innerHeight - 100);
+		const newWidth = Math.max(
+			MIN_SIZE,
+			Math.min(maxForViewport, Math.round(dragStartWidth + delta))
+		);
 		localWidth = newWidth;
 	}
 
@@ -116,8 +121,9 @@
 <style>
 	.resizable-board {
 		position: relative;
-		/* width is set via style binding; max-width prevents overflow on mobile */
-		max-width: 100%;
+		/* Cap width at viewport height (minus header + padding) so the square
+		   board always fits on screen. CSS min() handles this declaratively. */
+		max-width: min(100%, calc(100vh - 100px));
 	}
 
 	/* Prevent Chessground from capturing pointer events during resize drag */

@@ -1819,9 +1819,10 @@
 	@media (min-width: 768px) {
 		.page {
 			display: grid;
-			grid-template-columns: 1fr 280px;
+			grid-template-columns: auto 280px;
 			gap: var(--space-4);
 			align-items: start;
+			justify-content: center;
 			padding: 0;
 		}
 	}
@@ -1829,7 +1830,7 @@
 	/* Desktop (≥1024px) — --bp-lg */
 	@media (min-width: 1024px) {
 		.page {
-			grid-template-columns: 1fr 340px;
+			grid-template-columns: auto 340px;
 			gap: var(--space-6);
 			max-width: 1100px;
 			margin: 0 auto;
