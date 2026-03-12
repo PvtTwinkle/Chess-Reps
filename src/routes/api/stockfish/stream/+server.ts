@@ -46,7 +46,12 @@ export const GET: RequestHandler = async ({ url, locals, request }) => {
 
 	// Stockfish scores are from the side-to-move's perspective. Multiply
 	// by this to convert to white's perspective for the UI.
-	const chess = new Chess(fen);
+	let chess: Chess;
+	try {
+		chess = new Chess(fen);
+	} catch {
+		throw error(400, 'Invalid FEN');
+	}
 	const whiteMultiplier = chess.turn() === 'w' ? 1 : -1;
 
 	const generator = streamTopMoves(fen, depth, numMoves, timeoutSec * 1000);
@@ -105,8 +110,7 @@ export const GET: RequestHandler = async ({ url, locals, request }) => {
 	return new Response(stream, {
 		headers: {
 			'Content-Type': 'text/event-stream',
-			'Cache-Control': 'no-cache',
-			Connection: 'keep-alive'
+			'Cache-Control': 'no-cache'
 		}
 	});
 };

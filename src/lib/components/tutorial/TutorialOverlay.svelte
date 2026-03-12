@@ -28,6 +28,7 @@
 	});
 
 	let dismissed = $state(false);
+	let busy = $state(false);
 
 	// Reset dismissed state when step changes
 	$effect(() => {
@@ -39,36 +40,56 @@
 	// ── Actions ──────────────────────────────────────────────────────────────
 
 	async function patchStep(newStep: number | null) {
-		await fetch('/api/settings', {
-			method: 'PATCH',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ tutorialStep: newStep })
-		});
-		await invalidateAll();
+		try {
+			await fetch('/api/settings', {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ tutorialStep: newStep })
+			});
+			await invalidateAll();
+		} catch {
+			// Network error — the tutorial step wasn't saved, but let
+			// invalidateAll run anyway so the UI stays in sync with whatever
+			// the server has.
+			await invalidateAll().catch(() => {});
+		}
 	}
 
 	async function skipTutorial() {
-		await patchStep(null);
+		if (busy) return;
+		busy = true;
+		try {
+			await patchStep(null);
+		} finally {
+			busy = false;
+		}
 	}
 
 	async function handleNext() {
-		if (!stepDef) return;
+		if (!stepDef || busy) return;
+		busy = true;
 
-		// Capture navTo before the await — patchStep calls invalidateAll()
-		// which updates the reactive stepDef to the NEW step (whose navTo
-		// would be undefined), causing goto(undefined) → 404.
+		// Capture reactive values before the await — patchStep calls
+		// invalidateAll() which updates reactive state to the NEW step.
+		// Reading step or stepDef after the await would see the new values.
 		const destination = stepDef.navTo;
+		const currentStep = step;
 
-		if (destination) {
-			const nextStep = step !== null && step < TOTAL_STEPS - 1 ? step + 1 : null;
-			await patchStep(nextStep);
-			// eslint-disable-next-line svelte/no-navigation-without-resolve -- dynamic path from tutorial step definitions
-			await goto(destination);
-		} else if (step === TOTAL_STEPS - 1) {
-			// Last step — finish tutorial
-			await patchStep(null);
-		} else if (step !== null) {
-			await patchStep(step + 1);
+		try {
+			if (destination) {
+				const nextStep =
+					currentStep !== null && currentStep < TOTAL_STEPS - 1 ? currentStep + 1 : null;
+				await patchStep(nextStep);
+				// eslint-disable-next-line svelte/no-navigation-without-resolve -- dynamic path from tutorial step definitions
+				await goto(destination);
+			} else if (currentStep === TOTAL_STEPS - 1) {
+				// Last step — finish tutorial
+				await patchStep(null);
+			} else if (currentStep !== null) {
+				await patchStep(currentStep + 1);
+			}
+		} finally {
+			busy = false;
 		}
 	}
 
@@ -81,7 +102,7 @@
 </script>
 
 {#if visible && !dismissed}
-	<div class="tutorial-overlay" role="complementary" aria-label="Tutorial">
+	<div class="tutorial-overlay" role="status" aria-label="Tutorial" aria-live="polite">
 		<div class="tutorial-card">
 			<!-- Header with step indicator -->
 			<div class="tutorial-header">
@@ -103,7 +124,7 @@
 					<button class="btn-nav" onclick={navigateToCorrectPage}>
 						Go to {stepDef?.title}
 					</button>
-					<button class="btn-skip" onclick={skipTutorial}>Skip Tutorial</button>
+					<button class="btn-skip" onclick={skipTutorial} disabled={busy}>Skip Tutorial</button>
 				</div>
 			{:else}
 				<!-- Current step content -->
@@ -111,23 +132,28 @@
 				<p class="tutorial-body">{stepDef?.body}</p>
 
 				<!-- Step dots -->
-				<div class="step-dots">
+				<div class="step-dots" role="group" aria-label="Tutorial progress">
 					{#each Array.from({ length: TOTAL_STEPS - 1 }, (_, i) => i) as i (i)}
 						<span
 							class="dot"
 							class:active={i + 1 === step}
 							class:completed={step !== null && i + 1 < step}
+							aria-label="Step {i + 1}{i + 1 === step
+								? ', current'
+								: step !== null && i + 1 < step
+									? ', completed'
+									: ''}"
 						></span>
 					{/each}
 				</div>
 
 				<div class="tutorial-actions">
 					{#if stepDef?.nextLabel}
-						<button class="btn-next" onclick={handleNext}>
+						<button class="btn-next" onclick={handleNext} disabled={busy}>
 							{stepDef.nextLabel}
 						</button>
 					{/if}
-					<button class="btn-skip" onclick={skipTutorial}>Skip Tutorial</button>
+					<button class="btn-skip" onclick={skipTutorial} disabled={busy}>Skip Tutorial</button>
 				</div>
 			{/if}
 		</div>

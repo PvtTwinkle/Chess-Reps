@@ -33,7 +33,7 @@
 	const evalText = $derived.by(() => {
 		if (evalCp === null && evalMate === null) return '';
 		if (evalMate !== null) {
-			return evalMate > 0 ? `#${evalMate}` : `#${Math.abs(evalMate)}`;
+			return evalMate > 0 ? `#${evalMate}` : `-#${Math.abs(evalMate)}`;
 		}
 		const pawns = Math.abs(evalCp!) / 100;
 		return pawns.toFixed(1);
