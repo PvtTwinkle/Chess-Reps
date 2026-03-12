@@ -218,8 +218,8 @@
 	}
 
 	.brand-icon {
-		width: 56px;
-		height: 56px;
+		width: 48px;
+		height: 48px;
 		border-radius: 0;
 	}
 
