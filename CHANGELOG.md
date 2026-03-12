@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Guided tutorial for first-time users — a floating card walks new users through Build, Drill, Puzzles, and Review step by step
 - "Restart Tutorial" button in Settings to replay the walkthrough at any time
+- Streaming engine analysis — the eval bar and candidate move scores now update progressively as Stockfish searches deeper, instead of waiting for the full analysis to finish
 
 ### Fixed
 

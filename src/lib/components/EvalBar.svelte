@@ -11,10 +11,9 @@
 		evalCp: number | null;
 		evalMate: number | null;
 		orientation: 'white' | 'black';
-		loading?: boolean;
 	}
 
-	let { evalCp, evalMate, orientation, loading = false }: Props = $props();
+	let { evalCp, evalMate, orientation }: Props = $props();
 
 	/** Convert centipawns to a 0–100 percentage for white's portion. */
 	function cpToPercent(cp: number): number {
@@ -25,14 +24,14 @@
 
 	/** White's share of the bar as a percentage (0–100). */
 	const whitePct = $derived.by(() => {
-		if (loading || (evalCp === null && evalMate === null)) return 50;
+		if (evalCp === null && evalMate === null) return 50;
 		if (evalMate !== null) return evalMate > 0 ? 98 : 2;
 		return cpToPercent(evalCp!);
 	});
 
 	/** Format the eval as a human-readable string. */
 	const evalText = $derived.by(() => {
-		if (loading || (evalCp === null && evalMate === null)) return '';
+		if (evalCp === null && evalMate === null) return '';
 		if (evalMate !== null) {
 			return evalMate > 0 ? `#${evalMate}` : `#${Math.abs(evalMate)}`;
 		}
@@ -58,7 +57,7 @@
 	const labelOnTop = $derived(topIsBlack ? !whiteAdvantage : whiteAdvantage);
 </script>
 
-<div class="eval-bar" class:loading>
+<div class="eval-bar">
 	<div
 		class="eval-bar-top"
 		class:is-white={!topIsBlack}
@@ -88,7 +87,7 @@
 		flex-shrink: 0;
 		display: flex;
 		flex-direction: column;
-		border-radius: 4px;
+		border-radius: 0;
 		overflow: hidden;
 		border: 1px solid var(--clr-border, #ccc);
 	}
@@ -127,20 +126,5 @@
 
 	.is-black .eval-label {
 		color: #d4d4d4;
-	}
-
-	.loading .eval-bar-top,
-	.loading .eval-bar-bottom {
-		animation: pulse 1.5s ease-in-out infinite;
-	}
-
-	@keyframes pulse {
-		0%,
-		100% {
-			opacity: 1;
-		}
-		50% {
-			opacity: 0.6;
-		}
 	}
 </style>

@@ -40,6 +40,160 @@ export interface StockfishMove {
 	scoreMate: number | null;
 }
 
+// A snapshot of engine analysis at a particular search depth.
+export interface StockfishUpdate {
+	// The search depth this snapshot represents.
+	depth: number;
+	// All PVs at this depth (sorted by multipv index, best first).
+	moves: StockfishMove[];
+	// true when analysis is complete (bestmove received or timeout).
+	done: boolean;
+}
+
+// Streams Stockfish analysis results as an async generator, yielding a
+// StockfishUpdate each time a new depth completes (all numMoves PVs received).
+// The consumer can break out or call generator.return() at any time — the
+// finally block ensures the Stockfish process is killed.
+//
+// Yields updates with done=false for intermediate depths, then a final
+// update with done=true when bestmove arrives or the timeout fires.
+// If the engine binary is unavailable, yields a single done=true with no moves.
+export async function* streamTopMoves(
+	fen: string,
+	depth: number,
+	numMoves: number,
+	timeoutMs: number = DEFAULT_TIMEOUT_MS
+): AsyncGenerator<StockfishUpdate> {
+	// Simple async queue: stdout handler pushes items, the generator awaits them.
+	const queue: StockfishUpdate[] = [];
+	let waiting: ((value: void) => void) | null = null;
+	const push = (item: StockfishUpdate) => {
+		queue.push(item);
+		if (waiting) {
+			waiting();
+			waiting = null;
+		}
+	};
+	const pull = async (): Promise<StockfishUpdate> => {
+		while (queue.length === 0) {
+			await new Promise<void>((resolve) => {
+				waiting = resolve;
+			});
+		}
+		return queue.shift()!;
+	};
+
+	let proc: ReturnType<typeof spawn>;
+	try {
+		proc = spawn(STOCKFISH_BIN, [], {
+			stdio: ['pipe', 'pipe', 'ignore']
+		});
+	} catch {
+		yield { depth: 0, moves: [], done: true };
+		return;
+	}
+
+	const stdin = proc.stdin!;
+	const stdout = proc.stdout!;
+	let finished = false;
+
+	// Track results per depth. When all numMoves PVs arrive at a depth
+	// higher than the last yielded depth, we push a snapshot.
+	const currentDepth = new Map<number, StockfishMove>();
+	let lastYieldedDepth = 0;
+	let buffer = '';
+
+	const finishWithPartial = () => {
+		if (finished) return;
+		finished = true;
+		clearTimeout(timer);
+		const sorted = [...currentDepth.entries()].sort(([a], [b]) => a - b).map(([, v]) => v);
+		push({ depth: lastYieldedDepth, moves: sorted, done: true });
+		proc.kill('SIGKILL');
+	};
+
+	const timer = setTimeout(finishWithPartial, timeoutMs);
+
+	stdin.write(`uci\n`);
+	stdin.write(`setoption name MultiPV value ${numMoves}\n`);
+	stdin.write(`isready\n`);
+
+	stdout.on('data', (chunk: Buffer) => {
+		if (finished) return;
+		buffer += chunk.toString();
+		const lines = buffer.split('\n');
+		buffer = lines.pop() ?? '';
+
+		for (const line of lines) {
+			if (line.startsWith('readyok')) {
+				stdin.write(`position fen ${fen}\n`);
+				stdin.write(`go depth ${depth}\n`);
+			} else if (line.startsWith('info') && line.includes('multipv') && line.includes(' pv ')) {
+				const depthMatch = line.match(/depth (\d+)/);
+				const multipvMatch = line.match(/multipv (\d+)/);
+				const pvMatch = line.match(/ pv ([a-h][1-8][a-h][1-8][qrbn]?)/);
+				if (!depthMatch || !multipvMatch || !pvMatch) continue;
+
+				const infoDepth = parseInt(depthMatch[1], 10);
+				const pvIdx = parseInt(multipvMatch[1], 10);
+				const uci = pvMatch[1];
+				const cpMatch = line.match(/score cp (-?\d+)/);
+				const mateMatch = line.match(/score mate (-?\d+)/);
+
+				currentDepth.set(pvIdx, {
+					uci,
+					scoreCp: cpMatch ? parseInt(cpMatch[1], 10) : null,
+					scoreMate: mateMatch ? parseInt(mateMatch[1], 10) : null
+				});
+
+				// Stockfish emits multipv 1..N sequentially at each depth.
+				// When we receive the last PV (pvIdx === numMoves) at a new
+				// depth, push a snapshot.
+				if (pvIdx >= numMoves && infoDepth > lastYieldedDepth) {
+					lastYieldedDepth = infoDepth;
+					const sorted = [...currentDepth.entries()].sort(([a], [b]) => a - b).map(([, v]) => v);
+					push({ depth: infoDepth, moves: sorted, done: false });
+				}
+			} else if (line.startsWith('bestmove')) {
+				finishWithPartial();
+			}
+		}
+	});
+
+	proc.on('error', () => {
+		if (!finished) {
+			finished = true;
+			clearTimeout(timer);
+			push({ depth: 0, moves: [], done: true });
+		}
+	});
+
+	proc.on('close', () => {
+		if (!finished) {
+			finished = true;
+			clearTimeout(timer);
+			const sorted = [...currentDepth.entries()].sort(([a], [b]) => a - b).map(([, v]) => v);
+			push({ depth: lastYieldedDepth, moves: sorted, done: true });
+		}
+	});
+
+	// Yield updates from the queue until we get a done=true item.
+	try {
+		while (true) {
+			const update = await pull();
+			yield update;
+			if (update.done) return;
+		}
+	} finally {
+		// Consumer broke out early (e.g. client disconnected) — clean up.
+		if (!finished) {
+			finished = true;
+			clearTimeout(timer);
+			proc.kill('SIGKILL');
+		}
+	}
+}
+
 // Asks Stockfish to analyse a position and return its top candidate moves.
 //
 // fen       — position to analyse, in FEN notation

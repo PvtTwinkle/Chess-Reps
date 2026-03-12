@@ -83,6 +83,8 @@
 	let engineLoading = $state(false);
 	let engineError = $state(false);
 	let engineAvailable = $state(true);
+	let engineDepth = $state(0);
+	let engineMaxDepth = $state(0);
 
 	// ── Masters state ─────────────────────────────────────────────────────────
 	let mastersMoves = $state<MastersMove[]>([]);
@@ -185,38 +187,63 @@
 		};
 	});
 
-	// ── Engine fetch — slow (~2-10s, Stockfish analysis) ──────────────────────
+	// ── Engine stream — progressive Stockfish analysis via SSE ────────────────
+	// Opens a Server-Sent Events connection that yields eval updates at each
+	// search depth. The eval bar and candidate list update live as the engine
+	// searches deeper — no more waiting for the full analysis to finish.
 	$effect(() => {
 		const fen = currentFen;
-		const controller = new AbortController();
+		const params = new URLSearchParams({ fen });
+		const es = new EventSource(`/api/stockfish/stream?${params}`);
 
 		engineLoading = true;
 		engineError = false;
 		engineCandidates = [];
+		engineDepth = 0;
+		engineMaxDepth = 0;
 
-		fetch('/api/stockfish', {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ fen, mode: 'engine' }),
-			signal: controller.signal
-		})
-			.then((res) => {
-				if (!res.ok) throw new Error('Engine fetch failed');
-				return res.json();
-			})
-			.then((data) => {
-				engineCandidates = (data.candidates as Candidate[]).filter((c) => !c.isBook);
-				engineAvailable = data.engineAvailable;
-			})
-			.catch((err) => {
-				if (err.name !== 'AbortError') engineError = true;
-			})
-			.finally(() => {
-				if (!controller.signal.aborted) engineLoading = false;
-			});
+		es.onmessage = (event) => {
+			try {
+				const data = JSON.parse(event.data) as {
+					depth: number;
+					maxDepth: number;
+					candidates: Array<{
+						san: string;
+						uci: string;
+						evalCp: number | null;
+						evalMate: number | null;
+					}>;
+					done: boolean;
+				};
+
+				// Map streaming candidates to the full Candidate shape used by the UI.
+				engineCandidates = data.candidates.map((c) => ({
+					...c,
+					isBook: false,
+					annotation: null,
+					openingName: null
+				}));
+				engineDepth = data.depth;
+				engineMaxDepth = data.maxDepth;
+				engineAvailable = data.candidates.length > 0;
+
+				if (data.done) {
+					engineLoading = false;
+					es.close();
+				}
+			} catch {
+				// Malformed event — ignore and wait for the next one.
+			}
+		};
+
+		es.onerror = () => {
+			engineError = true;
+			engineLoading = false;
+			es.close();
+		};
 
 		return () => {
-			controller.abort();
+			es.close();
 		};
 	});
 
@@ -427,11 +454,11 @@
 		{/if}
 
 		<!-- ── Engine tab content ────────────────────────────────────────────── -->
-	{:else if engineLoading}
-		<div class="loading">Analysing…</div>
 	{:else if engineError}
 		<p class="empty-hint">Could not load engine suggestions.</p>
-	{:else if engineCandidates.length === 0}
+	{:else if engineLoading && engineCandidates.length === 0}
+		<div class="loading">Analysing…</div>
+	{:else if !engineLoading && engineCandidates.length === 0}
 		<p class="empty-hint">
 			{engineAvailable ? 'No engine suggestions available.' : 'Stockfish engine is not available.'}
 		</p>
@@ -458,6 +485,9 @@
 				</button>
 			{/each}
 		</div>
+		{#if engineLoading && engineDepth > 0}
+			<div class="depth-indicator">depth {engineDepth} / {engineMaxDepth}</div>
+		{/if}
 	{/if}
 </div>
 
@@ -664,6 +694,16 @@
 
 	.wdl-label-black {
 		color: var(--color-danger);
+	}
+
+	/* ── Depth indicator (shown during progressive engine analysis) ────────── */
+
+	.depth-indicator {
+		font-size: 10px;
+		color: var(--color-text-muted);
+		text-align: right;
+		font-variant-numeric: tabular-nums;
+		padding-right: var(--space-2);
 	}
 
 	/* ── Mobile compact mode ── --bp-md */

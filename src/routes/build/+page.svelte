@@ -68,7 +68,6 @@
 	// ── Eval bar state ────────────────────────────────────────────────────────
 	let evalCp = $state<number | null>(null);
 	let evalMate = $state<number | null>(null);
-	let evalLoading = $state(true);
 
 	// ── Board resize ─────────────────────────────────────────────────────────
 	// Fire-and-forget: the ResizableBoard component already shows the new size
@@ -337,7 +336,7 @@
 	<div class="board-col">
 		<ResizableBoard boardSize={data.settings?.boardSize ?? 0} onResize={handleBoardResize}>
 			<div class="board-inner">
-				<EvalBar {evalCp} {evalMate} {orientation} loading={evalLoading} />
+				<EvalBar {evalCp} {evalMate} {orientation} />
 				{#key s.boardKey}
 					<ChessBoard
 						fen={s.currentFen}
@@ -588,10 +587,9 @@
 				currentCandidateTab = tab;
 				requestedTab = null;
 			}}
-			onEvalChanged={(cp, mate, loading) => {
+			onEvalChanged={(cp, mate) => {
 				evalCp = cp;
 				evalMate = mate;
-				evalLoading = loading;
 			}}
 		/>
 
