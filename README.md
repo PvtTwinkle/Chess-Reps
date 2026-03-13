@@ -182,4 +182,8 @@ See [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) for full attribution and li
 
 ## License
 
-MIT
+Chessstack is licensed under the [GNU Affero General Public License v3.0 or later](LICENSE) (AGPL-3.0-or-later).
+
+You are free to self-host, modify, and redistribute this software. If you run a
+modified version as a network service, you must make your source code available
+to its users under the same license. See the [LICENSE](LICENSE) file for full terms.
