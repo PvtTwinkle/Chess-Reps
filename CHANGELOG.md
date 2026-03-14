@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Playback speed setting — slider in Settings → Drill to control how fast moves are auto-played in drill and review (200ms–2000ms)
+
 ### Changed
 
 - Licensed the project under AGPL-3.0-or-later (previously stated as MIT with no formal license file)

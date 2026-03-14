@@ -23,6 +23,7 @@
 		clearTimeout(depthTimeout);
 		clearTimeout(timeoutDebounce);
 		clearTimeout(tempoDebounce);
+		clearTimeout(playbackDebounce);
 		for (const id of timers) clearTimeout(id);
 		timers.clear();
 	});
@@ -235,6 +236,40 @@
 			safeTimeout(() => (tempoStatus = ''), 2000);
 		} catch {
 			tempoStatus = 'Error saving';
+		}
+	}
+
+	// ── Playback Speed ─────────────────────────────────────────────────────
+	// eslint-disable-next-line svelte/prefer-writable-derived
+	let playbackSpeed = $state(500);
+	let playbackStatus = $state('');
+	let playbackDebounce: ReturnType<typeof setTimeout> | undefined;
+
+	$effect(() => {
+		playbackSpeed = data.settings?.playbackSpeed ?? 500;
+	});
+
+	function handlePlaybackSpeedChange(e: Event) {
+		const value = parseInt((e.target as HTMLInputElement).value);
+		playbackSpeed = value;
+		clearTimeout(playbackDebounce);
+		playbackDebounce = setTimeout(() => savePlaybackSpeed(value), 400);
+	}
+
+	async function savePlaybackSpeed(value: number) {
+		playbackStatus = '';
+		try {
+			const res = await fetch('/api/settings', {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ playbackSpeed: value })
+			});
+			if (!res.ok) throw new Error('Failed to save');
+			await invalidateAll();
+			playbackStatus = 'Saved';
+			safeTimeout(() => (playbackStatus = ''), 2000);
+		} catch {
+			playbackStatus = 'Error saving';
 		}
 	}
 
@@ -517,6 +552,29 @@
 					{/if}
 				</div>
 			{/if}
+
+			<div class="setting-row">
+				<label class="setting-label" for="playback-slider">
+					Playback Speed: <strong>{playbackSpeed}ms</strong>
+				</label>
+				<div class="slider-wrap">
+					<span class="slider-label">Fast</span>
+					<input
+						id="playback-slider"
+						type="range"
+						min="200"
+						max="2000"
+						step="50"
+						value={playbackSpeed}
+						oninput={handlePlaybackSpeedChange}
+					/>
+					<span class="slider-label">Slow</span>
+				</div>
+				<p class="setting-hint">Delay between auto-played moves in drill and review modes.</p>
+				{#if playbackStatus}
+					<span class="status-msg">{playbackStatus}</span>
+				{/if}
+			</div>
 		</section>
 
 		<!-- ── Game Import ─────────────────────────────────────────────────── -->

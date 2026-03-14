@@ -315,6 +315,9 @@
 		setSoundEnabled(data.settings?.soundEnabled ?? true);
 	});
 
+	// Auto-play delay between moves (configurable in Settings → Drill).
+	const playbackSpeed = $derived(data.settings?.playbackSpeed ?? 500);
+
 	// ── Sync from form action result ────────────────────────────────────────────
 
 	// When the analyzeGame action succeeds, store the result in local state.
@@ -483,7 +486,7 @@
 				autoPlayTarget = null;
 				isAutoPlaying = false;
 			}
-		}, 500);
+		}, playbackSpeed);
 
 		return () => clearTimeout(timer);
 	});

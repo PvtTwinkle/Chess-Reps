@@ -1,0 +1,1 @@
+ALTER TABLE user_settings ADD COLUMN playback_speed integer NOT NULL DEFAULT 500;

@@ -224,6 +224,9 @@
 	// Brief interstitial shown between lines.
 	let lineComplete = $state(false);
 
+	// ── Playback speed (ms between auto-played moves) ────────────────────────
+	let playbackSpeed = $state(500);
+
 	// ── Tempo training state ──────────────────────────────────────────────────
 	let tempoEnabled = $state(false);
 	let tempoSeconds = $state(10);
@@ -379,6 +382,7 @@
 		soundEnabled = data.settings?.soundEnabled ?? true;
 		tempoEnabled = data.settings?.tempoEnabled ?? false;
 		tempoSeconds = data.settings?.tempoSeconds ?? 10;
+		playbackSpeed = data.settings?.playbackSpeed ?? 500;
 
 		// Reset session.
 		totalReviewed = 0;
@@ -763,11 +767,11 @@
 			}
 
 			idx++;
-			autoPlayTimer = setTimeout(step, 500);
+			autoPlayTimer = setTimeout(step, playbackSpeed);
 		}
 
 		// First move plays after a short pause so the user sees the starting position.
-		autoPlayTimer = setTimeout(step, 500);
+		autoPlayTimer = setTimeout(step, playbackSpeed);
 	}
 
 	// ── User move handling ─────────────────────────────────────────────────────
@@ -1105,10 +1109,10 @@
 			}
 
 			idx++;
-			autoPlayTimer = setTimeout(step, 500);
+			autoPlayTimer = setTimeout(step, playbackSpeed);
 		}
 
-		autoPlayTimer = setTimeout(step, 500);
+		autoPlayTimer = setTimeout(step, playbackSpeed);
 	}
 
 	// After the user plays a correct move in line mode, continue auto-playing

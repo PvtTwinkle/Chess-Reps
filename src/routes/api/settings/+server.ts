@@ -100,6 +100,11 @@ export const PATCH: RequestHandler = async ({ locals, request }) => {
 		updates.tempoSeconds = Math.max(3, Math.min(30, Math.round(body.tempoSeconds)));
 	}
 
+	// Playback speed: auto-play delay in milliseconds, clamped to 200–2000.
+	if (typeof body.playbackSpeed === 'number') {
+		updates.playbackSpeed = Math.max(200, Math.min(2000, Math.round(body.playbackSpeed)));
+	}
+
 	// App theme: dark or light mode.
 	const VALID_APP_THEMES = ['dark', 'light'];
 	if (typeof body.appTheme === 'string' && VALID_APP_THEMES.includes(body.appTheme)) {
