@@ -444,11 +444,20 @@
 	// Progress fraction (0–1) for the progress bar.
 	const progress = $derived(filteredCards.length === 0 ? 1 : currentCardIdx / filteredCards.length);
 
-	// Yellow circle on the piece's square when a hint is active.
-	// A shape with only `orig` (no `dest`) draws a circle dot on that square.
-	const hintShapes = $derived<DrawShape[]>(
-		hintSquare ? [{ orig: hintSquare as Key, brush: 'yellow' }] : []
-	);
+	// Board shapes: yellow hint circle + green arrow showing the correct move on wrong answer.
+	const boardShapes = $derived.by<DrawShape[]>(() => {
+		const shapes: DrawShape[] = [];
+		if (hintSquare) {
+			shapes.push({ orig: hintSquare as Key, brush: 'yellow' });
+		}
+		if (revealedSan) {
+			const sq = getMoveSquares(currentFen, revealedSan);
+			if (sq) {
+				shapes.push({ orig: sq.from as Key, dest: sq.to as Key, brush: 'green' });
+			}
+		}
+		return shapes;
+	});
 
 	// Note on the move that REACHES a given position (keyed by normalised toFen).
 	// Used to show the opponent's last-move annotation while the user is thinking.
@@ -524,6 +533,17 @@
 		const chess = new Chess(fen);
 		const move = chess.moves({ verbose: true }).find((m) => m.san === san);
 		return move?.from ?? null;
+	}
+
+	// Resolve a SAN move in a position to its origin and destination squares.
+	function getMoveSquares(fen: string, san: string): { from: string; to: string } | null {
+		try {
+			const chess = new Chess(fen);
+			const result = chess.move(san);
+			return result ? { from: result.from, to: result.to } : null;
+		} catch {
+			return null;
+		}
 	}
 
 	// Show the hint: highlight the source square of the correct move.
@@ -1293,7 +1313,7 @@
 						boardTheme={data.settings?.boardTheme ?? 'blue'}
 						interactive={phase === 'waiting'}
 						lastMove={blindfoldEnabled ? undefined : lastMove}
-						autoShapes={hintShapes}
+						autoShapes={boardShapes}
 						onMove={handleMove}
 					/>
 				{/key}

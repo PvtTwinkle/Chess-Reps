@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Correct-move arrow in drill mode — a green arrow on the board shows the right move when you guess wrong, instead of only showing notation
 - Playback speed setting — slider in Settings → Drill to control how fast moves are auto-played in drill and review (200ms–2000ms)
 - Game review move evaluations — each move shows an inline eval and is color-coded by centipawn loss (best/good/inaccuracy/mistake/blunder)
 - "Your Move" sidebar card shows a live-updating eval and CPL color that refines as the engine analyzes deeper
