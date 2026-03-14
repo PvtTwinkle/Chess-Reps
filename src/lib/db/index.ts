@@ -51,7 +51,9 @@ let _db: ReturnType<typeof drizzle<typeof schema>> | null = null;
 
 export function getDb() {
 	if (!_db) {
-		const sql = postgres(DATABASE_URL);
+		const sql = postgres(DATABASE_URL, {
+			onnotice: () => {} // suppress PostgreSQL NOTICE messages (e.g. "already exists" from migrations)
+		});
 		_db = drizzle(sql, { schema });
 	}
 	return _db;
@@ -91,6 +93,7 @@ async function initDatabase(): Promise<void> {
 	await migrate(realDb, {
 		migrationsFolder: path.join(process.cwd(), 'drizzle', 'migrations')
 	});
+	console.log('[chessstack] Database migrations complete.');
 
 	// Seed large reference tables (masters + puzzles) from embedded dump files.
 	// Skips silently in local dev (no dump files) or if tables already have data.

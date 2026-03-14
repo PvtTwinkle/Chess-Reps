@@ -40,11 +40,13 @@ export const actions: Actions = {
 		// is wrong. This is intentional — telling an attacker which one is wrong
 		// helps them narrow down valid usernames, which is a security risk.
 		if (!foundUser || !(await bcrypt.compare(password, foundUser.passwordHash))) {
+			console.warn('[chessstack] Failed login attempt for username "%s".', username);
 			return fail(400, { error: 'Invalid username or password.' });
 		}
 
 		// Account disabled by admin — specific message since the user already knows their username.
 		if (!foundUser.enabled) {
+			console.warn('[chessstack] Login blocked — account "%s" is disabled.', username);
 			return fail(403, { error: 'This account has been disabled.' });
 		}
 

@@ -89,6 +89,10 @@ export async function* streamTopMoves(
 			stdio: ['pipe', 'pipe', 'ignore']
 		});
 	} catch {
+		console.warn(
+			'[chessstack] Stockfish binary not found at %s — engine analysis unavailable.',
+			STOCKFISH_BIN
+		);
 		yield { depth: 0, moves: [], done: true };
 		return;
 	}
@@ -160,7 +164,8 @@ export async function* streamTopMoves(
 		}
 	});
 
-	proc.on('error', () => {
+	proc.on('error', (err) => {
+		console.error('[chessstack] Stockfish process error:', err.message);
 		if (!finished) {
 			finished = true;
 			clearTimeout(timer);
@@ -238,6 +243,10 @@ export async function getTopMoves(
 			});
 		} catch {
 			// Binary not found (e.g. local dev without Stockfish installed).
+			console.warn(
+				'[chessstack] Stockfish binary not found at %s — engine analysis unavailable.',
+				STOCKFISH_BIN
+			);
 			resolve([]);
 			return;
 		}
@@ -300,7 +309,10 @@ export async function getTopMoves(
 
 		// If the binary is not found or crashes, resolve with an empty array
 		// instead of letting the request hang or throw an unhandled error.
-		proc.on('error', () => resolveOnce([]));
+		proc.on('error', (err) => {
+			console.error('[chessstack] Stockfish process error:', err.message);
+			resolveOnce([]);
+		});
 
 		// If the process exits before bestmove (unexpected), resolve with
 		// whatever partial results we have.

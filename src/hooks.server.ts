@@ -13,7 +13,7 @@
 //   6. If the user IS authenticated and is trying to visit /login, redirects to /
 
 import { redirect } from '@sveltejs/kit';
-import type { Handle } from '@sveltejs/kit';
+import type { Handle, HandleServerError } from '@sveltejs/kit';
 import { validateSession, deleteSession, SESSION_COOKIE_NAME, SECURE_COOKIE } from '$lib/auth';
 import { db, dbReady } from '$lib/db';
 import { user, userSettings } from '$lib/db/schema';
@@ -37,6 +37,10 @@ await dbReady;
 
 // Start the background import scheduler (no-op if GAME_IMPORT_INTERVAL_MINUTES=0).
 startImportScheduler();
+
+// Tell the user the actual URL to visit (ORIGIN), not the raw 0.0.0.0 bind address.
+const ORIGIN = process.env.ORIGIN ?? 'http://localhost:3000';
+console.log(`[chessstack] Ready at ${ORIGIN}`);
 
 export const handle: Handle = async ({ event, resolve }) => {
 	// Start every request as unauthenticated. We will upgrade this below
@@ -132,4 +136,14 @@ export const handle: Handle = async ({ event, resolve }) => {
 	response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
 
 	return response;
+};
+
+// Log unexpected server errors (500s) so they appear in docker logs.
+// SvelteKit still returns its default error response — this just ensures
+// we don't lose visibility into what went wrong.
+export const handleError: HandleServerError = async ({ error, event }) => {
+	console.error(
+		`[chessstack] Unhandled error on ${event.request.method} ${event.url.pathname}:`,
+		error
+	);
 };

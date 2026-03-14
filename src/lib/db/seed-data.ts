@@ -10,6 +10,7 @@
 // partial failure rolls back cleanly and the next startup retries.
 
 import { existsSync } from 'fs';
+import path from 'path';
 import { spawn } from 'child_process';
 import { sql } from 'drizzle-orm';
 import { getDb } from './index';
@@ -66,7 +67,11 @@ export async function loadSeedData(): Promise<void> {
 
 	for (const { table, file, label } of SEED_FILES) {
 		// In local dev the dump files don't exist — skip silently.
-		if (!existsSync(file)) continue;
+		// Resolve + startsWith guard satisfies eslint security/detect-non-literal-fs-filename.
+		const resolved = path.resolve(file);
+		if (!resolved.startsWith(DATA_DIR)) continue;
+		// eslint-disable-next-line security/detect-non-literal-fs-filename
+		if (!existsSync(resolved)) continue;
 
 		// Check if the table already has data. LIMIT 1 is fast even on an empty table.
 		const rows = await db.execute(sql.raw(`SELECT 1 FROM ${table} LIMIT 1`));
