@@ -19,6 +19,7 @@
 		playerColor: 'WHITE' | 'BLACK';
 		gameMoveSan: string | null;
 		gameMoveEvalCp: number | null;
+		cplClass?: 'best' | 'good' | 'inaccuracy' | 'mistake' | 'blunder' | null;
 		onSelectMove: (san: string) => void;
 		onHoverMove: (san: string | null) => void;
 		onSkip: () => void;
@@ -31,12 +32,40 @@
 		playerColor,
 		gameMoveSan,
 		gameMoveEvalCp,
+		cplClass = null,
 		onSelectMove,
 		onHoverMove,
 		onSkip,
 		disabled = false,
 		loading = false
 	}: Props = $props();
+
+	// Live engine evals — updated as CandidateMoves streams depth updates.
+	// liveEvalCp: eval for the game move (null if not among top candidates).
+	// liveBestEvalCp: eval for the engine's #1 candidate (always available once engine starts).
+	let liveEvalCp = $state<number | null>(null);
+	let liveBestEvalCp = $state<number | null>(null);
+
+	// Reset live evals when the position changes (new issue / chain leg).
+	$effect(() => {
+		void fen; // track fen as dependency
+		liveEvalCp = null;
+		liveBestEvalCp = null;
+	});
+
+	function handleEngineCandidates(
+		candidates: { san: string; evalCp: number | null; evalMate: number | null }[]
+	): void {
+		// Track the best candidate's eval (first in the list = engine's top pick).
+		liveBestEvalCp = candidates.length > 0 ? (candidates[0].evalCp ?? null) : null;
+
+		if (!gameMoveSan) return;
+		const match = candidates.find((c) => c.san === gameMoveSan);
+		liveEvalCp = match?.evalCp ?? null;
+	}
+
+	// Use live engine eval when available, static batch eval as fallback.
+	const displayEvalCp = $derived(liveEvalCp ?? gameMoveEvalCp);
 
 	// Format eval from White's perspective, flipped for Black player.
 	function formatEval(cp: number): string {
@@ -46,12 +75,30 @@
 		return playerCp > 0 ? `+${pawns.toFixed(1)}` : `−${pawns.toFixed(1)}`;
 	}
 
-	function evalClass(cp: number): string {
-		const playerCp = playerColor === 'BLACK' ? -cp : cp;
-		if (playerCp > 50) return 'eval-good';
-		if (playerCp < -50) return 'eval-bad';
-		return 'eval-neutral';
+	// Compute live CPL class from engine's best candidate vs the game move eval.
+	// Both evals are from white's perspective, so:
+	//   White player: wants high eval → CPL = bestEval − gameMoveEval
+	//   Black player: wants low eval  → CPL = gameMoveEval − bestEval
+	function getLiveCplClass(): 'best' | 'good' | 'inaccuracy' | 'mistake' | 'blunder' | null {
+		if (liveBestEvalCp == null || displayEvalCp == null) return null;
+		const raw =
+			playerColor === 'WHITE' ? liveBestEvalCp - displayEvalCp : displayEvalCp - liveBestEvalCp;
+		const cpl = Math.max(0, raw);
+		if (cpl <= 10) return 'best';
+		if (cpl <= 50) return 'good';
+		if (cpl <= 100) return 'inaccuracy';
+		if (cpl <= 200) return 'mistake';
+		return 'blunder';
 	}
+
+	// Live engine CPL class takes priority, then batch CPL from parent.
+	const activeCplClass = $derived(getLiveCplClass() ?? cplClass);
+
+	// CSS class based on CPL classification.
+	// Move name: falls back to no class (inherits accent color from .game-move-san).
+	// Eval badge: falls back to eval-neutral (muted).
+	const moveColorClass = $derived(activeCplClass ? `eval-${activeCplClass}` : '');
+	const evalColorClass = $derived(activeCplClass ? `eval-${activeCplClass}` : 'eval-neutral');
 </script>
 
 <div class="picker">
@@ -65,9 +112,9 @@
 			disabled={disabled || loading}
 		>
 			<span class="game-move-label">Your move</span>
-			<strong class="game-move-san">{gameMoveSan}</strong>
-			{#if gameMoveEvalCp !== null}
-				<span class="game-move-eval {evalClass(gameMoveEvalCp)}">{formatEval(gameMoveEvalCp)}</span>
+			<strong class="game-move-san {moveColorClass}">{gameMoveSan}</strong>
+			{#if displayEvalCp !== null}
+				<span class="game-move-eval {evalColorClass}">{formatEval(displayEvalCp)}</span>
 			{/if}
 		</button>
 		<div class="divider">or pick a different move</div>
@@ -80,6 +127,7 @@
 		{onHoverMove}
 		{playerColor}
 		disabled={disabled || loading}
+		onEngineCandidatesChanged={handleEngineCandidates}
 	/>
 
 	<!-- Done / Skip -->
@@ -145,12 +193,24 @@
 		font-variant-numeric: tabular-nums;
 	}
 
-	.eval-good {
-		color: var(--color-success);
+	.eval-best {
+		color: var(--color-eval-best);
 	}
 
-	.eval-bad {
-		color: var(--color-danger);
+	.eval-good {
+		color: var(--color-eval-good);
+	}
+
+	.eval-inaccuracy {
+		color: var(--color-eval-inaccuracy);
+	}
+
+	.eval-mistake {
+		color: var(--color-eval-mistake);
+	}
+
+	.eval-blunder {
+		color: var(--color-eval-blunder);
 	}
 
 	.eval-neutral {

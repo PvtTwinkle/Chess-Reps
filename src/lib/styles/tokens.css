@@ -20,6 +20,11 @@
 	--color-danger: #e05454;
 	--color-explore: #67b8d4;
 	--color-explore-glow: rgba(103, 184, 212, 0.15);
+	--color-eval-best: #5ba3d9;
+	--color-eval-good: #3fb06e;
+	--color-eval-inaccuracy: #d4a843;
+	--color-eval-mistake: #e08a3e;
+	--color-eval-blunder: #e05454;
 
 	/* ── Typography ───────────────────────────────────────────── */
 	--font-body: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -107,6 +112,11 @@
 	--color-danger: #b91c1c;
 	--color-explore: #0e7490;
 	--color-explore-glow: rgba(14, 116, 144, 0.15);
+	--color-eval-best: #2563a8;
+	--color-eval-good: #15803d;
+	--color-eval-inaccuracy: #b8860b;
+	--color-eval-mistake: #c26e12;
+	--color-eval-blunder: #b91c1c;
 
 	/* ── Header / Drawer backgrounds ─────────────────────────── */
 	--color-header-bg: #e4e2de;

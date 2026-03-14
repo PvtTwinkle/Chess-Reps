@@ -285,6 +285,13 @@
 	let deviationMastersError = new SvelteMap<number, boolean>();
 	let deviationMastersExpanded = new SvelteSet<number>();
 
+	// ── Full-game engine evaluation (CPL classification) ────────────────────────
+	// positionEvals maps position index → engine eval from white's perspective.
+	// index 0 = starting position, index N = position after ply N.
+	let positionEvals = new SvelteMap<number, { evalCp: number | null; evalMate: number | null }>();
+	let evalProgress = $state<{ done: number; total: number } | null>(null);
+	let evalAbortController = $state<AbortController | null>(null);
+
 	// ── Hover arrow state (for ReviewIssuePicker → board arrow) ─────────────────
 
 	let hoveredFen = $state<string | null>(null);
@@ -365,6 +372,10 @@
 				deviationMastersLoading.clear();
 				deviationMastersError.clear();
 				deviationMastersExpanded.clear();
+				positionEvals.clear();
+				evalAbortController?.abort();
+				evalAbortController = null;
+				evalProgress = null;
 				hoveredFen = null;
 				hoveredSan = null;
 				newRepIssuePly = null;
@@ -381,6 +392,9 @@
 			for (const issue of loaded.issues) {
 				if (issue.type === 'DEVIATION') fetchDeviationEvals(issue);
 			}
+
+			// Kick off full-game engine evaluation for CPL classification.
+			untrack(() => startBatchEval(loaded));
 		}
 	});
 
@@ -642,6 +656,128 @@
 		return 'eval-badge-neutral';
 	}
 
+	// ── CPL (centipawn loss) helpers ─────────────────────────────────────────────
+
+	// Convert an eval object (already from white's perspective) to a single
+	// centipawn number. Mate scores become large centipawn equivalents so CPL
+	// arithmetic works uniformly.
+	function evalToWhiteCp(ev: { evalCp: number | null; evalMate: number | null }): number | null {
+		if (ev.evalCp != null) return ev.evalCp;
+		if (ev.evalMate != null) {
+			const sign = ev.evalMate > 0 ? 1 : -1;
+			return sign * (10000 - Math.abs(ev.evalMate) * 10);
+		}
+		return null;
+	}
+
+	// Compute CPL for a move at the given ply. Returns null if evals aren't
+	// available yet. A positive value means the move lost that many centipawns.
+	function computeCpl(ply: number): number | null {
+		const evalBefore = positionEvals.get(ply - 1);
+		const evalAfter = positionEvals.get(ply);
+		if (!evalBefore || !evalAfter) return null;
+		const cpBefore = evalToWhiteCp(evalBefore);
+		const cpAfter = evalToWhiteCp(evalAfter);
+		if (cpBefore === null || cpAfter === null) return null;
+		// White moves on odd plies, Black on even plies.
+		const isWhiteMove = ply % 2 === 1;
+		const raw = isWhiteMove ? cpBefore - cpAfter : cpAfter - cpBefore;
+		return Math.max(0, raw); // clamp to 0 (engine quirks can produce tiny negatives)
+	}
+
+	// Classify a CPL value into one of five quality buckets.
+	function getCplClass(cpl: number): 'best' | 'good' | 'inaccuracy' | 'mistake' | 'blunder' {
+		if (cpl <= 10) return 'best';
+		if (cpl <= 50) return 'good';
+		if (cpl <= 100) return 'inaccuracy';
+		if (cpl <= 200) return 'mistake';
+		return 'blunder';
+	}
+
+	// Convenience: get the CPL classification for a given ply (returns null if evals aren't ready).
+	function getCplClassForPly(
+		ply: number
+	): 'best' | 'good' | 'inaccuracy' | 'mistake' | 'blunder' | null {
+		const cpl = computeCpl(ply);
+		return cpl !== null ? getCplClass(cpl) : null;
+	}
+
+	// Format a position eval for the inline badge (from the player's perspective).
+	function formatPositionEval(ev: { evalCp: number | null; evalMate: number | null }): string {
+		if (ev.evalMate != null) {
+			const playerMate = analysedPlayerColor === 'BLACK' ? -ev.evalMate : ev.evalMate;
+			return playerMate > 0 ? `M${Math.abs(playerMate)}` : `-M${Math.abs(playerMate)}`;
+		}
+		if (ev.evalCp != null) return formatEval(ev.evalCp);
+		return '';
+	}
+
+	// Kick off background evaluation of all positions in the game. Results
+	// stream in via NDJSON and progressively update positionEvals / colors.
+	async function startBatchEval(gameAnalysis: GameAnalysis): Promise<void> {
+		// Abort any in-flight evaluation from a previous analysis.
+		evalAbortController?.abort();
+
+		const controller = new AbortController();
+		evalAbortController = controller;
+
+		const fens = gameAnalysis.fenHistory;
+		evalProgress = { done: 0, total: fens.length };
+
+		try {
+			const res = await fetch('/api/stockfish/batch', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ fens }),
+				signal: controller.signal
+			});
+			if (!res.ok || !res.body) {
+				evalProgress = null;
+				return;
+			}
+
+			const reader = res.body.getReader();
+			const decoder = new TextDecoder();
+			let buffer = '';
+
+			while (true) {
+				const { done, value } = await reader.read();
+				if (done) break;
+
+				buffer += decoder.decode(value, { stream: true });
+				const lines = buffer.split('\n');
+				buffer = lines.pop() ?? '';
+
+				for (const line of lines) {
+					if (!line.trim()) continue;
+					try {
+						const parsed = JSON.parse(line) as
+							| { done: true }
+							| { index: number; evalCp: number | null; evalMate: number | null };
+						if ('done' in parsed && parsed.done === true) continue;
+						if ('index' in parsed) {
+							positionEvals.set(parsed.index, {
+								evalCp: parsed.evalCp,
+								evalMate: parsed.evalMate
+							});
+							evalProgress = {
+								done: parsed.index + 1,
+								total: fens.length
+							};
+						}
+					} catch {
+						// Malformed line — skip it.
+					}
+				}
+			}
+		} catch (err: unknown) {
+			// AbortError is expected when the user navigates away mid-eval.
+			if (err instanceof DOMException && err.name === 'AbortError') return;
+		} finally {
+			evalProgress = null;
+		}
+	}
+
 	// Fetch Lichess Masters top moves for a DEVIATION's position (lazy, cache-first).
 	async function fetchDeviationMasters(issue: GameIssue): Promise<void> {
 		if (deviationMasters.has(issue.ply) || deviationMastersLoading.get(issue.ply)) return;
@@ -681,8 +817,28 @@
 		return isWhitePly ? `${moveNum}.` : `${moveNum}…`;
 	}
 
-	// CSS colour for a move in the move list.
+	// CSS colour for a move in the move list. CPL classification used for user
+	// moves once engine evals are available.
+	const CPL_COLORS = {
+		best: 'var(--color-eval-best)',
+		good: 'var(--color-eval-good)',
+		inaccuracy: 'var(--color-eval-inaccuracy)',
+		mistake: 'var(--color-eval-mistake)',
+		blunder: 'var(--color-eval-blunder)'
+	} as const;
+
 	function getMoveColor(ply: number): string {
+		const isUserPly =
+			(analysedPlayerColor === 'WHITE' && ply % 2 === 1) ||
+			(analysedPlayerColor === 'BLACK' && ply % 2 === 0);
+
+		// Engine eval colors for user moves (when available).
+		if (isUserPly) {
+			const cpl = computeCpl(ply);
+			if (cpl !== null) return CPL_COLORS[getCplClass(cpl)];
+		}
+
+		// Fall back to repertoire-based colors while eval loads.
 		const issue = issueByPly.get(ply);
 		if (issue) {
 			if (issue.type === 'DEVIATION') return 'var(--color-accent-dim)';
@@ -691,9 +847,6 @@
 		}
 		if (ply > cutoffPly) return 'var(--color-text-muted)'; // dim — off-book
 
-		const isUserPly =
-			(analysedPlayerColor === 'WHITE' && ply % 2 === 1) ||
-			(analysedPlayerColor === 'BLACK' && ply % 2 === 0);
 		return isUserPly ? 'var(--color-success)' : 'var(--color-text-secondary)';
 	}
 
@@ -981,6 +1134,10 @@
 
 	// Go back to the input state to review another game.
 	function reviewAnother(): void {
+		evalAbortController?.abort();
+		evalAbortController = null;
+		evalProgress = null;
+		positionEvals.clear();
 		analysis = null;
 		parsedPgn = null;
 		savedId = null;
@@ -1327,6 +1484,10 @@
 			<div class="move-list-wrap">
 				{#each analysis.sanHistory as san, i (i)}
 					{@const ply = i + 1}
+					{@const isUserPly =
+						(analysedPlayerColor === 'WHITE' && ply % 2 === 1) ||
+						(analysedPlayerColor === 'BLACK' && ply % 2 === 0)}
+					{@const plyEval = isUserPly ? positionEvals.get(ply) : null}
 					{#if i % 2 === 0}
 						<span class="move-num">{Math.floor(i / 2) + 1}.</span>
 					{/if}
@@ -1336,10 +1497,22 @@
 						style="color: {getMoveColor(ply)}"
 						onclick={() => {
 							currentPlyIdx = ply;
-						}}>{san}</button
+						}}
+						>{san}{#if plyEval}<span class="move-eval">{formatPositionEval(plyEval)}</span
+							>{/if}</button
 					>
 				{/each}
 			</div>
+			{#if evalProgress}
+				<div class="eval-progress">
+					<div
+						class="eval-progress-bar"
+						style="width: {(evalProgress.done / evalProgress.total) * 100}%"
+					></div>
+					<span class="eval-progress-text">Evaluating {evalProgress.done}/{evalProgress.total}</span
+					>
+				</div>
+			{/if}
 
 			<!-- Navigation controls -->
 			<div class="nav-row">
@@ -1490,7 +1663,8 @@
 												fen={chainLeg.userFen}
 												playerColor={analysedPlayerColor}
 												gameMoveSan={chainLeg.userSan}
-												gameMoveEvalCp={null}
+												gameMoveEvalCp={positionEvals.get(chainLeg.plyInGame + 1)?.evalCp ?? null}
+												cplClass={getCplClassForPly(chainLeg.plyInGame + 1)}
 												onSelectMove={(san) => handlePickChainResponse(issue.ply, san)}
 												onHoverMove={(san) => handleHoverMove(chainLeg.userFen ?? '', san)}
 												onSkip={() => skipChain(issue.ply)}
@@ -1619,7 +1793,8 @@
 												fen={issue.fromFen}
 												playerColor={analysedPlayerColor}
 												gameMoveSan={issue.playedSan}
-												gameMoveEvalCp={null}
+												gameMoveEvalCp={positionEvals.get(issue.ply)?.evalCp ?? null}
+												cplClass={getCplClassForPly(issue.ply)}
 												onSelectMove={(san) => handlePickResponseMove(issue, san)}
 												onHoverMove={(san) => handleHoverMove(issue.fromFen, san)}
 												onSkip={() => resolveIssue(issue.ply)}
@@ -1707,7 +1882,8 @@
 													fen={issue.toFen}
 													playerColor={analysedPlayerColor}
 													gameMoveSan={issue.userResponseSan}
-													gameMoveEvalCp={null}
+													gameMoveEvalCp={positionEvals.get(issue.ply + 1)?.evalCp ?? null}
+													cplClass={getCplClassForPly(issue.ply + 1)}
 													onSelectMove={(san) => handlePickResponseMove(issue, san)}
 													onHoverMove={(san) => handleHoverMove(issue.toFen, san)}
 													onSkip={() => resolveIssue(issue.ply)}
@@ -2330,6 +2506,41 @@
 
 	.move-san:hover {
 		background: rgba(255, 255, 255, 0.07);
+	}
+
+	.move-eval {
+		font-size: 0.6rem;
+		font-variant-numeric: tabular-nums;
+		opacity: 0.7;
+		margin-left: 1px;
+		vertical-align: super;
+		font-weight: 400;
+	}
+
+	.eval-progress {
+		position: relative;
+		height: 18px;
+		background: var(--color-surface);
+		border-radius: var(--radius-sm);
+		overflow: hidden;
+		margin-top: var(--space-1);
+	}
+
+	.eval-progress-bar {
+		height: 100%;
+		background: var(--color-accent);
+		opacity: 0.4;
+		transition: width 0.3s var(--ease-snap);
+	}
+
+	.eval-progress-text {
+		position: absolute;
+		top: 50%;
+		left: 50%;
+		transform: translate(-50%, -50%);
+		font-size: 0.65rem;
+		color: var(--color-text-muted);
+		white-space: nowrap;
 	}
 
 	.move-san--active {

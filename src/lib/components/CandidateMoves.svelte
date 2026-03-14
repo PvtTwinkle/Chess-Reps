@@ -58,6 +58,10 @@
 		onTabChanged?: (tab: 'book' | 'engine' | 'masters') => void;
 		/** Fires whenever the top-line engine eval changes. */
 		onEvalChanged?: (evalCp: number | null, evalMate: number | null, loading: boolean) => void;
+		/** Fires whenever engine candidates update (at each depth). */
+		onEngineCandidatesChanged?: (
+			candidates: { san: string; evalCp: number | null; evalMate: number | null }[]
+		) => void;
 	}
 
 	let {
@@ -70,7 +74,8 @@
 		onCandidatesChanged,
 		requestedTab = null,
 		onTabChanged,
-		onEvalChanged
+		onEvalChanged,
+		onEngineCandidatesChanged
 	}: Props = $props();
 
 	// ── Book state ────────────────────────────────────────────────────────────
@@ -129,6 +134,13 @@
 	$effect(() => {
 		const top = engineCandidates[0];
 		onEvalChanged?.(top?.evalCp ?? null, top?.evalMate ?? null, engineLoading);
+	});
+
+	// ── Notify parent of all engine candidates (for live eval tracking) ──────
+	$effect(() => {
+		onEngineCandidatesChanged?.(
+			engineCandidates.map((c) => ({ san: c.san, evalCp: c.evalCp, evalMate: c.evalMate }))
+		);
 	});
 
 	// ── Keyboard highlight triggers hover arrow ───────────────────────────────
