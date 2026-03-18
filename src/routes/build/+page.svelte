@@ -56,6 +56,7 @@
 	let exportPgn = $state('');
 	let exportFilename = $state('');
 	let exportMsg = $state('');
+	let overflowOpen = $state(false);
 
 	// ── Keyboard shortcut & hover-arrow state ─────────────────────────────────
 	let hoveredSan = $state<string | null>(null);
@@ -323,7 +324,14 @@
 	});
 </script>
 
-<svelte:window onkeydown={handleKeydown} />
+<svelte:window
+	onkeydown={handleKeydown}
+	onclick={(e) => {
+		if (overflowOpen && !(e.target as HTMLElement).closest('.overflow-wrap')) {
+			overflowOpen = false;
+		}
+	}}
+/>
 
 <div class="page">
 	<!-- ── Board column ─────────────────────────────────────────────────────── -->
@@ -372,20 +380,39 @@
 				{data.repertoire.color === 'WHITE' ? 'White' : 'Black'}
 			</span>
 			{#if !s.exploreMode}
-				<button class="import-btn" onclick={() => (importOpen = true)} title="Import PGN">
-					Import PGN
-				</button>
-				<div class="export-wrap">
-					<button class="import-btn" onclick={handleExport} disabled={exporting} title="Export PGN">
-						{exporting ? 'Exporting…' : 'Export PGN'}
+				<div class="overflow-wrap">
+					<button
+						class="overflow-btn"
+						onclick={() => (overflowOpen = !overflowOpen)}
+						aria-label="More actions"
+						title="Import / Export PGN"
+					>
+						⋯
 					</button>
-					{#if exportDropdown}
-						<div class="export-dropdown">
-							<button class="export-option" onclick={handleDownload}>Download .pgn</button>
-							<button class="export-option" onclick={handleCopy}>Copy to clipboard</button>
-							<button class="export-option export-cancel" onclick={() => (exportDropdown = false)}
-								>Cancel</button
+					{#if overflowOpen}
+						<div class="overflow-menu">
+							<button
+								class="overflow-item"
+								onclick={() => {
+									overflowOpen = false;
+									importOpen = true;
+								}}
 							>
+								Import PGN
+							</button>
+							<button
+								class="overflow-item"
+								onclick={() => {
+									handleExport();
+								}}
+								disabled={exporting}
+							>
+								{exporting ? 'Exporting…' : 'Export PGN'}
+							</button>
+							{#if exportDropdown}
+								<button class="overflow-item" onclick={handleDownload}>Download .pgn</button>
+								<button class="overflow-item" onclick={handleCopy}>Copy to clipboard</button>
+							{/if}
 						</div>
 					{/if}
 					{#if exportMsg}
@@ -635,63 +662,63 @@
 		{/if}
 
 		{#if !s.exploreMode}
-			<!-- Start position control -->
-			{#if s.isStartPosition}
-				<div class="start-indicator">
-					<span class="start-label">Start Position</span>
+			<!-- Action toolbar -->
+			<div class="action-bar">
+				{#if s.isStartPosition}
+					<div class="action-chip action-chip--active">
+						Start Position
+						<button
+							class="action-chip-x"
+							onclick={s.clearStartPosition}
+							disabled={s.saving}
+							title="Reset to default (after first move)"
+						>
+							✕
+						</button>
+					</div>
+				{:else if fenKey(s.currentFen) !== fenKey(STARTING_FEN) && s.navHistory.length > 0}
 					<button
-						class="start-clear-btn"
+						class="action-chip"
+						onclick={s.setStartPosition}
+						disabled={s.saving}
+						title="Set this position as the repertoire's starting point — moves before it won't be drilled"
+					>
+						Set Start
+					</button>
+				{:else if s.startFen && fenKey(s.currentFen) === fenKey(STARTING_FEN)}
+					<button
+						class="action-chip"
 						onclick={s.clearStartPosition}
 						disabled={s.saving}
 						title="Reset to default (after first move)"
 					>
-						Clear
+						Clear Start
 					</button>
-				</div>
-			{:else if fenKey(s.currentFen) !== fenKey(STARTING_FEN) && s.navHistory.length > 0}
-				<button
-					class="start-btn"
-					onclick={s.setStartPosition}
-					disabled={s.saving}
-					title="Set this position as the repertoire's starting point — moves before it won't be drilled"
-				>
-					Set as Start Position
-				</button>
-			{:else if s.startFen && fenKey(s.currentFen) === fenKey(STARTING_FEN)}
-				<button
-					class="start-clear-btn-standalone"
-					onclick={s.clearStartPosition}
-					disabled={s.saving}
-					title="Reset to default (after first move)"
-				>
-					Clear Start Position
-				</button>
-			{/if}
+				{/if}
 
-			<!-- Drill from here -->
-			{#if s.navHistory.length > 0 && s.movesFromCurrentPosition.length > 0}
+				{#if s.navHistory.length > 0 && s.movesFromCurrentPosition.length > 0}
+					<a
+						href="/drill?mode=all&fromFen={encodeURIComponent(s.currentFen)}"
+						class="action-chip"
+						title="Drill all cards downstream from this position"
+					>
+						Drill here
+					</a>
+				{/if}
+
 				<a
-					href="/drill?mode=all&fromFen={encodeURIComponent(s.currentFen)}"
-					class="drill-here-btn"
-					title="Drill all cards downstream from this position"
+					href="https://lichess.org/analysis/{(s.currentFen + ' 0 1').replaceAll(
+						' ',
+						'_'
+					)}?color={orientation}"
+					target="_blank"
+					rel="noopener"
+					class="action-chip"
+					title="Analyze this position on Lichess"
 				>
-					Drill from here
+					Lichess ↗
 				</a>
-			{/if}
-
-			<!-- Analyze on Lichess -->
-			<a
-				href="https://lichess.org/analysis/{(s.currentFen + ' 0 1').replaceAll(
-					' ',
-					'_'
-				)}?color={orientation}"
-				target="_blank"
-				rel="noopener"
-				class="drill-here-btn lichess-link"
-				title="Analyze this position on Lichess"
-			>
-				Analyze on Lichess ↗
-			</a>
+			</div>
 
 			<!-- Saving indicator -->
 			{#if s.saving}
@@ -867,40 +894,38 @@
 		border: 1px solid var(--color-border);
 	}
 
-	.import-btn {
-		padding: 2px var(--space-2);
-		background: transparent;
-		border: 1px solid var(--color-border);
-		border-radius: var(--radius-sm);
-		color: var(--color-text-muted);
-		font-family: var(--font-body);
-		font-size: 11px;
-		cursor: pointer;
-		transition:
-			border-color var(--dur-fast) var(--ease-snap),
-			color var(--dur-fast) var(--ease-snap);
-		flex-shrink: 0;
-	}
+	/* ── Overflow menu (Import / Export PGN) ────────────────────────────── */
 
-	.import-btn:hover:not(:disabled) {
-		border-color: var(--color-accent-dim);
-		color: var(--color-accent);
-		box-shadow: var(--glow-accent);
-	}
-
-	.import-btn:disabled {
-		opacity: 0.45;
-		cursor: default;
-	}
-
-	/* ── Export dropdown ────────────────────────────────────────────────────── */
-
-	.export-wrap {
+	.overflow-wrap {
 		position: relative;
 		flex-shrink: 0;
 	}
 
-	.export-dropdown {
+	.overflow-btn {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 28px;
+		height: 28px;
+		background: none;
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-sm);
+		color: var(--color-text-muted);
+		font-size: 14px;
+		font-weight: 700;
+		letter-spacing: 2px;
+		cursor: pointer;
+		transition:
+			border-color var(--dur-fast) var(--ease-snap),
+			color var(--dur-fast) var(--ease-snap);
+	}
+
+	.overflow-btn:hover {
+		border-color: var(--color-accent-dim);
+		color: var(--color-accent);
+	}
+
+	.overflow-menu {
 		position: absolute;
 		top: calc(100% + var(--space-1));
 		right: 0;
@@ -909,11 +934,11 @@
 		border-radius: var(--radius-md);
 		overflow: hidden;
 		z-index: 20;
-		min-width: 150px;
+		min-width: 160px;
 		box-shadow: var(--shadow-elevated);
 	}
 
-	.export-option {
+	.overflow-item {
 		display: block;
 		width: 100%;
 		padding: var(--space-2) var(--space-3);
@@ -930,17 +955,18 @@
 			color var(--dur-fast) var(--ease-snap);
 	}
 
-	.export-option:last-child {
+	.overflow-item:last-child {
 		border-bottom: none;
 	}
 
-	.export-option:hover {
+	.overflow-item:hover {
 		background: var(--color-surface-alt);
 		color: var(--color-accent);
 	}
 
-	.export-cancel {
-		color: var(--color-text-muted);
+	.overflow-item:disabled {
+		opacity: 0.45;
+		cursor: default;
 	}
 
 	.export-msg {
@@ -1302,123 +1328,79 @@
 		color: var(--color-text-secondary);
 	}
 
-	/* ── Start position controls ─────────────────────────────────────────── */
+	/* ── Action toolbar (compact chip row) ──────────────────────────────── */
 
-	.start-indicator {
+	.action-bar {
 		display: flex;
+		gap: var(--space-2);
+		flex-wrap: wrap;
+		padding-top: var(--space-2);
+		border-top: 1px solid var(--color-border);
+	}
+
+	.action-chip {
+		display: inline-flex;
 		align-items: center;
-		justify-content: space-between;
-		padding: var(--space-2) var(--space-3);
-		background: rgba(74, 222, 128, 0.08);
-		border: 1px solid rgba(74, 222, 128, 0.2);
-		border-radius: var(--radius-md);
-	}
-
-	.start-label {
-		font-size: 12px;
-		font-weight: 600;
-		color: var(--color-success);
-		letter-spacing: 0.04em;
-	}
-
-	.start-clear-btn {
-		padding: 2px var(--space-2);
-		background: transparent;
-		border: 1px solid rgba(74, 222, 128, 0.2);
-		border-radius: 3px;
-		color: rgba(74, 222, 128, 0.5);
+		gap: var(--space-1);
+		padding: var(--space-1) var(--space-2);
+		background: var(--color-surface-alt);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-sm);
+		color: var(--color-text-secondary);
 		font-family: var(--font-body);
 		font-size: 11px;
-		cursor: pointer;
-		transition:
-			border-color var(--dur-fast) var(--ease-snap),
-			color var(--dur-fast) var(--ease-snap);
-	}
-
-	.start-clear-btn:hover:not(:disabled) {
-		border-color: rgba(248, 113, 113, 0.5);
-		color: var(--color-danger);
-	}
-
-	.start-clear-btn:disabled {
-		opacity: 0.35;
-		cursor: default;
-	}
-
-	.start-btn {
-		width: 100%;
-		padding: var(--space-2) var(--space-3);
-		background: var(--color-surface-alt);
-		border: 1px solid var(--color-border);
-		border-radius: var(--radius-sm);
-		color: var(--color-text-secondary);
-		font-family: var(--font-body);
-		font-size: 12px;
-		cursor: pointer;
-		transition:
-			border-color var(--dur-fast) var(--ease-snap),
-			color var(--dur-fast) var(--ease-snap),
-			background var(--dur-fast) var(--ease-snap);
-	}
-
-	.start-btn:hover:not(:disabled) {
-		border-color: rgba(74, 222, 128, 0.4);
-		color: var(--color-success);
-		background: rgba(74, 222, 128, 0.05);
-	}
-
-	.start-btn:disabled {
-		opacity: 0.35;
-		cursor: default;
-	}
-
-	.drill-here-btn {
-		display: block;
-		width: 100%;
-		padding: var(--space-2) var(--space-3);
-		background: var(--color-surface-alt);
-		border: 1px solid var(--color-border);
-		border-radius: var(--radius-sm);
-		color: var(--color-text-secondary);
-		font-family: var(--font-body);
-		font-size: 12px;
-		text-align: center;
 		text-decoration: none;
 		cursor: pointer;
+		white-space: nowrap;
 		transition:
 			border-color var(--dur-fast) var(--ease-snap),
 			color var(--dur-fast) var(--ease-snap),
 			background var(--dur-fast) var(--ease-snap);
 	}
 
-	.drill-here-btn:hover {
-		border-color: var(--color-accent, rgba(59, 130, 246, 0.4));
-		color: var(--color-accent, #3b82f6);
+	.action-chip:hover {
+		border-color: var(--color-accent-dim);
+		color: var(--color-accent);
 		background: rgba(59, 130, 246, 0.05);
 	}
 
-	.start-clear-btn-standalone {
-		width: 100%;
-		padding: var(--space-2) var(--space-3);
-		background: var(--color-surface-alt);
-		border: 1px solid var(--color-border);
-		border-radius: var(--radius-sm);
-		color: var(--color-text-muted);
-		font-family: var(--font-body);
-		font-size: 12px;
+	.action-chip:disabled {
+		opacity: 0.35;
+		cursor: default;
+	}
+
+	.action-chip--active {
+		background: rgba(74, 222, 128, 0.08);
+		border-color: rgba(74, 222, 128, 0.2);
+		color: var(--color-success);
+	}
+
+	.action-chip--active:hover {
+		border-color: rgba(74, 222, 128, 0.4);
+	}
+
+	.action-chip-x {
+		background: none;
+		border: none;
+		color: inherit;
+		opacity: 0.5;
 		cursor: pointer;
+		font-size: 10px;
+		padding: 0 2px;
+		margin-left: 2px;
+		line-height: 1;
 		transition:
-			border-color var(--dur-fast) var(--ease-snap),
+			opacity var(--dur-fast) var(--ease-snap),
 			color var(--dur-fast) var(--ease-snap);
 	}
 
-	.start-clear-btn-standalone:hover:not(:disabled) {
-		border-color: rgba(248, 113, 113, 0.5);
+	.action-chip-x:hover:not(:disabled) {
+		opacity: 1;
 		color: var(--color-danger);
 	}
 
-	.start-clear-btn-standalone:disabled {
-		opacity: 0.35;
+	.action-chip-x:disabled {
+		opacity: 0.2;
 		cursor: default;
 	}
 

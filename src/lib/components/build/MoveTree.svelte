@@ -14,7 +14,7 @@
 
 	let { moves, currentFen, startFen, onNavigateToLine }: Props = $props();
 
-	let sectionOpen = $state(true);
+	let sectionOpen = $state(false);
 	let expanded = new SvelteSet<string>();
 	let treeContainer: HTMLDivElement | undefined = $state();
 

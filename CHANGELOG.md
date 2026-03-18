@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- "Analyze on Lichess" link in Build mode — opens the current position on Lichess for deeper analysis
+
+### Changed
+
+- Build sidebar is more compact — repertoire tree starts collapsed (click to expand), action buttons consolidated into a single row of chips, and Import/Export PGN moved into a "⋯" overflow menu
+
 ---
 
 ## [1.1.2] — 2026-03-14
