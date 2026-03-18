@@ -679,6 +679,20 @@
 				</a>
 			{/if}
 
+			<!-- Analyze on Lichess -->
+			<a
+				href="https://lichess.org/analysis/{(s.currentFen + ' 0 1').replaceAll(
+					' ',
+					'_'
+				)}?color={orientation}"
+				target="_blank"
+				rel="noopener"
+				class="drill-here-btn lichess-link"
+				title="Analyze this position on Lichess"
+			>
+				Analyze on Lichess ↗
+			</a>
+
 			<!-- Saving indicator -->
 			{#if s.saving}
 				<div class="saving-indicator">Saving…</div>
