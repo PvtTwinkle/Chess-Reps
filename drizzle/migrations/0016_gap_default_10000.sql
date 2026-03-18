@@ -1,0 +1,1 @@
+ALTER TABLE user_settings ALTER COLUMN gap_min_games SET DEFAULT 10000;

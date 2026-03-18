@@ -74,7 +74,7 @@ export const load: PageServerLoad = async ({ parent, locals }) => {
 		moves,
 		activeRep.color as 'WHITE' | 'BLACK',
 		activeRep.startFen ?? null,
-		settings?.gapMinGames ?? 1000
+		settings?.gapMinGames ?? 10000
 	);
 
 	// ── SR cards for active repertoire ──────────────────────────────────

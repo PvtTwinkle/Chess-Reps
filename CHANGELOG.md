@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Gap finder default threshold raised from 1,000 to 10,000 master games — less noise out of the box
 - Build sidebar is more compact — repertoire tree starts collapsed (click to expand), action buttons consolidated into a single row of chips, and Import/Export PGN moved into a "⋯" overflow menu
 
 ---

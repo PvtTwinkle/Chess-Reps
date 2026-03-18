@@ -44,7 +44,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		moves,
 		rep.color as 'WHITE' | 'BLACK',
 		rep.startFen ?? null,
-		userSettingsRow?.gapMinGames ?? 1000
+		userSettingsRow?.gapMinGames ?? 10000
 	);
 
 	return json({ count: gaps.length, gaps });
