@@ -30,8 +30,8 @@ const THEMES = [
 	},
 	{
 		name: 'blue',
-		light: '#dee3e6',
-		dark: '#8ca2ad',
+		light: '#d0e2f0',
+		dark: '#3a6d9e',
 		coordLight: 'rgba(255, 255, 255, 0.8)',
 		coordDark: 'rgba(72, 72, 72, 0.8)'
 	},

@@ -59,7 +59,7 @@
 	// ── Board Theme ─────────────────────────────────────────────────────────
 	const THEMES = [
 		{ name: 'brown', label: 'Brown', light: '#f0d9b5', dark: '#b58863' },
-		{ name: 'blue', label: 'Blue', light: '#dee3e6', dark: '#8ca2ad' },
+		{ name: 'blue', label: 'Blue', light: '#d0e2f0', dark: '#3a6d9e' },
 		{ name: 'green', label: 'Green', light: '#eeeed2', dark: '#769656' },
 		{ name: 'purple', label: 'Purple', light: '#e8dff5', dark: '#7b61a6' },
 		{ name: 'grey', label: 'Grey', light: '#cccccc', dark: '#888888' }

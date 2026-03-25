@@ -5,11 +5,11 @@
 
 :root {
 	/* ── Colors ───────────────────────────────────────────────── */
-	--color-base: #09090b;
+	--color-base: #0a1a2e;
 	--color-surface: #181a1f;
 	--color-surface-alt: #1f2128;
-	--color-border: #282a32;
-	--color-border-strong: #343740;
+	--color-border: #1e3a56;
+	--color-border-strong: #2a4a66;
 	--color-accent: #4a8ac2;
 	--color-accent-dim: #3a6d9e;
 	--color-accent-glow: rgba(74, 138, 194, 0.18);
@@ -48,8 +48,8 @@
 	--radius-xl: 12px;
 
 	/* ── Header / Drawer backgrounds ─────────────────────────── */
-	--color-header-bg: #181b22;
-	--color-header-bg-solid: #181a1f;
+	--color-header-bg: #0f2942;
+	--color-header-bg-solid: #0f2942;
 
 	/* ── Shadows & Glow ──────────────────────────────────────── */
 	--shadow-surface: 0 1px 2px rgba(0, 0, 0, 0.3), 0 2px 8px rgba(0, 0, 0, 0.2);
@@ -92,19 +92,19 @@
 
 /* ============================================================
    Light Theme Overrides
-   Warm, paper-like tones — not clinical white
+   Ice-blue tones — softer on the eyes, on-brand
    ============================================================ */
 
 [data-theme='light'] {
 	/* ── Colors ───────────────────────────────────────────────── */
-	--color-base: #f0efed;
-	--color-surface: #e4e2de;
-	--color-surface-alt: #d9d7d2;
-	--color-border: #c8c5be;
-	--color-border-strong: #adaaa3;
-	--color-accent: #2e6da4;
-	--color-accent-dim: #1e5280;
-	--color-accent-glow: rgba(46, 109, 164, 0.15);
+	--color-base: #c8d5e3;
+	--color-surface: #dce4ee;
+	--color-surface-alt: #d0dae6;
+	--color-border: #b8c8d8;
+	--color-border-strong: #9ab0c6;
+	--color-accent: #3572a5;
+	--color-accent-dim: #2a5f8f;
+	--color-accent-glow: rgba(53, 114, 165, 0.15);
 	--color-text-primary: #1a1a1e;
 	--color-text-secondary: #5a5a64;
 	--color-text-muted: #8a8a94;
@@ -119,11 +119,11 @@
 	--color-eval-blunder: #b91c1c;
 
 	/* ── Header / Drawer backgrounds ─────────────────────────── */
-	--color-header-bg: #e4e2de;
-	--color-header-bg-solid: #e4e2de;
+	--color-header-bg: #b0c4d8;
+	--color-header-bg-solid: #b0c4d8;
 
 	/* ── Shadows & Glow ──────────────────────────────────────── */
-	--shadow-surface: 0 1px 2px rgba(0, 0, 0, 0.06), 0 2px 8px rgba(0, 0, 0, 0.04);
-	--shadow-elevated: 0 4px 16px rgba(0, 0, 0, 0.1), 0 1px 4px rgba(0, 0, 0, 0.06);
-	--glow-accent: 0 0 10px rgba(46, 109, 164, 0.2);
+	--shadow-surface: 0 1px 2px rgba(0, 0, 0, 0.05), 0 2px 8px rgba(0, 0, 0, 0.03);
+	--shadow-elevated: 0 4px 16px rgba(0, 0, 0, 0.08), 0 1px 4px rgba(0, 0, 0, 0.05);
+	--glow-accent: 0 0 10px rgba(53, 114, 165, 0.18);
 }

@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Light mode redesigned with ice-blue palette — softer on the eyes and aligned with brand colors
+- Dark mode background shifted from pitch black to deep navy
+- Blue chessboard theme now uses brand colors (Dim Blue dark squares, light blue-white light squares)
+- Header bar has a clean edge in light mode instead of a blurred shadow
 - Updated logo and added a warm white background for better visibility in dark mode
 - Gap finder default threshold raised from 1,000 to 10,000 master games — less noise out of the box
 - Build sidebar is more compact — repertoire tree starts collapsed (click to expand), action buttons consolidated into a single row of chips, and Import/Export PGN moved into a "⋯" overflow menu

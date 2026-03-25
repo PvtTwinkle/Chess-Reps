@@ -206,6 +206,10 @@
 		box-shadow: 0 1px 8px rgba(0, 0, 0, 0.15);
 	}
 
+	:global([data-theme='light']) .app-header {
+		box-shadow: none;
+	}
+
 	/* ── Brand ─────────────────────────────────────────────────────────── */
 
 	.brand {
