@@ -1,16 +1,18 @@
 <!--
 	CandidateMoves — sidebar panel for Build Mode and Review Mode.
 
-	Shows suggested moves at the current board position, drawn from three
+	Shows suggested moves at the current board position, drawn from four
 	independent sources — each with its own loading state so results appear
 	as soon as they're available:
 
 	  • Book — shared opening book moves (instant, local DB)
 	  • Masters — Chessmont master game statistics & W/D/L stats (instant, local DB)
+	  • Players — Lichess player game statistics by rating bracket (instant, local DB)
 	  • Engine — Stockfish top-N analysis (~2-10s)
 
-	Three tabs switch between the sources. Book tab is shown first; if there
-	are no book moves the Masters tab is activated automatically, then Engine.
+	Four tabs switch between the sources. Book tab is shown first; if there
+	are no book moves the Masters tab is activated automatically, then Players,
+	then Engine.
 
 	When the user clicks a candidate, onSelectMove is called with the SAN of
 	that move. When the user hovers over a candidate, onHoverMove is called
@@ -24,6 +26,8 @@
 -->
 
 <script lang="ts">
+	import { RATING_BRACKETS, DEFAULT_BRACKET_ID } from '$lib/ratings';
+
 	interface Candidate {
 		san: string;
 		uci: string;
@@ -53,15 +57,19 @@
 		/** Fires whenever the active tab's candidate SAN list changes. */
 		onCandidatesChanged?: (sans: string[]) => void;
 		/** Parent requests a tab switch (set to null after applying). */
-		requestedTab?: 'book' | 'engine' | 'masters' | null;
+		requestedTab?: 'book' | 'masters' | 'players' | 'engine' | null;
 		/** Fires whenever the active tab changes. */
-		onTabChanged?: (tab: 'book' | 'engine' | 'masters') => void;
+		onTabChanged?: (tab: 'book' | 'masters' | 'players' | 'engine') => void;
 		/** Fires whenever the top-line engine eval changes. */
 		onEvalChanged?: (evalCp: number | null, evalMate: number | null, loading: boolean) => void;
 		/** Fires whenever engine candidates update (at each depth). */
 		onEngineCandidatesChanged?: (
 			candidates: { san: string; evalCp: number | null; evalMate: number | null }[]
 		) => void;
+		/** Rating bracket ID (0–7) for the Players tab. */
+		playersRatingBracket?: number;
+		/** Fires when the user changes the Players rating bracket. */
+		onPlayersSettingsChanged?: (bracket: number) => void;
 	}
 
 	let {
@@ -75,7 +83,9 @@
 		requestedTab = null,
 		onTabChanged,
 		onEvalChanged,
-		onEngineCandidatesChanged
+		onEngineCandidatesChanged,
+		playersRatingBracket = DEFAULT_BRACKET_ID,
+		onPlayersSettingsChanged
 	}: Props = $props();
 
 	// ── Book state ────────────────────────────────────────────────────────────
@@ -96,25 +106,46 @@
 	let mastersLoading = $state(false);
 	let mastersError = $state(false);
 
+	// ── Players state ─────────────────────────────────────────────────────────
+	let playersMoves = $state<MastersMove[]>([]);
+	let playersLoading = $state(false);
+	let playersError = $state(false);
+	// Local override: null means "use the prop". Set when the user picks a bracket
+	// in the dropdown; cleared when the prop catches up (after settings PATCH).
+	let ratingOverride = $state<number | null>(null);
+	let selectedRating = $derived(ratingOverride ?? playersRatingBracket);
+
+	// Clear the override once the prop reflects the same value.
+	$effect(() => {
+		if (ratingOverride !== null && playersRatingBracket === ratingOverride) {
+			ratingOverride = null;
+		}
+	});
+
 	// ── Tab state ─────────────────────────────────────────────────────────────
-	let activeTab = $state<'book' | 'engine' | 'masters'>('book');
+	let activeTab = $state<'book' | 'masters' | 'players' | 'engine'>('book');
 	// Prevents auto-switch from overriding a deliberate user tab click.
 	let userClickedTab = $state(false);
 
-	function selectTab(tab: 'book' | 'engine' | 'masters') {
+	function selectTab(tab: 'book' | 'masters' | 'players' | 'engine') {
 		activeTab = tab;
 		userClickedTab = true;
 	}
 
+	// ── Active tab's SAN list (shared by candidates-changed + keyboard effects) ──
+	let activeSans = $derived(
+		activeTab === 'book'
+			? bookCandidates.map((c) => c.san)
+			: activeTab === 'masters'
+				? mastersMoves.map((m) => m.san)
+				: activeTab === 'players'
+					? playersMoves.map((m) => m.san)
+					: engineCandidates.map((c) => c.san)
+	);
+
 	// ── Notify parent when the visible candidate list changes ────────────────
 	$effect(() => {
-		const sans =
-			activeTab === 'book'
-				? bookCandidates.map((c) => c.san)
-				: activeTab === 'masters'
-					? mastersMoves.map((m) => m.san)
-					: engineCandidates.map((c) => c.san);
-		onCandidatesChanged?.(sans);
+		onCandidatesChanged?.(activeSans);
 	});
 
 	// ── Notify parent when activeTab changes ──────────────────────────────────
@@ -148,13 +179,7 @@
 		if (highlightedIndex === null || highlightedIndex === undefined) {
 			return;
 		}
-		const sans =
-			activeTab === 'book'
-				? bookCandidates.map((c) => c.san)
-				: activeTab === 'masters'
-					? mastersMoves.map((m) => m.san)
-					: engineCandidates.map((c) => c.san);
-		const san = sans[highlightedIndex] ?? null;
+		const san = activeSans[highlightedIndex] ?? null;
 		onHoverMove?.(san);
 	});
 
@@ -290,9 +315,9 @@
 			})
 			.then((data) => {
 				mastersMoves = data.moves ?? [];
-				// Auto-cascade to engine if masters also empty and user hasn't clicked.
+				// Auto-cascade to players if masters also empty and user hasn't clicked.
 				if (mastersMoves.length === 0 && !userClickedTab) {
-					activeTab = 'engine';
+					activeTab = 'players';
 				}
 			})
 			.catch((err) => {
@@ -300,6 +325,54 @@
 			})
 			.finally(() => {
 				if (!controller.signal.aborted) mastersLoading = false;
+			});
+
+		return () => {
+			controller.abort();
+		};
+	});
+
+	// ── Players fetch — local Lichess DB, instant response ───────────────────
+	// Fetches move statistics from the local lichess_moves table when the
+	// Players tab is active. Re-fetches when the rating bracket changes.
+	$effect(() => {
+		const fen = currentFen;
+		const tab = activeTab;
+		const rating = selectedRating;
+
+		// Not viewing Players tab — reset state and do nothing.
+		if (tab !== 'players') {
+			playersMoves = [];
+			playersLoading = false;
+			playersError = false;
+			return;
+		}
+
+		const controller = new AbortController();
+
+		playersLoading = true;
+		playersError = false;
+		playersMoves = [];
+
+		fetch(`/api/players?fen=${encodeURIComponent(fen)}&rating=${rating}`, {
+			signal: controller.signal
+		})
+			.then((res) => {
+				if (!res.ok) throw new Error('Players fetch failed');
+				return res.json();
+			})
+			.then((data) => {
+				playersMoves = data.moves ?? [];
+				// Auto-cascade to engine if players also empty and user hasn't clicked.
+				if (playersMoves.length === 0 && !userClickedTab) {
+					activeTab = 'engine';
+				}
+			})
+			.catch((err) => {
+				if (err.name !== 'AbortError') playersError = true;
+			})
+			.finally(() => {
+				if (!controller.signal.aborted) playersLoading = false;
 			});
 
 		return () => {
@@ -374,6 +447,14 @@
 		</button>
 		<button
 			class="tab"
+			class:active={activeTab === 'players'}
+			onclick={() => selectTab('players')}
+			type="button"
+		>
+			Players{#if !playersLoading && playersMoves.length > 0}&nbsp;({playersMoves.length}){/if}
+		</button>
+		<button
+			class="tab"
 			class:active={activeTab === 'engine'}
 			onclick={() => selectTab('engine')}
 			disabled={!engineAvailable && !engineLoading}
@@ -432,6 +513,64 @@
 		{:else}
 			<div class="candidate-list" bind:this={listEl}>
 				{#each mastersMoves as m, idx (m.san)}
+					{@const winPct = m.totalGames > 0 ? (m.white / m.totalGames) * 100 : 0}
+					{@const drawPct = m.totalGames > 0 ? (m.draws / m.totalGames) * 100 : 0}
+					{@const lossPct = m.totalGames > 0 ? (m.black / m.totalGames) * 100 : 0}
+					<button
+						class="candidate-row"
+						class:candidate-highlighted={highlightedIndex === idx}
+						onclick={() => onSelectMove(m.san)}
+						onmouseenter={() => onHoverMove?.(m.san)}
+						onmouseleave={() => onHoverMove?.(null)}
+						{disabled}
+					>
+						<div class="candidate-main">
+							<span class="candidate-san">{m.san}</span>
+							<span
+								class="wdl-bar-inline"
+								title="{winPct.toFixed(1)}% W / {drawPct.toFixed(1)}% D / {lossPct.toFixed(1)}% L"
+							>
+								<span class="wdl-white" style="width: {winPct}%"></span>
+								<span class="wdl-draw" style="width: {drawPct}%"></span>
+								<span class="wdl-black" style="width: {lossPct}%"></span>
+							</span>
+							<span class="masters-games">{formatCount(m.totalGames)}</span>
+						</div>
+						<div class="wdl-labels">
+							<span class="wdl-label-white">{winPct.toFixed(0)}%</span>
+							<span class="wdl-label-draw">{drawPct.toFixed(0)}%</span>
+							<span class="wdl-label-black">{lossPct.toFixed(0)}%</span>
+						</div>
+					</button>
+				{/each}
+			</div>
+		{/if}
+
+		<!-- ── Players tab content ───────────────────────────────────────────── -->
+	{:else if activeTab === 'players'}
+		<div class="rating-selector">
+			<select
+				value={selectedRating}
+				onchange={(e) => {
+					const val = parseInt(e.currentTarget.value, 10);
+					ratingOverride = val;
+					onPlayersSettingsChanged?.(val);
+				}}
+			>
+				{#each RATING_BRACKETS as bracket (bracket.id)}
+					<option value={bracket.id}>{bracket.label}</option>
+				{/each}
+			</select>
+		</div>
+		{#if playersLoading}
+			<div class="loading">Loading players…</div>
+		{:else if playersError}
+			<p class="empty-hint">Players database unavailable.</p>
+		{:else if playersMoves.length === 0}
+			<p class="empty-hint">No player games from this position.</p>
+		{:else}
+			<div class="candidate-list" bind:this={listEl}>
+				{#each playersMoves as m, idx (m.san)}
 					{@const winPct = m.totalGames > 0 ? (m.white / m.totalGames) * 100 : 0}
 					{@const drawPct = m.totalGames > 0 ? (m.draws / m.totalGames) * 100 : 0}
 					{@const lossPct = m.totalGames > 0 ? (m.black / m.totalGames) * 100 : 0}
@@ -659,7 +798,26 @@
 		text-overflow: ellipsis;
 	}
 
-	/* ── Masters tab — stats and W/D/L bar ──────────────────────────────────── */
+	/* ── Rating bracket selector (Players tab) ──────────────────────────────── */
+
+	.rating-selector {
+		display: flex;
+		align-items: center;
+	}
+
+	.rating-selector select {
+		width: 100%;
+		padding: var(--space-1) var(--space-2);
+		background: var(--color-surface-alt);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-sm);
+		color: var(--color-text-secondary);
+		font-family: var(--font-body);
+		font-size: 12px;
+		cursor: pointer;
+	}
+
+	/* ── Masters / Players tab — stats and W/D/L bar ─────────────────────────── */
 
 	.masters-games {
 		font-size: 11px;

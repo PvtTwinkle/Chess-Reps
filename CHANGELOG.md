@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Players tab** in Build mode — shows the most popular moves played at each position, filtered by rating bracket (0–1000 through 2201–2400), sourced from the Lichess Open Database
+- Import script for Lichess game data — streams .pgn.zst files, supports incremental month-by-month imports, and exports a pg_dump for Docker distribution
 - "Analyze on Lichess" link in Build mode — opens the current position on Lichess for deeper analysis
 
 ### Changed

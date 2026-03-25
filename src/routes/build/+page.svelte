@@ -63,8 +63,8 @@
 	let highlightedCandidateIdx = $state<number | null>(null);
 	let highlightedContinuationIdx = $state<number | null>(null);
 	let activeCandidates = $state<string[]>([]);
-	let requestedTab = $state<'book' | 'engine' | 'masters' | null>(null);
-	let currentCandidateTab = $state<'book' | 'engine' | 'masters'>('book');
+	let requestedTab = $state<'book' | 'masters' | 'players' | 'engine' | null>(null);
+	let currentCandidateTab = $state<'book' | 'masters' | 'players' | 'engine'>('book');
 
 	// ── Eval bar state ────────────────────────────────────────────────────────
 	let evalCp = $state<number | null>(null);
@@ -81,7 +81,12 @@
 		});
 	}
 
-	const TAB_ORDER: Array<'book' | 'masters' | 'engine'> = ['book', 'masters', 'engine'];
+	const TAB_ORDER: Array<'book' | 'masters' | 'players' | 'engine'> = [
+		'book',
+		'masters',
+		'players',
+		'engine'
+	];
 
 	/** Resolve from/to squares for a SAN move at the given FEN. */
 	function getMoveSquares(fen: string, san: string): { from: string; to: string } | null {
@@ -617,6 +622,14 @@
 			onEvalChanged={(cp, mate) => {
 				evalCp = cp;
 				evalMate = mate;
+			}}
+			playersRatingBracket={data.settings?.playersRatingBracket ?? 3}
+			onPlayersSettingsChanged={(bracket) => {
+				fetch('/api/settings', {
+					method: 'PATCH',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ playersRatingBracket: bracket })
+				});
 			}}
 		/>
 

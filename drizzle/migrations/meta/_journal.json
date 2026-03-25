@@ -120,6 +120,13 @@
 			"when": 1774000000000,
 			"tag": "0016_gap_default_10000",
 			"breakpoints": true
+		},
+		{
+			"idx": 17,
+			"version": "6",
+			"when": 1774100000000,
+			"tag": "0017_add_lichess_moves",
+			"breakpoints": true
 		}
 	]
 }

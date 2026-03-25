@@ -73,9 +73,9 @@ COPY --from=builder /app/drizzle ./drizzle
 COPY --from=builder /app/package.json ./
 
 # Copy the compressed database seed dumps. On first boot, the app checks if
-# the masters and puzzle tables are empty and restores these via psql.
-# Placed late in the Dockerfile so source code changes don't bust this ~200 MB layer.
-COPY chessmont-moves-dump.sql.gz puzzles-dump.sql.gz ./data/
+# the masters, puzzle, and players tables are empty and restores these via psql.
+# Placed late in the Dockerfile so source code changes don't bust this layer.
+COPY chessmont-moves-dump.sql.gz puzzles-dump.sql.gz lichess-moves-dump.sql.gz ./data/
 
 # Remove system npm — the app is already built and doesn't need a package
 # manager at runtime. This also eliminates CVEs in npm's bundled dependencies

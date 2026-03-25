@@ -117,6 +117,11 @@ export const PATCH: RequestHandler = async ({ locals, request }) => {
 		updates.gapMinGames = body.gapMinGames;
 	}
 
+	// Players tab rating bracket: integer 0–7.
+	if (typeof body.playersRatingBracket === 'number') {
+		updates.playersRatingBracket = Math.max(0, Math.min(7, Math.round(body.playersRatingBracket)));
+	}
+
 	// Board size: 0 = auto (fill container), positive integer clamped to 320–800px.
 	if (typeof body.boardSize === 'number') {
 		const val = Math.round(body.boardSize);

@@ -9,7 +9,7 @@
 // Each restore is transactional (pg_dump wraps COPY in BEGIN/COMMIT), so a
 // partial failure rolls back cleanly and the next startup retries.
 
-import { existsSync } from 'fs';
+import { existsSync, statSync } from 'fs';
 import path from 'path';
 import { spawn } from 'child_process';
 import { sql } from 'drizzle-orm';
@@ -27,6 +27,11 @@ const SEED_FILES = [
 		table: 'puzzle',
 		file: `${DATA_DIR}/puzzles-dump.sql.gz`,
 		label: 'puzzle database'
+	},
+	{
+		table: 'lichess_moves',
+		file: `${DATA_DIR}/lichess-moves-dump.sql.gz`,
+		label: 'players database'
 	}
 ] as const;
 
@@ -72,6 +77,9 @@ export async function loadSeedData(): Promise<void> {
 		if (!resolved.startsWith(DATA_DIR)) continue;
 		// eslint-disable-next-line security/detect-non-literal-fs-filename
 		if (!existsSync(resolved)) continue;
+		// Skip empty placeholder files (e.g. lichess dump before first import).
+		// eslint-disable-next-line security/detect-non-literal-fs-filename
+		if (statSync(resolved).size === 0) continue;
 
 		// Check if the table already has data. LIMIT 1 is fast even on an empty table.
 		const rows = await db.execute(sql.raw(`SELECT 1 FROM ${table} LIMIT 1`));
