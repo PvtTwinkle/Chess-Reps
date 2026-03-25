@@ -39,7 +39,7 @@ echo ""
 
 # Export chessmont_moves
 CHESSMONT_FILE="${OUTPUT_DIR}/chessmont-moves-dump.sql.gz"
-echo "[1/2] Dumping chessmont_moves..."
+echo "[1/3] Dumping chessmont_moves..."
 docker exec "${CONTAINER}" pg_dump -U "${DB_USER}" \
   --table=chessmont_moves --data-only --no-owner "${DB_NAME}" \
   | gzip > "${CHESSMONT_FILE}"
@@ -48,19 +48,29 @@ echo "      Done: ${CHESSMONT_FILE} (${CHESSMONT_SIZE})"
 
 # Export puzzle
 PUZZLE_FILE="${OUTPUT_DIR}/puzzles-dump.sql.gz"
-echo "[2/2] Dumping puzzle..."
+echo "[2/3] Dumping puzzle..."
 docker exec "${CONTAINER}" pg_dump -U "${DB_USER}" \
   --table=puzzle --data-only --no-owner "${DB_NAME}" \
   | gzip > "${PUZZLE_FILE}"
 PUZZLE_SIZE=$(du -h "${PUZZLE_FILE}" | cut -f1)
 echo "      Done: ${PUZZLE_FILE} (${PUZZLE_SIZE})"
 
+# Export star_players + celebrity_moves
+CELEBRITY_FILE="${OUTPUT_DIR}/celebrity-moves-dump.sql.gz"
+echo "[3/3] Dumping star_players + celebrity_moves..."
+docker exec "${CONTAINER}" pg_dump -U "${DB_USER}" \
+  --table=star_players --table=celebrity_moves --data-only --no-owner "${DB_NAME}" \
+  | gzip > "${CELEBRITY_FILE}"
+CELEBRITY_SIZE=$(du -h "${CELEBRITY_FILE}" | cut -f1)
+echo "      Done: ${CELEBRITY_FILE} (${CELEBRITY_SIZE})"
+
 echo ""
 echo "=== Export Complete ==="
 echo ""
-echo "  chessmont_moves: ${CHESSMONT_FILE} (${CHESSMONT_SIZE})"
-echo "  puzzle:          ${PUZZLE_FILE} (${PUZZLE_SIZE})"
+echo "  chessmont_moves:  ${CHESSMONT_FILE} (${CHESSMONT_SIZE})"
+echo "  puzzle:           ${PUZZLE_FILE} (${PUZZLE_SIZE})"
+echo "  celebrity_moves:  ${CELEBRITY_FILE} (${CELEBRITY_SIZE})"
 echo ""
 echo "Next steps:"
 echo "  1. git tag data-vX.Y && git push origin data-vX.Y"
-echo "  2. gh release create data-vX.Y ${CHESSMONT_FILE} ${PUZZLE_FILE}"
+echo "  2. gh release create data-vX.Y ${CHESSMONT_FILE} ${PUZZLE_FILE} ${CELEBRITY_FILE}"

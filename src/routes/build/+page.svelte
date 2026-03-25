@@ -63,8 +63,8 @@
 	let highlightedCandidateIdx = $state<number | null>(null);
 	let highlightedContinuationIdx = $state<number | null>(null);
 	let activeCandidates = $state<string[]>([]);
-	let requestedTab = $state<'book' | 'masters' | 'players' | 'engine' | null>(null);
-	let currentCandidateTab = $state<'book' | 'masters' | 'players' | 'engine'>('book');
+	let requestedTab = $state<'book' | 'masters' | 'stars' | 'players' | 'engine' | null>(null);
+	let currentCandidateTab = $state<'book' | 'masters' | 'stars' | 'players' | 'engine'>('book');
 
 	// ── Eval bar state ────────────────────────────────────────────────────────
 	let evalCp = $state<number | null>(null);
@@ -81,9 +81,10 @@
 		});
 	}
 
-	const TAB_ORDER: Array<'book' | 'masters' | 'players' | 'engine'> = [
+	const TAB_ORDER: Array<'book' | 'masters' | 'stars' | 'players' | 'engine'> = [
 		'book',
 		'masters',
+		'stars',
 		'players',
 		'engine'
 	];
@@ -629,6 +630,14 @@
 					method: 'PATCH',
 					headers: { 'Content-Type': 'application/json' },
 					body: JSON.stringify({ playersRatingBracket: bracket })
+				});
+			}}
+			starsPlayerSlug={data.settings?.starsPlayerSlug ?? null}
+			onStarsSettingsChanged={(slug) => {
+				fetch('/api/settings', {
+					method: 'PATCH',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ starsPlayerSlug: slug })
 				});
 			}}
 		/>

@@ -43,3 +43,7 @@ lichess_db_puzzle.csv
 
 # Import scripts — not shipped; users restore from pg_dump instead
 scripts/puzzle-import.py
+
+# PGN & Zip Files used in Star player imports
+*.pgn
+*.zip

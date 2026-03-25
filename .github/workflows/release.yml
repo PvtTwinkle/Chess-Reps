@@ -52,7 +52,8 @@ jobs:
         run: |
           gh release download data-v1.0 \
             --pattern 'chessmont-moves-dump.sql.gz' \
-            --pattern 'puzzles-dump.sql.gz'
+            --pattern 'puzzles-dump.sql.gz' \
+            --pattern 'celebrity-moves-dump.sql.gz'
 
       # Step 3: Set up QEMU so Docker can build for architectures other than
       # the runner's native amd64 (we need arm64 for Raspberry Pi / Apple

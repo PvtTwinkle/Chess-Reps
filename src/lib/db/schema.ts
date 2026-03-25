@@ -120,6 +120,40 @@ export const lichessMoves = pgTable(
 	})
 );
 
+// Curated list of famous players for the Stars tab in CandidateMoves.
+// Populated by the celebrity-import/download scripts. Read-only at runtime.
+export const starPlayers = pgTable('star_players', {
+	slug: text('slug').primaryKey(), // URL-friendly identifier, e.g. "magnus-carlsen"
+	displayName: text('display_name').notNull(), // human-readable name, e.g. "Magnus Carlsen"
+	platform: text('platform'), // 'lichess' | 'chesscom' | 'pgn' — used by the download script
+	platformUsername: text('platform_username'), // account name on the platform, e.g. "DrNykterstein"
+	category: text('category') // 'legend' | 'gm' | 'streamer' | 'meme' — for dropdown grouping
+});
+
+// Per-player move statistics for the Stars tab.
+// Same W/D/L pattern as chessmont_moves, but partitioned by player_slug.
+// Populated by scripts/celebrity-import.py. Read-only at runtime.
+export const celebrityMoves = pgTable(
+	'celebrity_moves',
+	{
+		positionFen: text('position_fen').notNull(),
+		moveSan: text('move_san').notNull(),
+		playerSlug: text('player_slug').notNull(),
+		resultingFen: text('resulting_fen').notNull(),
+		gamesPlayed: integer('games_played').notNull().default(0),
+		whiteWins: integer('white_wins').notNull().default(0),
+		blackWins: integer('black_wins').notNull().default(0),
+		draws: integer('draws').notNull().default(0)
+	},
+	(table) => ({
+		pk: primaryKey({ columns: [table.positionFen, table.moveSan, table.playerSlug] }),
+		positionPlayerIdx: index('idx_celebrity_position_player').on(
+			table.positionFen,
+			table.playerSlug
+		)
+	})
+);
+
 // Lichess puzzles filtered by opening and imported via the puzzle-import script.
 // Shared/read-only data — the app never writes to this table.
 // Data is NOT shipped with the app; users download the Lichess puzzle CSV
@@ -205,6 +239,7 @@ export const userSettings = pgTable('user_settings', {
 	gapMinGames: integer('gap_min_games').notNull().default(10000), // min master games for gap finder (10|100|1000|10000)
 	boardSize: integer('board_size').notNull().default(0), // 0 = auto (fill container), >0 = pixel width (320–800)
 	playersRatingBracket: integer('players_rating_bracket').notNull().default(3), // 0–7 bracket ID for Players tab (3 = 1401–1600)
+	starsPlayerSlug: text('stars_player_slug'), // last-selected player slug for Stars tab (null = first available)
 	tutorialStep: integer('tutorial_step'), // null = done/skipped, 0-6 = active tutorial step
 	fsrsDesiredRetention: doublePrecision('fsrs_desired_retention').notNull().default(0.9), // target recall probability (0.70–0.97)
 	fsrsMaximumInterval: integer('fsrs_maximum_interval').notNull().default(365), // max days between reviews (30–3650)

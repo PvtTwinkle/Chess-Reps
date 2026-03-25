@@ -32,6 +32,11 @@ const SEED_FILES = [
 		table: 'lichess_moves',
 		file: `${DATA_DIR}/lichess-moves-dump.sql.gz`,
 		label: 'players database'
+	},
+	{
+		table: 'celebrity_moves',
+		file: `${DATA_DIR}/celebrity-moves-dump.sql.gz`,
+		label: 'stars database'
 	}
 ] as const;
 

@@ -1,18 +1,19 @@
 <!--
 	CandidateMoves — sidebar panel for Build Mode and Review Mode.
 
-	Shows suggested moves at the current board position, drawn from four
+	Shows suggested moves at the current board position, drawn from five
 	independent sources — each with its own loading state so results appear
 	as soon as they're available:
 
 	  • Book — shared opening book moves (instant, local DB)
 	  • Masters — Chessmont master game statistics & W/D/L stats (instant, local DB)
+	  • Stars — moves from specific famous players like Magnus, Fischer, etc. (instant, local DB)
 	  • Players — Lichess player game statistics by rating bracket (instant, local DB)
 	  • Engine — Stockfish top-N analysis (~2-10s)
 
-	Four tabs switch between the sources. Book tab is shown first; if there
-	are no book moves the Masters tab is activated automatically, then Players,
-	then Engine.
+	Five tabs switch between the sources. Book tab is shown first; if there
+	are no book moves the Masters tab is activated automatically, then Stars,
+	then Players, then Engine.
 
 	When the user clicks a candidate, onSelectMove is called with the SAN of
 	that move. When the user hovers over a candidate, onHoverMove is called
@@ -57,9 +58,9 @@
 		/** Fires whenever the active tab's candidate SAN list changes. */
 		onCandidatesChanged?: (sans: string[]) => void;
 		/** Parent requests a tab switch (set to null after applying). */
-		requestedTab?: 'book' | 'masters' | 'players' | 'engine' | null;
+		requestedTab?: 'book' | 'masters' | 'stars' | 'players' | 'engine' | null;
 		/** Fires whenever the active tab changes. */
-		onTabChanged?: (tab: 'book' | 'masters' | 'players' | 'engine') => void;
+		onTabChanged?: (tab: 'book' | 'masters' | 'stars' | 'players' | 'engine') => void;
 		/** Fires whenever the top-line engine eval changes. */
 		onEvalChanged?: (evalCp: number | null, evalMate: number | null, loading: boolean) => void;
 		/** Fires whenever engine candidates update (at each depth). */
@@ -70,6 +71,10 @@
 		playersRatingBracket?: number;
 		/** Fires when the user changes the Players rating bracket. */
 		onPlayersSettingsChanged?: (bracket: number) => void;
+		/** Player slug for the Stars tab (null = first available). */
+		starsPlayerSlug?: string | null;
+		/** Fires when the user changes the Stars player selection. */
+		onStarsSettingsChanged?: (slug: string) => void;
 	}
 
 	let {
@@ -85,7 +90,9 @@
 		onEvalChanged,
 		onEngineCandidatesChanged,
 		playersRatingBracket = DEFAULT_BRACKET_ID,
-		onPlayersSettingsChanged
+		onPlayersSettingsChanged,
+		starsPlayerSlug = null,
+		onStarsSettingsChanged
 	}: Props = $props();
 
 	// ── Book state ────────────────────────────────────────────────────────────
@@ -122,12 +129,63 @@
 		}
 	});
 
+	// ── Stars state ───────────────────────────────────────────────────────────
+	let starsMoves = $state<MastersMove[]>([]);
+	let starsLoading = $state(false);
+	let starsError = $state(false);
+	let starsPlayers = $state<{ slug: string; displayName: string; category: string | null }[]>([]);
+	// Local override: null means "use the prop". Set when the user picks a player
+	// in the dropdown; cleared when the prop catches up (after settings PATCH).
+	let starsPlayerOverride = $state<string | null>(null);
+	let selectedPlayer = $derived(
+		starsPlayerOverride ?? starsPlayerSlug ?? starsPlayers[0]?.slug ?? ''
+	);
+
+	// Group players by category for the dropdown <optgroup> elements.
+	const CATEGORY_ORDER = [
+		{ key: 'legend', label: 'Chess Legends' },
+		{ key: 'gm', label: 'Modern Super-GMs' },
+		{ key: 'streamer', label: 'Streamers & YouTubers' },
+		{ key: 'meme', label: 'Meme' }
+	];
+	let playerGroups = $derived.by(() => {
+		const groups: { label: string; players: typeof starsPlayers }[] = [];
+		for (const { key, label } of CATEGORY_ORDER) {
+			const matched = starsPlayers.filter((p) => p.category === key);
+			if (matched.length > 0) groups.push({ label, players: matched });
+		}
+		const uncategorized = starsPlayers.filter(
+			(p) => !p.category || !CATEGORY_ORDER.some((c) => c.key === p.category)
+		);
+		if (uncategorized.length > 0) groups.push({ label: 'Other', players: uncategorized });
+		return groups;
+	});
+
+	// Clear the override once the prop reflects the same value.
+	$effect(() => {
+		if (starsPlayerOverride !== null && starsPlayerSlug === starsPlayerOverride) {
+			starsPlayerOverride = null;
+		}
+	});
+
+	// Fetch available star players once on mount.
+	$effect(() => {
+		fetch('/api/stars/players')
+			.then((res) => (res.ok ? res.json() : { players: [] }))
+			.then((data) => {
+				starsPlayers = data.players ?? [];
+			})
+			.catch(() => {
+				starsPlayers = [];
+			});
+	});
+
 	// ── Tab state ─────────────────────────────────────────────────────────────
-	let activeTab = $state<'book' | 'masters' | 'players' | 'engine'>('book');
+	let activeTab = $state<'book' | 'masters' | 'stars' | 'players' | 'engine'>('book');
 	// Prevents auto-switch from overriding a deliberate user tab click.
 	let userClickedTab = $state(false);
 
-	function selectTab(tab: 'book' | 'masters' | 'players' | 'engine') {
+	function selectTab(tab: 'book' | 'masters' | 'stars' | 'players' | 'engine') {
 		activeTab = tab;
 		userClickedTab = true;
 	}
@@ -138,9 +196,11 @@
 			? bookCandidates.map((c) => c.san)
 			: activeTab === 'masters'
 				? mastersMoves.map((m) => m.san)
-				: activeTab === 'players'
-					? playersMoves.map((m) => m.san)
-					: engineCandidates.map((c) => c.san)
+				: activeTab === 'stars'
+					? starsMoves.map((m) => m.san)
+					: activeTab === 'players'
+						? playersMoves.map((m) => m.san)
+						: engineCandidates.map((c) => c.san)
 	);
 
 	// ── Notify parent when the visible candidate list changes ────────────────
@@ -315,9 +375,9 @@
 			})
 			.then((data) => {
 				mastersMoves = data.moves ?? [];
-				// Auto-cascade to players if masters also empty and user hasn't clicked.
+				// Auto-cascade to stars if masters also empty and user hasn't clicked.
 				if (mastersMoves.length === 0 && !userClickedTab) {
-					activeTab = 'players';
+					activeTab = 'stars';
 				}
 			})
 			.catch((err) => {
@@ -380,6 +440,62 @@
 		};
 	});
 
+	// ── Stars fetch — local celebrity DB, instant response ───────────────────
+	// Fetches move statistics for a specific famous player when the Stars tab
+	// is active. Re-fetches when the selected player changes.
+	$effect(() => {
+		const fen = currentFen;
+		const tab = activeTab;
+		const player = selectedPlayer;
+
+		// Not viewing Stars tab — reset state and do nothing.
+		if (tab !== 'stars') {
+			starsMoves = [];
+			starsLoading = false;
+			starsError = false;
+			return;
+		}
+
+		// No player selected (empty database) — show empty state.
+		if (!player) {
+			starsMoves = [];
+			starsLoading = false;
+			starsError = false;
+			return;
+		}
+
+		const controller = new AbortController();
+
+		starsLoading = true;
+		starsError = false;
+		starsMoves = [];
+
+		fetch(`/api/stars?fen=${encodeURIComponent(fen)}&player=${encodeURIComponent(player)}`, {
+			signal: controller.signal
+		})
+			.then((res) => {
+				if (!res.ok) throw new Error('Stars fetch failed');
+				return res.json();
+			})
+			.then((data) => {
+				starsMoves = data.moves ?? [];
+				// Auto-cascade to players if stars also empty and user hasn't clicked.
+				if (starsMoves.length === 0 && !userClickedTab) {
+					activeTab = 'players';
+				}
+			})
+			.catch((err) => {
+				if (err.name !== 'AbortError') starsError = true;
+			})
+			.finally(() => {
+				if (!controller.signal.aborted) starsLoading = false;
+			});
+
+		return () => {
+			controller.abort();
+		};
+	});
+
 	// ── Eval formatting (Engine tab only) ─────────────────────────────────────
 	// cp and mate arrive from the server as White's perspective; we flip the
 	// sign for Black players so that positive always means "good for me".
@@ -435,7 +551,7 @@
 			onclick={() => selectTab('book')}
 			type="button"
 		>
-			Book{#if !bookLoading && bookCandidates.length > 0}&nbsp;({bookCandidates.length}){/if}
+			Book{#if activeTab === 'book' && !bookLoading && bookCandidates.length > 0}&nbsp;({bookCandidates.length}){/if}
 		</button>
 		<button
 			class="tab"
@@ -443,7 +559,15 @@
 			onclick={() => selectTab('masters')}
 			type="button"
 		>
-			Masters{#if !mastersLoading && mastersMoves.length > 0}&nbsp;({mastersMoves.length}){/if}
+			Masters{#if activeTab === 'masters' && !mastersLoading && mastersMoves.length > 0}&nbsp;({mastersMoves.length}){/if}
+		</button>
+		<button
+			class="tab"
+			class:active={activeTab === 'stars'}
+			onclick={() => selectTab('stars')}
+			type="button"
+		>
+			Stars{#if activeTab === 'stars' && !starsLoading && starsMoves.length > 0}&nbsp;({starsMoves.length}){/if}
 		</button>
 		<button
 			class="tab"
@@ -451,7 +575,7 @@
 			onclick={() => selectTab('players')}
 			type="button"
 		>
-			Players{#if !playersLoading && playersMoves.length > 0}&nbsp;({playersMoves.length}){/if}
+			Players{#if activeTab === 'players' && !playersLoading && playersMoves.length > 0}&nbsp;({playersMoves.length}){/if}
 		</button>
 		<button
 			class="tab"
@@ -461,7 +585,7 @@
 			type="button"
 			title={!engineAvailable && !engineLoading ? 'Stockfish engine is not available' : undefined}
 		>
-			Engine{#if !engineLoading && engineCandidates.length > 0}&nbsp;({engineCandidates.length}){/if}
+			Engine{#if activeTab === 'engine' && !engineLoading && engineCandidates.length > 0}&nbsp;({engineCandidates.length}){/if}
 		</button>
 	</div>
 
@@ -513,6 +637,72 @@
 		{:else}
 			<div class="candidate-list" bind:this={listEl}>
 				{#each mastersMoves as m, idx (m.san)}
+					{@const winPct = m.totalGames > 0 ? (m.white / m.totalGames) * 100 : 0}
+					{@const drawPct = m.totalGames > 0 ? (m.draws / m.totalGames) * 100 : 0}
+					{@const lossPct = m.totalGames > 0 ? (m.black / m.totalGames) * 100 : 0}
+					<button
+						class="candidate-row"
+						class:candidate-highlighted={highlightedIndex === idx}
+						onclick={() => onSelectMove(m.san)}
+						onmouseenter={() => onHoverMove?.(m.san)}
+						onmouseleave={() => onHoverMove?.(null)}
+						{disabled}
+					>
+						<div class="candidate-main">
+							<span class="candidate-san">{m.san}</span>
+							<span
+								class="wdl-bar-inline"
+								title="{winPct.toFixed(1)}% W / {drawPct.toFixed(1)}% D / {lossPct.toFixed(1)}% L"
+							>
+								<span class="wdl-white" style="width: {winPct}%"></span>
+								<span class="wdl-draw" style="width: {drawPct}%"></span>
+								<span class="wdl-black" style="width: {lossPct}%"></span>
+							</span>
+							<span class="masters-games">{formatCount(m.totalGames)}</span>
+						</div>
+						<div class="wdl-labels">
+							<span class="wdl-label-white">{winPct.toFixed(0)}%</span>
+							<span class="wdl-label-draw">{drawPct.toFixed(0)}%</span>
+							<span class="wdl-label-black">{lossPct.toFixed(0)}%</span>
+						</div>
+					</button>
+				{/each}
+			</div>
+		{/if}
+
+		<!-- ── Stars tab content ─────────────────────────────────────────────── -->
+	{:else if activeTab === 'stars'}
+		{#if starsPlayers.length > 0}
+			<div class="rating-selector">
+				<select
+					value={selectedPlayer}
+					onchange={(e) => {
+						const val = e.currentTarget.value;
+						starsPlayerOverride = val;
+						onStarsSettingsChanged?.(val);
+					}}
+				>
+					{#each playerGroups as group (group.label)}
+						<optgroup label={group.label}>
+							{#each group.players as p (p.slug)}
+								<option value={p.slug}>{p.displayName}</option>
+							{/each}
+						</optgroup>
+					{/each}
+				</select>
+			</div>
+		{/if}
+		{#if starsLoading}
+			<div class="loading">Loading stars…</div>
+		{:else if starsError}
+			<p class="empty-hint">Stars database unavailable.</p>
+		{:else if starsPlayers.length === 0}
+			<p class="empty-hint">No player data imported yet.</p>
+		{:else if starsMoves.length === 0}
+			<p class="empty-hint">No games from this player at this position.</p>
+		{:else}
+			<div class="candidate-list" bind:this={listEl}>
+				{#each starsMoves as m, idx (m.san)}
 					{@const winPct = m.totalGames > 0 ? (m.white / m.totalGames) * 100 : 0}
 					{@const drawPct = m.totalGames > 0 ? (m.draws / m.totalGames) * 100 : 0}
 					{@const lossPct = m.totalGames > 0 ? (m.black / m.totalGames) * 100 : 0}
@@ -661,17 +851,19 @@
 
 	.tab {
 		flex: 1;
+		min-width: 0;
 		padding: var(--space-2);
 		background: none;
 		border: none;
 		border-bottom: 2px solid transparent;
 		color: var(--color-text-muted);
 		font-family: var(--font-body);
-		font-size: 11px;
+		font-size: 12px;
 		font-weight: 500;
-		letter-spacing: 0.1em;
-		text-transform: uppercase;
 		cursor: pointer;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 		transition:
 			color var(--dur-fast) var(--ease-snap),
 			border-color var(--dur-fast) var(--ease-snap);

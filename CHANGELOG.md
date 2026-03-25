@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Stars tab** in Build mode — see what moves famous players like Magnus Carlsen, Bobby Fischer, or GothamChess played at any position, with win/draw/loss stats
+- Player dropdown in the Stars tab groups players by category: Chess Legends, Modern Super-GMs, Streamers & YouTubers, and Meme
+- Import scripts for adding star players from PGN files (`celebrity-import.py`) or downloading games from Lichess/Chess.com APIs (`celebrity-download.py`)
+- Celebrity move data ships in the Docker image and auto-loads on first boot, just like the masters and puzzle databases
 - **Drill scheduling settings** — configure desired retention (70–97%), maximum review interval (30–3650 days), and relearning delay (1–60 min) from the Settings page
 - **Interval labels on drill grade buttons** — each button now shows how long until the card reappears (e.g. "Forgot · 10 min", "Easy · 7 days")
 - Link to the FSRS algorithm wiki in Settings for users who want to understand how scheduling works

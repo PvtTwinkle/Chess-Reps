@@ -1,0 +1,1 @@
+ALTER TABLE star_players ADD COLUMN category TEXT;

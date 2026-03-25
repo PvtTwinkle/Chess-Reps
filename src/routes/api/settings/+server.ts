@@ -150,6 +150,18 @@ export const PATCH: RequestHandler = async ({ locals, request }) => {
 		);
 	}
 
+	// Stars tab player: slug string (alphanumeric + hyphens, max 50 chars), or null to clear.
+	if (body.starsPlayerSlug !== undefined) {
+		if (body.starsPlayerSlug === null || body.starsPlayerSlug === '') {
+			updates.starsPlayerSlug = null;
+		} else if (typeof body.starsPlayerSlug === 'string') {
+			const cleaned = body.starsPlayerSlug.trim();
+			if (cleaned.length > 0 && cleaned.length <= 50 && /^[a-zA-Z0-9_-]+$/.test(cleaned)) {
+				updates.starsPlayerSlug = cleaned;
+			}
+		}
+	}
+
 	// Tutorial step: null = completed/skipped, integer 0–5 = active step.
 	if (body.tutorialStep !== undefined) {
 		if (body.tutorialStep === null) {
