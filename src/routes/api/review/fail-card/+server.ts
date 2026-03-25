@@ -10,9 +10,10 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
-import { repertoire, userMove, userRepertoireMove } from '$lib/db/schema';
+import { repertoire, userMove, userRepertoireMove, userSettings } from '$lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { gradeCard, Rating } from '$lib/fsrs';
+import type { FSRSUserConfig } from '$lib/fsrs';
 import { fenKey } from '$lib/fen';
 
 export const POST: RequestHandler = async ({ locals, request }) => {
@@ -52,11 +53,27 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			)
 		);
 
+	// Load the user's FSRS config so scheduling respects their settings.
+	const [settings] = await db
+		.select({
+			fsrsDesiredRetention: userSettings.fsrsDesiredRetention,
+			fsrsMaximumInterval: userSettings.fsrsMaximumInterval,
+			fsrsRelearningMinutes: userSettings.fsrsRelearningMinutes
+		})
+		.from(userSettings)
+		.where(eq(userSettings.userId, locals.user.id));
+
+	const fsrsConfig: FSRSUserConfig = {
+		requestRetention: settings?.fsrsDesiredRetention ?? 0.9,
+		maximumInterval: settings?.fsrsMaximumInterval ?? 365,
+		relearningMinutes: settings?.fsrsRelearningMinutes ?? 10
+	};
+
 	const now = new Date();
 
 	if (card) {
 		// Card exists — apply Again rating via FSRS.
-		const updated = gradeCard(card, Rating.Again, now);
+		const updated = gradeCard(card, Rating.Again, now, fsrsConfig);
 		await db.update(userRepertoireMove).set(updated).where(eq(userRepertoireMove.id, card.id));
 		return json({ updated: true, due: updated.due });
 	}

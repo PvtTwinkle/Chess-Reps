@@ -1,21 +1,66 @@
 // FSRS spaced repetition helpers.
 //
 // This module wraps the ts-fsrs library with the conversions needed to move
-// data between our SQLite schema and the ts-fsrs Card type.
+// data between our PostgreSQL schema and the ts-fsrs Card type.
 //
 // Only three ratings are exposed: Again, Good, Easy. Hard is skipped because
 // for chess openings the user either knows the move or they don't — there's
 // rarely a meaningful "partial credit" state.
 
 import { fsrs, generatorParameters, Rating, State, createEmptyCard } from 'ts-fsrs';
-import type { Card, Grade } from 'ts-fsrs';
+import type { Card, Grade, FSRS } from 'ts-fsrs';
 
 // Re-export so callers never need to import ts-fsrs directly.
 export { Rating, State };
 
-// Single shared FSRS instance. `enable_fuzz` adds a small random variance to
-// scheduled intervals so that cards don't all cluster on the same future day.
-const f = fsrs(generatorParameters({ enable_fuzz: true }));
+// ─── Per-User Config ─────────────────────────────────────────────────────────
+
+// User-configurable FSRS parameters. All fields are optional — omitted fields
+// fall back to sensible defaults for chess opening training.
+export interface FSRSUserConfig {
+	requestRetention?: number; // 0.70–0.97, default 0.9
+	maximumInterval?: number; // 30–3650 days, default 365
+	relearningMinutes?: number; // 1–60 minutes, default 10
+}
+
+const DEFAULT_RETENTION = 0.9;
+const DEFAULT_MAX_INTERVAL = 365;
+const DEFAULT_RELEARNING_MINUTES = 10;
+
+// Default FSRS instance — reused when no per-user config is provided.
+const defaultInstance = fsrs(
+	generatorParameters({
+		enable_fuzz: true,
+		request_retention: DEFAULT_RETENTION,
+		maximum_interval: DEFAULT_MAX_INTERVAL,
+		relearning_steps: [`${DEFAULT_RELEARNING_MINUTES}m` as const]
+	})
+);
+
+// Build an FSRS instance from per-user config. Reuses the default instance
+// when all values match defaults (the common case).
+function getFsrsInstance(config?: FSRSUserConfig): FSRS {
+	const retention = config?.requestRetention ?? DEFAULT_RETENTION;
+	const maxInterval = config?.maximumInterval ?? DEFAULT_MAX_INTERVAL;
+	const relearningMin = config?.relearningMinutes ?? DEFAULT_RELEARNING_MINUTES;
+
+	if (
+		retention === DEFAULT_RETENTION &&
+		maxInterval === DEFAULT_MAX_INTERVAL &&
+		relearningMin === DEFAULT_RELEARNING_MINUTES
+	) {
+		return defaultInstance;
+	}
+
+	return fsrs(
+		generatorParameters({
+			enable_fuzz: true,
+			request_retention: retention,
+			maximum_interval: maxInterval,
+			relearning_steps: [`${relearningMin}m`]
+		})
+	);
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -97,12 +142,19 @@ function cardToUpdate(card: Card, now: Date): FSRSUpdate {
 /**
  * Apply a rating to a card and return the updated fields to write back to DB.
  *
- * @param row   The current user_repertoire_move row for this card.
+ * @param row     The current user_repertoire_move row for this card.
  * @param rating  Again (1), Good (3), or Easy (4).
- * @param now   The time of review (caller provides so tests can freeze time).
+ * @param now     The time of review (caller provides so tests can freeze time).
+ * @param config  Optional per-user FSRS config (retention, max interval, relearning delay).
  */
-export function gradeCard(row: FSRSCardRow, rating: Rating, now: Date): FSRSUpdate {
+export function gradeCard(
+	row: FSRSCardRow,
+	rating: Rating,
+	now: Date,
+	config?: FSRSUserConfig
+): FSRSUpdate {
 	const card = dbRowToCard(row);
+	const f = getFsrsInstance(config);
 	const scheduling = f.repeat(card, now);
 	const result = scheduling[rating as Grade];
 	return cardToUpdate(result.card, now);
@@ -112,8 +164,14 @@ export function gradeCard(row: FSRSCardRow, rating: Rating, now: Date): FSRSUpda
  * Returns a human-readable label for the next review interval after a given
  * rating, e.g. "10 min", "1 day", "4 days". Used in drill grading buttons.
  */
-export function nextIntervalLabel(row: FSRSCardRow, rating: Rating, now: Date): string {
+export function nextIntervalLabel(
+	row: FSRSCardRow,
+	rating: Rating,
+	now: Date,
+	config?: FSRSUserConfig
+): string {
 	const card = dbRowToCard(row);
+	const f = getFsrsInstance(config);
 	const scheduling = f.repeat(card, now);
 	const result = scheduling[rating as Grade];
 	const nextDue = result.card.due;

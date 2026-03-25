@@ -24,6 +24,9 @@
 		clearTimeout(timeoutDebounce);
 		clearTimeout(tempoDebounce);
 		clearTimeout(playbackDebounce);
+		clearTimeout(retentionDebounce);
+		clearTimeout(maxIntervalDebounce);
+		clearTimeout(relearningDebounce);
 		for (const id of timers) clearTimeout(id);
 		timers.clear();
 	});
@@ -270,6 +273,119 @@
 			safeTimeout(() => (playbackStatus = ''), 2000);
 		} catch {
 			playbackStatus = 'Error saving';
+		}
+	}
+
+	// ── FSRS Desired Retention ─────────────────────────────────────────────
+	// eslint-disable-next-line svelte/prefer-writable-derived
+	let fsrsRetention = $state(0.9);
+	let retentionStatus = $state('');
+	let retentionDebounce: ReturnType<typeof setTimeout> | undefined;
+
+	$effect(() => {
+		fsrsRetention = data.settings?.fsrsDesiredRetention ?? 0.9;
+	});
+
+	function handleRetentionChange(e: Event) {
+		const value = parseFloat((e.target as HTMLInputElement).value);
+		fsrsRetention = value;
+		clearTimeout(retentionDebounce);
+		retentionDebounce = setTimeout(() => saveRetention(value), 400);
+	}
+
+	async function saveRetention(value: number) {
+		retentionStatus = '';
+		try {
+			const res = await fetch('/api/settings', {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ fsrsDesiredRetention: value })
+			});
+			if (!res.ok) throw new Error('Failed to save');
+			await invalidateAll();
+			retentionStatus = 'Saved';
+			safeTimeout(() => (retentionStatus = ''), 2000);
+		} catch {
+			retentionStatus = 'Error saving';
+		}
+	}
+
+	// ── FSRS Maximum Interval ─────────────────────────────────────────────
+	// eslint-disable-next-line svelte/prefer-writable-derived
+	let fsrsMaxInterval = $state(365);
+	let maxIntervalStatus = $state('');
+	let maxIntervalDebounce: ReturnType<typeof setTimeout> | undefined;
+
+	$effect(() => {
+		fsrsMaxInterval = data.settings?.fsrsMaximumInterval ?? 365;
+	});
+
+	function handleMaxIntervalChange(e: Event) {
+		const value = parseInt((e.target as HTMLInputElement).value);
+		fsrsMaxInterval = value;
+		clearTimeout(maxIntervalDebounce);
+		maxIntervalDebounce = setTimeout(() => saveMaxInterval(value), 400);
+	}
+
+	async function saveMaxInterval(value: number) {
+		maxIntervalStatus = '';
+		try {
+			const res = await fetch('/api/settings', {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ fsrsMaximumInterval: value })
+			});
+			if (!res.ok) throw new Error('Failed to save');
+			await invalidateAll();
+			maxIntervalStatus = 'Saved';
+			safeTimeout(() => (maxIntervalStatus = ''), 2000);
+		} catch {
+			maxIntervalStatus = 'Error saving';
+		}
+	}
+
+	// Human-readable label for the max interval value.
+	function formatMaxInterval(days: number): string {
+		if (days < 60) return `${days} days`;
+		if (days < 365) {
+			const months = Math.round(days / 30);
+			return `${days} days (~${months} month${months !== 1 ? 's' : ''})`;
+		}
+		const years = Math.round((days / 365) * 10) / 10;
+		return `${days} days (~${years} year${years !== 1 ? 's' : ''})`;
+	}
+
+	// ── FSRS Relearning Delay ─────────────────────────────────────────────
+	// eslint-disable-next-line svelte/prefer-writable-derived
+	let fsrsRelearningMinutes = $state(10);
+	let relearningStatus = $state('');
+	let relearningDebounce: ReturnType<typeof setTimeout> | undefined;
+
+	$effect(() => {
+		fsrsRelearningMinutes = data.settings?.fsrsRelearningMinutes ?? 10;
+	});
+
+	function handleRelearningChange(e: Event) {
+		const value = parseInt((e.target as HTMLInputElement).value);
+		fsrsRelearningMinutes = value;
+		clearTimeout(relearningDebounce);
+		relearningDebounce = setTimeout(() => saveRelearning(value), 400);
+	}
+
+	async function saveRelearning(value: number) {
+		relearningStatus = '';
+		try {
+			const res = await fetch('/api/settings', {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ fsrsRelearningMinutes: value })
+			});
+			if (!res.ok) throw new Error('Failed to save');
+			await invalidateAll();
+			relearningStatus = 'Saved';
+			safeTimeout(() => (relearningStatus = ''), 2000);
+		} catch {
+			relearningStatus = 'Error saving';
 		}
 	}
 
@@ -575,6 +691,94 @@
 					<span class="status-msg">{playbackStatus}</span>
 				{/if}
 			</div>
+
+			<div class="setting-row">
+				<label class="setting-label" for="retention-slider">
+					Desired Retention: <strong>{Math.round(fsrsRetention * 100)}%</strong>
+				</label>
+				<div class="slider-wrap">
+					<span class="slider-label">70%</span>
+					<input
+						id="retention-slider"
+						type="range"
+						min="0.70"
+						max="0.97"
+						step="0.01"
+						value={fsrsRetention}
+						oninput={handleRetentionChange}
+					/>
+					<span class="slider-label">97%</span>
+				</div>
+				<p class="setting-hint">
+					How aggressively cards are scheduled for review. At 90% (recommended), a card you've
+					practiced a few times might come back in about 10 days. At 95%, that same card comes back
+					in 5 days. At 80%, it might wait nearly a month. The exact timing always shows on each
+					grade button during drill.
+					<a
+						href="https://github.com/open-spaced-repetition/awesome-fsrs/wiki/ABC-of-FSRS"
+						target="_blank"
+						rel="noopener noreferrer"
+						class="hint-link"
+					>
+						Learn how FSRS works
+					</a>
+				</p>
+				{#if retentionStatus}
+					<span class="status-msg">{retentionStatus}</span>
+				{/if}
+			</div>
+
+			<div class="setting-row">
+				<label class="setting-label" for="max-interval-slider">
+					Maximum Interval: <strong>{formatMaxInterval(fsrsMaxInterval)}</strong>
+				</label>
+				<div class="slider-wrap">
+					<span class="slider-label">30d</span>
+					<input
+						id="max-interval-slider"
+						type="range"
+						min="30"
+						max="3650"
+						step="5"
+						value={fsrsMaxInterval}
+						oninput={handleMaxIntervalChange}
+					/>
+					<span class="slider-label">10yr</span>
+				</div>
+				<p class="setting-hint">
+					The longest a card can go between reviews, no matter how well you know it. Keeps
+					well-known lines from disappearing entirely.
+				</p>
+				{#if maxIntervalStatus}
+					<span class="status-msg">{maxIntervalStatus}</span>
+				{/if}
+			</div>
+
+			<div class="setting-row">
+				<label class="setting-label" for="relearning-slider">
+					Relearning Delay: <strong>{fsrsRelearningMinutes} min</strong>
+				</label>
+				<div class="slider-wrap">
+					<span class="slider-label">1m</span>
+					<input
+						id="relearning-slider"
+						type="range"
+						min="1"
+						max="60"
+						step="1"
+						value={fsrsRelearningMinutes}
+						oninput={handleRelearningChange}
+					/>
+					<span class="slider-label">60m</span>
+				</div>
+				<p class="setting-hint">
+					When you forget a card, how long before it comes back. Shorter means more immediate
+					reinforcement.
+				</p>
+				{#if relearningStatus}
+					<span class="status-msg">{relearningStatus}</span>
+				{/if}
+			</div>
 		</section>
 
 		<!-- ── Game Import ─────────────────────────────────────────────────── -->
@@ -744,6 +948,18 @@
 		margin: var(--space-1) 0 0;
 		font-size: 12px;
 		color: var(--color-text-muted);
+	}
+
+	.hint-link {
+		display: inline-block;
+		margin-top: 2px;
+		color: var(--color-accent);
+		text-decoration: none;
+		font-size: 11px;
+	}
+
+	.hint-link:hover {
+		text-decoration: underline;
 	}
 
 	/* ── App theme mode picker ─────────────────────────────────────── */

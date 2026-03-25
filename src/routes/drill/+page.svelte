@@ -69,6 +69,11 @@
 		lapses: number | null;
 		lastReview: string | null;
 		learningSteps: number;
+		intervalLabels: {
+			forgot: string;
+			unsure: string;
+			easy: string;
+		};
 	}
 
 	// Snapshot of a card's FSRS state before grading — used for undo.
@@ -1754,21 +1759,30 @@
 							onclick={() => submitGrade(1)}
 							disabled={grading}
 						>
-							Forgot
+							<span class="grade-label">Forgot</span>
+							{#if currentCard?.intervalLabels}
+								<span class="grade-interval">{currentCard.intervalLabels.forgot}</span>
+							{/if}
 						</button>
 						<button
 							class="grade-btn grade-btn--unsure"
 							onclick={() => submitGrade(3)}
 							disabled={grading}
 						>
-							Unsure
+							<span class="grade-label">Unsure</span>
+							{#if currentCard?.intervalLabels}
+								<span class="grade-interval">{currentCard.intervalLabels.unsure}</span>
+							{/if}
 						</button>
 						<button
 							class="grade-btn grade-btn--easy"
 							onclick={() => submitGrade(4)}
 							disabled={grading}
 						>
-							Easy
+							<span class="grade-label">Easy</span>
+							{#if currentCard?.intervalLabels}
+								<span class="grade-interval">{currentCard.intervalLabels.easy}</span>
+							{/if}
 						</button>
 					</div>
 					<div class="shortcut-hints">
@@ -2299,6 +2313,10 @@
 
 	.grade-btn {
 		flex: 1;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 2px;
 		padding: var(--space-3) var(--space-2);
 		border-radius: var(--radius-md);
 		border: 1px solid transparent;
@@ -2307,6 +2325,12 @@
 		font-weight: 700;
 		cursor: pointer;
 		transition: filter var(--dur-fast) var(--ease-snap);
+	}
+
+	.grade-interval {
+		font-size: 0.65rem;
+		font-weight: 500;
+		opacity: 0.75;
 	}
 
 	.grade-btn:disabled {

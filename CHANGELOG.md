@@ -11,12 +11,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Drill scheduling settings** — configure desired retention (70–97%), maximum review interval (30–3650 days), and relearning delay (1–60 min) from the Settings page
+- **Interval labels on drill grade buttons** — each button now shows how long until the card reappears (e.g. "Forgot · 10 min", "Easy · 7 days")
+- Link to the FSRS algorithm wiki in Settings for users who want to understand how scheduling works
 - **Players tab** in Build mode — shows the most popular moves played at each position, filtered by rating bracket (0–1000 through 2201–2400), sourced from the Lichess Open Database
 - Import script for Lichess game data — streams .pgn.zst files, supports incremental month-by-month imports, and exports a pg_dump for Docker distribution
 - "Analyze on Lichess" link in Build mode — opens the current position on Lichess for deeper analysis
 
 ### Changed
 
+- Default maximum review interval lowered from ~100 years to 365 days — cards no longer vanish indefinitely
 - Light mode redesigned with ice-blue palette — softer on the eyes and aligned with brand colors
 - Dark mode background shifted from pitch black to deep navy
 - Blue chessboard theme now uses brand colors (Dim Blue dark squares, light blue-white light squares)

@@ -127,6 +127,13 @@
 			"when": 1774100000000,
 			"tag": "0017_add_lichess_moves",
 			"breakpoints": true
+		},
+		{
+			"idx": 18,
+			"version": "6",
+			"when": 1774200000000,
+			"tag": "0018_fsrs_settings",
+			"breakpoints": true
 		}
 	]
 }

@@ -128,6 +128,28 @@ export const PATCH: RequestHandler = async ({ locals, request }) => {
 		updates.boardSize = val === 0 ? 0 : Math.max(320, Math.min(800, val));
 	}
 
+	// FSRS desired retention: float clamped to 0.70–0.97.
+	if (typeof body.fsrsDesiredRetention === 'number') {
+		const val = Math.round(body.fsrsDesiredRetention * 100) / 100;
+		updates.fsrsDesiredRetention = Math.max(0.7, Math.min(0.97, val));
+	}
+
+	// FSRS maximum interval: integer clamped to 30–3650 days.
+	if (typeof body.fsrsMaximumInterval === 'number') {
+		updates.fsrsMaximumInterval = Math.max(
+			30,
+			Math.min(3650, Math.round(body.fsrsMaximumInterval))
+		);
+	}
+
+	// FSRS relearning delay: integer clamped to 1–60 minutes.
+	if (typeof body.fsrsRelearningMinutes === 'number') {
+		updates.fsrsRelearningMinutes = Math.max(
+			1,
+			Math.min(60, Math.round(body.fsrsRelearningMinutes))
+		);
+	}
+
 	// Tutorial step: null = completed/skipped, integer 0–5 = active step.
 	if (body.tutorialStep !== undefined) {
 		if (body.tutorialStep === null) {

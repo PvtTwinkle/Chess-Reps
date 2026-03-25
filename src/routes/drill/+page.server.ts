@@ -13,11 +13,13 @@
 import type { PageServerLoad } from './$types';
 import { redirect } from '@sveltejs/kit';
 import { db } from '$lib/db';
-import { userMove, userRepertoireMove } from '$lib/db/schema';
+import { userMove, userRepertoireMove, userSettings } from '$lib/db/schema';
 import { eq, and, lte } from 'drizzle-orm';
 import { fenKey } from '$lib/gaps';
 import { sanitizeFen } from '$lib/fen';
 import { getEffectiveStartFens, buildInScopeFens } from '$lib/repertoire';
+import { nextIntervalLabel, Rating } from '$lib/fsrs';
+import type { FSRSUserConfig } from '$lib/fsrs';
 
 export const load: PageServerLoad = async ({ locals, parent, url }) => {
 	const { activeRepertoireId, repertoires } = await parent();
@@ -82,10 +84,37 @@ export const load: PageServerLoad = async ({ locals, parent, url }) => {
 		dueCards = dueCards.filter((c) => inScope.has(fenKey(c.fromFen)));
 	}
 
+	// Load user FSRS settings for interval label computation.
+	const [settings] = await db
+		.select({
+			fsrsDesiredRetention: userSettings.fsrsDesiredRetention,
+			fsrsMaximumInterval: userSettings.fsrsMaximumInterval,
+			fsrsRelearningMinutes: userSettings.fsrsRelearningMinutes
+		})
+		.from(userSettings)
+		.where(eq(userSettings.userId, userId));
+
+	const fsrsConfig: FSRSUserConfig = {
+		requestRetention: settings?.fsrsDesiredRetention ?? 0.9,
+		maximumInterval: settings?.fsrsMaximumInterval ?? 365,
+		relearningMinutes: settings?.fsrsRelearningMinutes ?? 10
+	};
+
+	// Pre-compute interval labels for each card so the drill buttons
+	// can show "Forgot · 10 min", "Unsure · 2 days", etc.
+	const cardsWithLabels = dueCards.map((card) => ({
+		...card,
+		intervalLabels: {
+			forgot: nextIntervalLabel(card, Rating.Again, now, fsrsConfig),
+			unsure: nextIntervalLabel(card, Rating.Good, now, fsrsConfig),
+			easy: nextIntervalLabel(card, Rating.Easy, now, fsrsConfig)
+		}
+	}));
+
 	return {
 		repertoire: activeRep,
 		moves,
-		dueCards,
+		dueCards: cardsWithLabels,
 		drillMode,
 		fromFen
 	};
