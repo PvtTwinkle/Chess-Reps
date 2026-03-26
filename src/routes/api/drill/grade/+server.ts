@@ -10,10 +10,10 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
-import { userRepertoireMove, userSettings } from '$lib/db/schema';
+import { userRepertoireMove } from '$lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { gradeCard, Rating } from '$lib/fsrs';
-import type { FSRSUserConfig } from '$lib/fsrs';
+import { loadFsrsConfig } from '$lib/server/fsrs-config';
 
 export const POST: RequestHandler = async ({ locals, request }) => {
 	if (!locals.user) throw error(401, 'Not authenticated');
@@ -32,29 +32,17 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		throw error(400, 'rating must be 1 (Forgot), 3 (Unsure), or 4 (Easy)');
 	}
 
-	// Load the card and verify it belongs to this user.
-	const [card] = await db
-		.select()
-		.from(userRepertoireMove)
-		.where(and(eq(userRepertoireMove.id, cardId), eq(userRepertoireMove.userId, locals.user.id)));
+	// Load card + FSRS config in parallel — they are independent queries.
+	const [cardRows, fsrsConfig] = await Promise.all([
+		db
+			.select()
+			.from(userRepertoireMove)
+			.where(and(eq(userRepertoireMove.id, cardId), eq(userRepertoireMove.userId, locals.user.id))),
+		loadFsrsConfig(locals.user.id)
+	]);
 
+	const card = cardRows[0];
 	if (!card) throw error(404, 'Card not found');
-
-	// Load the user's FSRS config so scheduling respects their settings.
-	const [settings] = await db
-		.select({
-			fsrsDesiredRetention: userSettings.fsrsDesiredRetention,
-			fsrsMaximumInterval: userSettings.fsrsMaximumInterval,
-			fsrsRelearningMinutes: userSettings.fsrsRelearningMinutes
-		})
-		.from(userSettings)
-		.where(eq(userSettings.userId, locals.user.id));
-
-	const fsrsConfig: FSRSUserConfig = {
-		requestRetention: settings?.fsrsDesiredRetention ?? 0.9,
-		maximumInterval: settings?.fsrsMaximumInterval ?? 365,
-		relearningMinutes: settings?.fsrsRelearningMinutes ?? 10
-	};
 
 	// Run the FSRS algorithm to get the updated memory state.
 	const now = new Date();

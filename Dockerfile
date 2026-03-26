@@ -36,8 +36,7 @@ RUN for f in chessmont-moves-dump.sql.gz puzzles-dump.sql.gz celebrity-moves-dum
       echo "Downloading $f..." && \
       curl -fSL -o "$f" \
         "https://github.com/${GITHUB_REPO}/releases/download/${DATA_RELEASE}/$f"; \
-    done && \
-    touch lichess-moves-dump.sql.gz
+    done
 
 
 # ── Stage 1: Build ────────────────────────────────────────────────────────────

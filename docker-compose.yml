@@ -93,7 +93,7 @@ services:
       POSTGRES_DB: chessstack
       POSTGRES_USER: chessstack
       POSTGRES_PASSWORD: chessstack_secret
-    # Uncomment to access PostgreSQL from the host (e.g. for lichess-import.py):
+    # Expose PostgreSQL on the host (for lichess-import.py or psql access):
     ports:
       - '127.0.0.1:5432:5432'
 

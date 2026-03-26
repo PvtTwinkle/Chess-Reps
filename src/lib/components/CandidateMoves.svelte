@@ -39,6 +39,8 @@
 		openingName: string | null;
 	}
 
+	type TabId = 'book' | 'masters' | 'stars' | 'players' | 'engine';
+
 	interface MastersMove {
 		san: string;
 		white: number;
@@ -58,9 +60,9 @@
 		/** Fires whenever the active tab's candidate SAN list changes. */
 		onCandidatesChanged?: (sans: string[]) => void;
 		/** Parent requests a tab switch (set to null after applying). */
-		requestedTab?: 'book' | 'masters' | 'stars' | 'players' | 'engine' | null;
+		requestedTab?: TabId | null;
 		/** Fires whenever the active tab changes. */
-		onTabChanged?: (tab: 'book' | 'masters' | 'stars' | 'players' | 'engine') => void;
+		onTabChanged?: (tab: TabId) => void;
 		/** Fires whenever the top-line engine eval changes. */
 		onEvalChanged?: (evalCp: number | null, evalMate: number | null, loading: boolean) => void;
 		/** Fires whenever engine candidates update (at each depth). */
@@ -181,11 +183,11 @@
 	});
 
 	// ── Tab state ─────────────────────────────────────────────────────────────
-	let activeTab = $state<'book' | 'masters' | 'stars' | 'players' | 'engine'>('book');
+	let activeTab = $state<TabId>('book');
 	// Prevents auto-switch from overriding a deliberate user tab click.
 	let userClickedTab = $state(false);
 
-	function selectTab(tab: 'book' | 'masters' | 'stars' | 'players' | 'engine') {
+	function selectTab(tab: TabId) {
 		activeTab = tab;
 		userClickedTab = true;
 	}
@@ -589,6 +591,39 @@
 		</button>
 	</div>
 
+	<!-- Shared WDL move row used by Masters, Stars, and Players tabs -->
+	{#snippet wdlRow(m: MastersMove, idx: number)}
+		{@const winPct = m.totalGames > 0 ? (m.white / m.totalGames) * 100 : 0}
+		{@const drawPct = m.totalGames > 0 ? (m.draws / m.totalGames) * 100 : 0}
+		{@const lossPct = m.totalGames > 0 ? (m.black / m.totalGames) * 100 : 0}
+		<button
+			class="candidate-row"
+			class:candidate-highlighted={highlightedIndex === idx}
+			onclick={() => onSelectMove(m.san)}
+			onmouseenter={() => onHoverMove?.(m.san)}
+			onmouseleave={() => onHoverMove?.(null)}
+			{disabled}
+		>
+			<div class="candidate-main">
+				<span class="candidate-san">{m.san}</span>
+				<span
+					class="wdl-bar-inline"
+					title="{winPct.toFixed(1)}% W / {drawPct.toFixed(1)}% D / {lossPct.toFixed(1)}% L"
+				>
+					<span class="wdl-white" style="width: {winPct}%"></span>
+					<span class="wdl-draw" style="width: {drawPct}%"></span>
+					<span class="wdl-black" style="width: {lossPct}%"></span>
+				</span>
+				<span class="masters-games">{formatCount(m.totalGames)}</span>
+			</div>
+			<div class="wdl-labels">
+				<span class="wdl-label-white">{winPct.toFixed(0)}%</span>
+				<span class="wdl-label-draw">{drawPct.toFixed(0)}%</span>
+				<span class="wdl-label-black">{lossPct.toFixed(0)}%</span>
+			</div>
+		</button>
+	{/snippet}
+
 	<!-- ── Book tab content ─────────────────────────────────────────────────── -->
 	{#if activeTab === 'book'}
 		{#if bookLoading}
@@ -637,35 +672,7 @@
 		{:else}
 			<div class="candidate-list" bind:this={listEl}>
 				{#each mastersMoves as m, idx (m.san)}
-					{@const winPct = m.totalGames > 0 ? (m.white / m.totalGames) * 100 : 0}
-					{@const drawPct = m.totalGames > 0 ? (m.draws / m.totalGames) * 100 : 0}
-					{@const lossPct = m.totalGames > 0 ? (m.black / m.totalGames) * 100 : 0}
-					<button
-						class="candidate-row"
-						class:candidate-highlighted={highlightedIndex === idx}
-						onclick={() => onSelectMove(m.san)}
-						onmouseenter={() => onHoverMove?.(m.san)}
-						onmouseleave={() => onHoverMove?.(null)}
-						{disabled}
-					>
-						<div class="candidate-main">
-							<span class="candidate-san">{m.san}</span>
-							<span
-								class="wdl-bar-inline"
-								title="{winPct.toFixed(1)}% W / {drawPct.toFixed(1)}% D / {lossPct.toFixed(1)}% L"
-							>
-								<span class="wdl-white" style="width: {winPct}%"></span>
-								<span class="wdl-draw" style="width: {drawPct}%"></span>
-								<span class="wdl-black" style="width: {lossPct}%"></span>
-							</span>
-							<span class="masters-games">{formatCount(m.totalGames)}</span>
-						</div>
-						<div class="wdl-labels">
-							<span class="wdl-label-white">{winPct.toFixed(0)}%</span>
-							<span class="wdl-label-draw">{drawPct.toFixed(0)}%</span>
-							<span class="wdl-label-black">{lossPct.toFixed(0)}%</span>
-						</div>
-					</button>
+					{@render wdlRow(m, idx)}
 				{/each}
 			</div>
 		{/if}
@@ -703,35 +710,7 @@
 		{:else}
 			<div class="candidate-list" bind:this={listEl}>
 				{#each starsMoves as m, idx (m.san)}
-					{@const winPct = m.totalGames > 0 ? (m.white / m.totalGames) * 100 : 0}
-					{@const drawPct = m.totalGames > 0 ? (m.draws / m.totalGames) * 100 : 0}
-					{@const lossPct = m.totalGames > 0 ? (m.black / m.totalGames) * 100 : 0}
-					<button
-						class="candidate-row"
-						class:candidate-highlighted={highlightedIndex === idx}
-						onclick={() => onSelectMove(m.san)}
-						onmouseenter={() => onHoverMove?.(m.san)}
-						onmouseleave={() => onHoverMove?.(null)}
-						{disabled}
-					>
-						<div class="candidate-main">
-							<span class="candidate-san">{m.san}</span>
-							<span
-								class="wdl-bar-inline"
-								title="{winPct.toFixed(1)}% W / {drawPct.toFixed(1)}% D / {lossPct.toFixed(1)}% L"
-							>
-								<span class="wdl-white" style="width: {winPct}%"></span>
-								<span class="wdl-draw" style="width: {drawPct}%"></span>
-								<span class="wdl-black" style="width: {lossPct}%"></span>
-							</span>
-							<span class="masters-games">{formatCount(m.totalGames)}</span>
-						</div>
-						<div class="wdl-labels">
-							<span class="wdl-label-white">{winPct.toFixed(0)}%</span>
-							<span class="wdl-label-draw">{drawPct.toFixed(0)}%</span>
-							<span class="wdl-label-black">{lossPct.toFixed(0)}%</span>
-						</div>
-					</button>
+					{@render wdlRow(m, idx)}
 				{/each}
 			</div>
 		{/if}
@@ -761,35 +740,7 @@
 		{:else}
 			<div class="candidate-list" bind:this={listEl}>
 				{#each playersMoves as m, idx (m.san)}
-					{@const winPct = m.totalGames > 0 ? (m.white / m.totalGames) * 100 : 0}
-					{@const drawPct = m.totalGames > 0 ? (m.draws / m.totalGames) * 100 : 0}
-					{@const lossPct = m.totalGames > 0 ? (m.black / m.totalGames) * 100 : 0}
-					<button
-						class="candidate-row"
-						class:candidate-highlighted={highlightedIndex === idx}
-						onclick={() => onSelectMove(m.san)}
-						onmouseenter={() => onHoverMove?.(m.san)}
-						onmouseleave={() => onHoverMove?.(null)}
-						{disabled}
-					>
-						<div class="candidate-main">
-							<span class="candidate-san">{m.san}</span>
-							<span
-								class="wdl-bar-inline"
-								title="{winPct.toFixed(1)}% W / {drawPct.toFixed(1)}% D / {lossPct.toFixed(1)}% L"
-							>
-								<span class="wdl-white" style="width: {winPct}%"></span>
-								<span class="wdl-draw" style="width: {drawPct}%"></span>
-								<span class="wdl-black" style="width: {lossPct}%"></span>
-							</span>
-							<span class="masters-games">{formatCount(m.totalGames)}</span>
-						</div>
-						<div class="wdl-labels">
-							<span class="wdl-label-white">{winPct.toFixed(0)}%</span>
-							<span class="wdl-label-draw">{drawPct.toFixed(0)}%</span>
-							<span class="wdl-label-black">{lossPct.toFixed(0)}%</span>
-						</div>
-					</button>
+					{@render wdlRow(m, idx)}
 				{/each}
 			</div>
 		{/if}

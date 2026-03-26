@@ -10,10 +10,10 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
-import { repertoire, userMove, userRepertoireMove, userSettings } from '$lib/db/schema';
+import { repertoire, userMove, userRepertoireMove } from '$lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { gradeCard, Rating } from '$lib/fsrs';
-import type { FSRSUserConfig } from '$lib/fsrs';
+import { loadFsrsConfig } from '$lib/server/fsrs-config';
 import { fenKey } from '$lib/fen';
 
 export const POST: RequestHandler = async ({ locals, request }) => {
@@ -34,40 +34,27 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	// Normalize to 4-field FEN so transpositions always match.
 	const fromFen = fenKey(body.fromFen);
 
-	// Verify the repertoire belongs to this user.
-	const [rep] = await db
-		.select()
-		.from(repertoire)
-		.where(and(eq(repertoire.id, repertoireId), eq(repertoire.userId, locals.user.id)));
-	if (!rep) throw error(404, 'Repertoire not found');
+	// Repertoire check, card lookup, and FSRS config are independent — run in parallel.
+	const [repRows, cardRows, fsrsConfig] = await Promise.all([
+		db
+			.select()
+			.from(repertoire)
+			.where(and(eq(repertoire.id, repertoireId), eq(repertoire.userId, locals.user.id))),
+		db
+			.select()
+			.from(userRepertoireMove)
+			.where(
+				and(
+					eq(userRepertoireMove.userId, locals.user.id),
+					eq(userRepertoireMove.repertoireId, repertoireId),
+					eq(userRepertoireMove.fromFen, fromFen)
+				)
+			),
+		loadFsrsConfig(locals.user.id)
+	]);
 
-	// Look up the SR card for this position.
-	const [card] = await db
-		.select()
-		.from(userRepertoireMove)
-		.where(
-			and(
-				eq(userRepertoireMove.userId, locals.user.id),
-				eq(userRepertoireMove.repertoireId, repertoireId),
-				eq(userRepertoireMove.fromFen, fromFen)
-			)
-		);
-
-	// Load the user's FSRS config so scheduling respects their settings.
-	const [settings] = await db
-		.select({
-			fsrsDesiredRetention: userSettings.fsrsDesiredRetention,
-			fsrsMaximumInterval: userSettings.fsrsMaximumInterval,
-			fsrsRelearningMinutes: userSettings.fsrsRelearningMinutes
-		})
-		.from(userSettings)
-		.where(eq(userSettings.userId, locals.user.id));
-
-	const fsrsConfig: FSRSUserConfig = {
-		requestRetention: settings?.fsrsDesiredRetention ?? 0.9,
-		maximumInterval: settings?.fsrsMaximumInterval ?? 365,
-		relearningMinutes: settings?.fsrsRelearningMinutes ?? 10
-	};
+	if (!repRows[0]) throw error(404, 'Repertoire not found');
+	const card = cardRows[0];
 
 	const now = new Date();
 

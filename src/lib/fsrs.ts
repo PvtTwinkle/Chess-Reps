@@ -23,9 +23,9 @@ export interface FSRSUserConfig {
 	relearningMinutes?: number; // 1–60 minutes, default 10
 }
 
-const DEFAULT_RETENTION = 0.9;
-const DEFAULT_MAX_INTERVAL = 365;
-const DEFAULT_RELEARNING_MINUTES = 10;
+export const DEFAULT_RETENTION = 0.9;
+export const DEFAULT_MAX_INTERVAL = 365;
+export const DEFAULT_RELEARNING_MINUTES = 10;
 
 // Default FSRS instance — reused when no per-user config is provided.
 const defaultInstance = fsrs(
@@ -37,8 +37,12 @@ const defaultInstance = fsrs(
 	})
 );
 
+// Cache for non-default FSRS instances, keyed by "retention|maxInterval|relearningMin".
+const instanceCache = new Map<string, FSRS>();
+
 // Build an FSRS instance from per-user config. Reuses the default instance
-// when all values match defaults (the common case).
+// when all values match defaults (the common case), and caches non-default
+// instances so repeated calls with the same config don't re-instantiate.
 function getFsrsInstance(config?: FSRSUserConfig): FSRS {
 	const retention = config?.requestRetention ?? DEFAULT_RETENTION;
 	const maxInterval = config?.maximumInterval ?? DEFAULT_MAX_INTERVAL;
@@ -52,7 +56,11 @@ function getFsrsInstance(config?: FSRSUserConfig): FSRS {
 		return defaultInstance;
 	}
 
-	return fsrs(
+	const key = `${retention}|${maxInterval}|${relearningMin}`;
+	let instance = instanceCache.get(key);
+	if (instance) return instance;
+
+	instance = fsrs(
 		generatorParameters({
 			enable_fuzz: true,
 			request_retention: retention,
@@ -60,6 +68,8 @@ function getFsrsInstance(config?: FSRSUserConfig): FSRS {
 			relearning_steps: [`${relearningMin}m`]
 		})
 	);
+	instanceCache.set(key, instance);
+	return instance;
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -160,27 +170,31 @@ export function gradeCard(
 	return cardToUpdate(result.card, now);
 }
 
-/**
- * Returns a human-readable label for the next review interval after a given
- * rating, e.g. "10 min", "1 day", "4 days". Used in drill grading buttons.
- */
-export function nextIntervalLabel(
-	row: FSRSCardRow,
-	rating: Rating,
-	now: Date,
-	config?: FSRSUserConfig
-): string {
-	const card = dbRowToCard(row);
-	const f = getFsrsInstance(config);
-	const scheduling = f.repeat(card, now);
-	const result = scheduling[rating as Grade];
-	const nextDue = result.card.due;
-	const diffMs = nextDue.getTime() - now.getTime();
-	const diffMin = Math.round(diffMs / 60000);
-
+// Human-readable label for a time difference, e.g. "10 min", "1 day", "4 days".
+function formatInterval(dueDate: Date, now: Date): string {
+	const diffMin = Math.round((dueDate.getTime() - now.getTime()) / 60000);
 	if (diffMin < 60) return `${diffMin} min`;
 	const diffHr = Math.round(diffMin / 60);
 	if (diffHr < 24) return `${diffHr} hr`;
 	const diffDay = Math.round(diffHr / 24);
 	return `${diffDay} day${diffDay !== 1 ? 's' : ''}`;
+}
+
+/**
+ * Returns interval labels for all three ratings in one pass.
+ * Calls `f.repeat()` once (it returns all ratings), avoiding 3x redundant work.
+ */
+export function intervalLabels(
+	row: FSRSCardRow,
+	now: Date,
+	config?: FSRSUserConfig
+): { forgot: string; unsure: string; easy: string } {
+	const card = dbRowToCard(row);
+	const f = getFsrsInstance(config);
+	const scheduling = f.repeat(card, now);
+	return {
+		forgot: formatInterval(scheduling[Rating.Again as Grade].card.due, now),
+		unsure: formatInterval(scheduling[Rating.Good as Grade].card.due, now),
+		easy: formatInterval(scheduling[Rating.Easy as Grade].card.due, now)
+	};
 }

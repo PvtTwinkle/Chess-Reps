@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- FSRS config loading extracted into a shared helper — eliminates duplicated query logic across three API routes
+- FSRS instances are now cached by config key, avoiding redundant instantiation on repeated calls
+- Interval label computation calls `f.repeat()` once per card instead of three times (one per rating)
+- WDL move rows in Build mode deduplicated into a shared Svelte snippet used by Masters, Stars, and Players tabs
+- Drill grade and fail-card API routes now load the card and FSRS config in parallel
+- Dockerfile no longer creates an empty placeholder for the Lichess dump file
+- PostgreSQL port exposed by default in docker-compose for easier local access
+
 ### Added
 
 - **Stars tab** in Build mode — see what moves famous players like Magnus Carlsen, Bobby Fischer, or GothamChess played at any position, with win/draw/loss stats
