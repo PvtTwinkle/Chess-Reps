@@ -331,16 +331,26 @@ def aggregate_and_finalize(conn, min_games: int):
             sys.exit(1)
 
     with conn.cursor() as cur:
-        cur.execute("SELECT COUNT(*) FROM lichess_moves_raw")
-        raw_count = cur.fetchone()[0]
-        if raw_count == 0:
-            print("[lichess] ERROR: Staging table is empty — nothing to aggregate.")
-            sys.exit(1)
+        # Use pg_class estimate instead of COUNT(*) — instant on billion-row tables
+        cur.execute(
+            "SELECT reltuples::BIGINT FROM pg_class WHERE relname = 'lichess_moves_raw'"
+        )
+        raw_estimate = cur.fetchone()[0]
+        if raw_estimate <= 0:
+            # Estimate might be stale after COPY; fall back to EXISTS check
+            cur.execute("SELECT EXISTS (SELECT 1 FROM lichess_moves_raw LIMIT 1)")
+            if not cur.fetchone()[0]:
+                print("[lichess] ERROR: Staging table is empty — nothing to aggregate.")
+                sys.exit(1)
+            raw_estimate = None
         cur.execute(
             "SELECT pg_size_pretty(pg_total_relation_size('lichess_moves_raw'))"
         )
         raw_size = cur.fetchone()[0]
-        print(f"[lichess] Raw staging table: {raw_count:,} rows ({raw_size})")
+        if raw_estimate:
+            print(f"[lichess] Raw staging table: ~{raw_estimate:,} rows ({raw_size})")
+        else:
+            print(f"[lichess] Raw staging table: {raw_size}")
 
     # Ensure the final table exists (first run creates it with PK + index)
     ensure_final_table(conn)
@@ -354,16 +364,9 @@ def aggregate_and_finalize(conn, min_games: int):
     else:
         print("[lichess] Final table is empty (fresh import)")
 
-    # Index the staging table by rating_bracket so each chunked pass is efficient
-    print("[lichess] Creating index on staging table for chunked aggregation...")
-    idx_start = time.time()
-    with conn.cursor() as cur:
-        cur.execute(
-            "CREATE INDEX IF NOT EXISTS idx_raw_bracket "
-            "ON lichess_moves_raw (rating_bracket)"
-        )
-    conn.commit()
-    print(f"[lichess]   Index created in {format_duration(time.time() - idx_start)}")
+    # No index on staging table — without it, PostgreSQL uses Parallel Seq Scan
+    # which is much faster with many parallel workers than a single-threaded
+    # index scan on a billion-row table.
 
     # Aggregate one rating bracket at a time to keep temp-file usage manageable.
     # Each bracket is ~1/8 of the data, independent since rating_bracket is part
@@ -372,11 +375,13 @@ def aggregate_and_finalize(conn, min_games: int):
     agg_start = time.time()
     total_merged = 0
 
-    for bracket in range(8):
-        bracket_start = time.time()
-        with conn.cursor() as cur:
-            if existing_count > 0:
-                # Incremental merge — upsert into existing final table
+    if existing_count > 0:
+        # Incremental merge — INSERT ... ON CONFLICT upsert into existing table.
+        # PostgreSQL cannot parallelize INSERT INTO ... SELECT, but this path
+        # only runs for smaller incremental updates, not the initial bulk load.
+        for bracket in range(8):
+            bracket_start = time.time()
+            with conn.cursor() as cur:
                 cur.execute("""
                     INSERT INTO lichess_moves
                         (position_fen, move_san, rating_bracket, resulting_fen,
@@ -397,27 +402,83 @@ def aggregate_and_finalize(conn, min_games: int):
                         black_wins   = lichess_moves.black_wins   + EXCLUDED.black_wins,
                         draws        = lichess_moves.draws         + EXCLUDED.draws
                 """, (bracket,))
-            else:
-                # Fresh import — simple INSERT, no conflict possible
-                cur.execute("""
-                    INSERT INTO lichess_moves
-                        (position_fen, move_san, rating_bracket, resulting_fen,
-                         games_played, white_wins, black_wins, draws)
+                rows = cur.rowcount
+                total_merged += rows
+            conn.commit()
+            bracket_elapsed = time.time() - bracket_start
+            elapsed_str = format_duration(bracket_elapsed)
+            completed = bracket + 1
+            avg_per_bracket = (time.time() - agg_start) / completed
+            remaining = avg_per_bracket * (8 - completed)
+            eta_str = format_duration(remaining) if completed < 8 else "done"
+            print(
+                f"[lichess]   Bracket {bracket}: {rows:,} rows ({elapsed_str}) "
+                f"— {completed}/8 done, ~{eta_str} remaining"
+            )
+    else:
+        # Fresh import — use CREATE TABLE AS to enable parallel query.
+        # PostgreSQL can parallelize CREATE TABLE AS but not INSERT INTO ... SELECT.
+        # Build each bracket into a temp table, then combine into the final table.
+        temp_tables = []
+        for bracket in range(8):
+            bracket_start = time.time()
+            temp_name = f"_lichess_bracket_{bracket}"
+            with conn.cursor() as cur:
+                cur.execute(f"DROP TABLE IF EXISTS {temp_name}")
+                cur.execute(f"""
+                    CREATE TABLE {temp_name} AS
                     SELECT
                         position_fen, move_san, rating_bracket, resulting_fen,
-                        SUM(games_played)::INTEGER,
-                        SUM(white_wins)::INTEGER,
-                        SUM(black_wins)::INTEGER,
-                        SUM(draws)::INTEGER
+                        SUM(games_played)::INTEGER AS games_played,
+                        SUM(white_wins)::INTEGER AS white_wins,
+                        SUM(black_wins)::INTEGER AS black_wins,
+                        SUM(draws)::INTEGER AS draws
                     FROM lichess_moves_raw
                     WHERE rating_bracket = %s
                     GROUP BY position_fen, move_san, rating_bracket, resulting_fen
                 """, (bracket,))
-            rows = cur.rowcount
-            total_merged += rows
+                rows = cur.rowcount
+                total_merged += rows
+            conn.commit()
+            temp_tables.append(temp_name)
+            bracket_elapsed = time.time() - bracket_start
+            elapsed_str = format_duration(bracket_elapsed)
+            completed = bracket + 1
+            avg_per_bracket = (time.time() - agg_start) / completed
+            remaining = avg_per_bracket * (8 - completed)
+            eta_str = format_duration(remaining) if completed < 8 else "done"
+            print(
+                f"[lichess]   Bracket {bracket}: {rows:,} rows ({elapsed_str}) "
+                f"— {completed}/8 done, ~{eta_str} remaining"
+            )
+
+        # Combine bracket tables into the final table
+        print("[lichess] Combining bracket tables into lichess_moves...")
+        combine_start = time.time()
+        with conn.cursor() as cur:
+            # Drop and recreate the final table without constraints for fast loading
+            cur.execute("DROP TABLE IF EXISTS lichess_moves")
+            union_parts = " UNION ALL ".join(
+                f"SELECT * FROM {t}" for t in temp_tables
+            )
+            cur.execute(f"CREATE TABLE lichess_moves AS {union_parts}")
+            # Add primary key and index
+            cur.execute(
+                "ALTER TABLE lichess_moves "
+                "ADD PRIMARY KEY (position_fen, move_san, rating_bracket)"
+            )
+            cur.execute(
+                "CREATE INDEX idx_lichess_position_bracket "
+                "ON lichess_moves (position_fen, rating_bracket)"
+            )
+            # Clean up temp tables
+            for t in temp_tables:
+                cur.execute(f"DROP TABLE {t}")
         conn.commit()
-        elapsed = format_duration(time.time() - bracket_start)
-        print(f"[lichess]   Bracket {bracket}: {rows:,} rows ({elapsed})")
+        print(
+            f"[lichess]   Combined and indexed in "
+            f"{format_duration(time.time() - combine_start)}"
+        )
 
     agg_elapsed = time.time() - agg_start
     print(
@@ -573,7 +634,9 @@ def main():
     if args.finalize_only:
         print("[lichess] Finalize-only mode — aggregating existing staging data")
         with conn.cursor() as cur:
-            cur.execute("SET work_mem = '256MB'")
+            cur.execute("SET work_mem = '1GB'")
+            cur.execute("SET max_parallel_workers_per_gather = 16")
+            cur.execute("SET effective_cache_size = '24GB'")
         aggregate_and_finalize(conn, args.min_games)
         drop_progress_table(conn)
         if args.dump:
@@ -619,7 +682,9 @@ def main():
     # Tuning for bulk import
     with conn.cursor() as cur:
         cur.execute("SET synchronous_commit = OFF")
-        cur.execute("SET work_mem = '256MB'")
+        cur.execute("SET work_mem = '1GB'")
+        cur.execute("SET max_parallel_workers_per_gather = 16")
+        cur.execute("SET effective_cache_size = '24GB'")
 
     ensure_progress_table(conn)
 

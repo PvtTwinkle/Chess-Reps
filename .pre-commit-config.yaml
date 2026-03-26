@@ -57,16 +57,6 @@ repos:
         pass_filenames: false
         always_run: true
         stages: [pre-push]
-
-      # Trivy filesystem scan — vulnerability scan of source code and deps
-      - id: trivy-fs
-        name: trivy filesystem scan
-        entry: trivy fs --severity HIGH,CRITICAL --exit-code 1 .
-        language: system
-        pass_filenames: false
-        always_run: true
-        stages: [pre-push]
-
       # Trivy config scan — Dockerfile and docker-compose misconfiguration check
       - id: trivy-config
         name: trivy config scan

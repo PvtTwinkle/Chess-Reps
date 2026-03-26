@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- Trivy filesystem scan from pre-push hooks and CI — redundant with npm audit and the Docker image scan, and caused SSH timeouts during database downloads
+
 ### Changed
 
 - FSRS config loading extracted into a shared helper — eliminates duplicated query logic across three API routes

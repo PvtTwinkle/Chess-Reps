@@ -67,15 +67,6 @@ jobs:
             p/javascript
             p/typescript
 
-      # ── Trivy filesystem scan ───────────────────────────────────────────────
-      - name: Trivy filesystem scan
-        uses: aquasecurity/trivy-action@master
-        with:
-          scan-type: 'fs'
-          scan-ref: '.'
-          severity: 'HIGH,CRITICAL'
-          exit-code: '1'
-
       # ── Trivy config scan (Dockerfiles, docker-compose) ─────────────────────
       - name: Trivy config scan
         uses: aquasecurity/trivy-action@master
