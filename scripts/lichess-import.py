@@ -354,63 +354,79 @@ def aggregate_and_finalize(conn, min_games: int):
     else:
         print("[lichess] Final table is empty (fresh import)")
 
-    # Step 1: Aggregate raw data into a temp table
-    print("[lichess] Aggregating raw data (GROUP BY + SUM)...")
-    agg_start = time.time()
-
+    # Index the staging table by rating_bracket so each chunked pass is efficient
+    print("[lichess] Creating index on staging table for chunked aggregation...")
+    idx_start = time.time()
     with conn.cursor() as cur:
-        cur.execute("DROP TABLE IF EXISTS lichess_agg_temp")
-        cur.execute("""
-            CREATE TEMP TABLE lichess_agg_temp AS
-            SELECT
-                position_fen,
-                move_san,
-                rating_bracket,
-                resulting_fen,
-                SUM(games_played)::INTEGER AS games_played,
-                SUM(white_wins)::INTEGER AS white_wins,
-                SUM(black_wins)::INTEGER AS black_wins,
-                SUM(draws)::INTEGER AS draws
-            FROM lichess_moves_raw
-            GROUP BY position_fen, move_san, rating_bracket, resulting_fen
-        """)
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_raw_bracket "
+            "ON lichess_moves_raw (rating_bracket)"
+        )
     conn.commit()
+    print(f"[lichess]   Index created in {format_duration(time.time() - idx_start)}")
+
+    # Aggregate one rating bracket at a time to keep temp-file usage manageable.
+    # Each bracket is ~1/8 of the data, independent since rating_bracket is part
+    # of the GROUP BY and the primary key.
+    print("[lichess] Aggregating raw data (chunked by rating bracket)...")
+    agg_start = time.time()
+    total_merged = 0
+
+    for bracket in range(8):
+        bracket_start = time.time()
+        with conn.cursor() as cur:
+            if existing_count > 0:
+                # Incremental merge — upsert into existing final table
+                cur.execute("""
+                    INSERT INTO lichess_moves
+                        (position_fen, move_san, rating_bracket, resulting_fen,
+                         games_played, white_wins, black_wins, draws)
+                    SELECT
+                        position_fen, move_san, rating_bracket, resulting_fen,
+                        SUM(games_played)::INTEGER,
+                        SUM(white_wins)::INTEGER,
+                        SUM(black_wins)::INTEGER,
+                        SUM(draws)::INTEGER
+                    FROM lichess_moves_raw
+                    WHERE rating_bracket = %s
+                    GROUP BY position_fen, move_san, rating_bracket, resulting_fen
+                    ON CONFLICT (position_fen, move_san, rating_bracket)
+                    DO UPDATE SET
+                        games_played = lichess_moves.games_played + EXCLUDED.games_played,
+                        white_wins   = lichess_moves.white_wins   + EXCLUDED.white_wins,
+                        black_wins   = lichess_moves.black_wins   + EXCLUDED.black_wins,
+                        draws        = lichess_moves.draws         + EXCLUDED.draws
+                """, (bracket,))
+            else:
+                # Fresh import — simple INSERT, no conflict possible
+                cur.execute("""
+                    INSERT INTO lichess_moves
+                        (position_fen, move_san, rating_bracket, resulting_fen,
+                         games_played, white_wins, black_wins, draws)
+                    SELECT
+                        position_fen, move_san, rating_bracket, resulting_fen,
+                        SUM(games_played)::INTEGER,
+                        SUM(white_wins)::INTEGER,
+                        SUM(black_wins)::INTEGER,
+                        SUM(draws)::INTEGER
+                    FROM lichess_moves_raw
+                    WHERE rating_bracket = %s
+                    GROUP BY position_fen, move_san, rating_bracket, resulting_fen
+                """, (bracket,))
+            rows = cur.rowcount
+            total_merged += rows
+        conn.commit()
+        elapsed = format_duration(time.time() - bracket_start)
+        print(f"[lichess]   Bracket {bracket}: {rows:,} rows ({elapsed})")
 
     agg_elapsed = time.time() - agg_start
-    with conn.cursor() as cur:
-        cur.execute("SELECT COUNT(*) FROM lichess_agg_temp")
-        agg_count = cur.fetchone()[0]
     print(
-        f"[lichess]   Aggregated to {agg_count:,} unique move entries "
+        f"[lichess]   Aggregated {total_merged:,} total rows "
         f"in {format_duration(agg_elapsed)}"
     )
 
-    # Step 2: Merge into final table via ON CONFLICT upsert
-    print("[lichess] Merging into final table (INSERT ... ON CONFLICT DO UPDATE)...")
-    merge_start = time.time()
-
+    # Drop raw staging table
     with conn.cursor() as cur:
-        cur.execute("""
-            INSERT INTO lichess_moves
-                (position_fen, move_san, rating_bracket, resulting_fen,
-                 games_played, white_wins, black_wins, draws)
-            SELECT * FROM lichess_agg_temp
-            ON CONFLICT (position_fen, move_san, rating_bracket)
-            DO UPDATE SET
-                games_played = lichess_moves.games_played + EXCLUDED.games_played,
-                white_wins   = lichess_moves.white_wins   + EXCLUDED.white_wins,
-                black_wins   = lichess_moves.black_wins   + EXCLUDED.black_wins,
-                draws        = lichess_moves.draws         + EXCLUDED.draws
-        """)
-        merged = cur.rowcount
-    conn.commit()
-
-    merge_elapsed = time.time() - merge_start
-    print(f"[lichess]   Merged {merged:,} rows in {format_duration(merge_elapsed)}")
-
-    # Step 3: Drop temp + raw tables
-    with conn.cursor() as cur:
-        cur.execute("DROP TABLE IF EXISTS lichess_agg_temp")
         cur.execute("DROP TABLE IF EXISTS lichess_moves_raw")
     conn.commit()
 

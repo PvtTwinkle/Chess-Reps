@@ -148,6 +148,13 @@
 			"when": 1774400000000,
 			"tag": "0020_star_player_category",
 			"breakpoints": true
+		},
+		{
+			"idx": 21,
+			"version": "6",
+			"when": 1774500000000,
+			"tag": "0021_drop_celebrity_resulting_fen",
+			"breakpoints": true
 		}
 	]
 }

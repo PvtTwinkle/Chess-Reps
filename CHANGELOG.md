@@ -24,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Removed unused `resulting_fen` column from the celebrity moves table — simplifies storage and import scripts
+- Lichess import script now aggregates one rating bracket at a time instead of materializing the entire dataset in a temp table — keeps disk usage manageable for large imports
 - Default maximum review interval lowered from ~100 years to 365 days — cards no longer vanish indefinitely
 - Light mode redesigned with ice-blue palette — softer on the eyes and aligned with brand colors
 - Dark mode background shifted from pitch black to deep navy

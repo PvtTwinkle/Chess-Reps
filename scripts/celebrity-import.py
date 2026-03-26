@@ -5,7 +5,7 @@ Celebrity PGN Import — Parses PGN files into the celebrity_moves table.
 
 Takes a PGN file (plain or zstd-compressed) and a player slug, replays every
 game move-by-move to compute 4-field normalized FENs, and bulk-loads
-(position_fen, move_san, player_slug) tuples with W/D/L counts into PostgreSQL.
+(position_fen, move_san, player_slug) rows with W/D/L counts into PostgreSQL.
 
 Unlike the Lichess import script, this does NOT filter by rating bracket —
 the dimension is player_slug instead. There is also no minimum-games filter
@@ -75,7 +75,6 @@ def process_game_pgn(pgn_str: str) -> dict:
     """Parse a PGN string, replay moves (up to move 30), return aggregated data.
 
     Returns a dict mapping (position_fen, move_san) -> {
-        'to_fen': str,
         'w': int,   # white wins
         'b': int,   # black wins
         'd': int,   # draws
@@ -106,11 +105,10 @@ def process_game_pgn(pgn_str: str) -> dict:
         from_fen = normalize_fen(board.fen())
         san = board.san(move)
         board.push(move)
-        to_fen = normalize_fen(board.fen())
 
         key = (from_fen, san)
         if key not in moves:
-            moves[key] = {"to_fen": to_fen, "w": 0, "d": 0, "b": 0}
+            moves[key] = {"w": 0, "d": 0, "b": 0}
         moves[key][result_key] += 1
 
         half_move_count += 1
@@ -127,7 +125,6 @@ def ensure_raw_table(conn):
                 position_fen    TEXT    NOT NULL,
                 move_san        TEXT    NOT NULL,
                 player_slug     TEXT    NOT NULL,
-                resulting_fen   TEXT    NOT NULL,
                 games_played    INTEGER NOT NULL,
                 white_wins      INTEGER NOT NULL,
                 black_wins      INTEGER NOT NULL,
@@ -140,11 +137,10 @@ def ensure_raw_table(conn):
 # ── Batch processing — COPY-based append ─────────────────────────────────────
 
 def merge_results(all_results: list) -> dict:
-    aggregated = defaultdict(lambda: {"to_fen": "", "w": 0, "d": 0, "b": 0})
+    aggregated = defaultdict(lambda: {"w": 0, "d": 0, "b": 0})
     for game_moves in all_results:
         for (pos_fen, san), data in game_moves.items():
             agg = aggregated[(pos_fen, san)]
-            agg["to_fen"] = data["to_fen"]
             agg["w"] += data["w"]
             agg["d"] += data["d"]
             agg["b"] += data["b"]
@@ -159,7 +155,7 @@ def copy_batch(conn, aggregated: dict, player_slug: str):
     for (position_fen, move_san), data in aggregated.items():
         total = data["w"] + data["d"] + data["b"]
         buf.write(
-            f"{position_fen}\t{move_san}\t{player_slug}\t{data['to_fen']}\t"
+            f"{position_fen}\t{move_san}\t{player_slug}\t"
             f"{total}\t{data['w']}\t{data['b']}\t{data['d']}\n"
         )
     buf.seek(0)
@@ -167,7 +163,7 @@ def copy_batch(conn, aggregated: dict, player_slug: str):
     with conn.cursor() as cur:
         cur.copy_from(
             buf, "celebrity_moves_raw",
-            columns=("position_fen", "move_san", "player_slug", "resulting_fen",
+            columns=("position_fen", "move_san", "player_slug",
                      "games_played", "white_wins", "black_wins", "draws")
         )
     conn.commit()
@@ -263,13 +259,12 @@ def aggregate_and_finalize(conn, min_games: int = 2):
                 position_fen,
                 move_san,
                 player_slug,
-                resulting_fen,
                 SUM(games_played)::INTEGER AS games_played,
                 SUM(white_wins)::INTEGER AS white_wins,
                 SUM(black_wins)::INTEGER AS black_wins,
                 SUM(draws)::INTEGER AS draws
             FROM celebrity_moves_raw
-            GROUP BY position_fen, move_san, player_slug, resulting_fen
+            GROUP BY position_fen, move_san, player_slug
         """)
     conn.commit()
 
@@ -289,7 +284,7 @@ def aggregate_and_finalize(conn, min_games: int = 2):
     with conn.cursor() as cur:
         cur.execute("""
             INSERT INTO celebrity_moves
-                (position_fen, move_san, player_slug, resulting_fen,
+                (position_fen, move_san, player_slug,
                  games_played, white_wins, black_wins, draws)
             SELECT * FROM celebrity_agg_temp
             ON CONFLICT (position_fen, move_san, player_slug)

@@ -139,7 +139,6 @@ export const celebrityMoves = pgTable(
 		positionFen: text('position_fen').notNull(),
 		moveSan: text('move_san').notNull(),
 		playerSlug: text('player_slug').notNull(),
-		resultingFen: text('resulting_fen').notNull(),
 		gamesPlayed: integer('games_played').notNull().default(0),
 		whiteWins: integer('white_wins').notNull().default(0),
 		blackWins: integer('black_wins').notNull().default(0),

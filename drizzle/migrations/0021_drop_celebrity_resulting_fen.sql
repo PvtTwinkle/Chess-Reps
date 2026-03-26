@@ -1,0 +1,1 @@
+ALTER TABLE celebrity_moves DROP COLUMN IF EXISTS resulting_fen;
