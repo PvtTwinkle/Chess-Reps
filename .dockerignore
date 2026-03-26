@@ -50,9 +50,9 @@ scripts
 eslint.config.js
 drizzle.config.ts
 
-# Data dump files used only for offline tooling (not the seed dumps)
-# Note: chessmont-moves-dump.sql.gz and puzzles-dump.sql.gz are intentionally
-# included in the build context — they are COPY'd into the image for auto-seeding.
+# Seed dumps are downloaded inside the Dockerfile (seeds stage) from
+# GitHub Releases — they do not need to be in the build context.
+*.sql.gz
 
 # Logs
 *.log

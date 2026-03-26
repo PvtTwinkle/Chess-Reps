@@ -24,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Dockerfile now downloads seed data dumps from GitHub Releases during build — Railway, CI, and local builds all work without needing the dump files in the repo
+- Release workflow simplified — seed download step removed since the Dockerfile handles it
 - Removed unused `resulting_fen` column from the celebrity moves table — simplifies storage and import scripts
 - Lichess import script now aggregates one rating bracket at a time instead of materializing the entire dataset in a temp table — keeps disk usage manageable for large imports
 - Default maximum review interval lowered from ~100 years to 365 days — cards no longer vanish indefinitely

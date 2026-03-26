@@ -91,13 +91,14 @@ Log in with the username and password you set above.
 
 ## Included Data
 
-The Docker image ships with two large reference datasets that are loaded
+The Docker image ships with three large reference datasets that are loaded
 automatically on first startup (no extra steps required):
 
 | Dataset              | Description                                                                                           | Approx. Size |
 | -------------------- | ----------------------------------------------------------------------------------------------------- | ------------ |
 | **Masters Database** | ~8.8M moves from master-level games (Chessmont, ELO >= 2500). Powers the "Masters" tab in Build Mode. | ~131 MB      |
 | **Lichess Puzzles**  | Opening-tagged tactical puzzles. Powers the Puzzles page.                                             | ~69 MB       |
+| **Stars Database**   | Moves from famous players throughout chess history. Powers the "Stars" tab in Build Mode.             | ~34 MB       |
 
 The first boot takes a little longer while the data loads into PostgreSQL.
 Check `docker compose logs -f app` for progress. Subsequent startups skip

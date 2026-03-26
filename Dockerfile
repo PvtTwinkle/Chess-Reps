@@ -1,18 +1,43 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # Chessstack — SvelteKit application
 #
-# Multi-stage build. Two stages keep the final image small:
+# Multi-stage build. Three stages keep the final image small:
+#
+#   Stage 0 (seeds)   — downloads compressed database dumps from the
+#                        GitHub Release so every build environment (CI,
+#                        Railway, local) is self-sufficient.
 #
 #   Stage 1 (builder) — installs all dependencies and runs `vite build`.
 #                        Uses Alpine for fast installs.
 #
-#   Stage 2 (runner) — copies only what is needed to run the app: the
-#   compiled build output, the production node_modules, the database
-#   migration files, and the Stockfish binary.
+#   Stage 2 (runner)  — copies only what is needed to run the app: the
+#                        compiled build output, the production node_modules,
+#                        the database migration files, seed data, and the
+#                        Stockfish binary.
 #
 # No native compilation is needed — postgres.js (the PostgreSQL driver) is
 # pure JavaScript, so no build tools (python, make, g++) are required.
 # ─────────────────────────────────────────────────────────────────────────────
+
+
+# ── Stage 0: Seed data ───────────────────────────────────────────────────────
+# Downloads compressed database dumps from the GitHub Release.
+# These get COPY'd into the final image for auto-seeding on first boot.
+# Cached by Docker — only re-downloads when DATA_RELEASE changes.
+FROM alpine:3.20 AS seeds
+
+RUN apk add --no-cache curl
+
+ARG GITHUB_REPO=pvttwinkle/chessstack
+ARG DATA_RELEASE=data-v1.0
+
+WORKDIR /seeds
+RUN for f in chessmont-moves-dump.sql.gz puzzles-dump.sql.gz celebrity-moves-dump.sql.gz; do \
+      echo "Downloading $f..." && \
+      curl -fSL -o "$f" \
+        "https://github.com/${GITHUB_REPO}/releases/download/${DATA_RELEASE}/$f"; \
+    done && \
+    touch lichess-moves-dump.sql.gz
 
 
 # ── Stage 1: Build ────────────────────────────────────────────────────────────
@@ -72,10 +97,10 @@ COPY --from=builder /app/drizzle ./drizzle
 # project ("type": "module" in package.json).
 COPY --from=builder /app/package.json ./
 
-# Copy the compressed database seed dumps. On first boot, the app checks if
-# the masters, puzzle, players, and stars tables are empty and restores these via psql.
-# Placed late in the Dockerfile so source code changes don't bust this layer.
-COPY chessmont-moves-dump.sql.gz puzzles-dump.sql.gz lichess-moves-dump.sql.gz celebrity-moves-dump.sql.gz ./data/
+# Copy the compressed database seed dumps from the seeds stage. On first boot,
+# the app checks if the masters, puzzle, players, and stars tables are empty
+# and restores these via psql.
+COPY --from=seeds /seeds/ ./data/
 
 # Remove system npm — the app is already built and doesn't need a package
 # manager at runtime. This also eliminates CVEs in npm's bundled dependencies

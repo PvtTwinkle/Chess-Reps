@@ -42,31 +42,18 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Step 2: Download the seed database dumps from the data-v1.0 release.
-      # These ~200 MB files are not committed to the repo — they live as
-      # GitHub Release assets and get COPY'd into the Docker image so the
-      # app can auto-seed on first boot.
-      - name: Download seed dumps
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh release download data-v1.0 \
-            --pattern 'chessmont-moves-dump.sql.gz' \
-            --pattern 'puzzles-dump.sql.gz' \
-            --pattern 'celebrity-moves-dump.sql.gz'
-
-      # Step 3: Set up QEMU so Docker can build for architectures other than
+      # Step 2: Set up QEMU so Docker can build for architectures other than
       # the runner's native amd64 (we need arm64 for Raspberry Pi / Apple
       # Silicon / ARM cloud instances).
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
-      # Step 4: Set up Docker Buildx, which is the builder backend that
+      # Step 3: Set up Docker Buildx, which is the builder backend that
       # supports multi-platform builds and build caching.
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # Step 5: Authenticate with the GitHub Container Registry.
+      # Step 4: Authenticate with the GitHub Container Registry.
       # GITHUB_TOKEN is provided automatically by GitHub Actions.
       - name: Log in to GHCR
         uses: docker/login-action@v3
@@ -75,7 +62,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Step 6: Generate Docker tags from the git tag.
+      # Step 5: Generate Docker tags from the git tag.
       # For a tag like v1.2.3, this produces:
       #   ghcr.io/pvttwinkle/chessstack:v1.2.3
       #   ghcr.io/pvttwinkle/chessstack:v1.2
@@ -92,7 +79,7 @@ jobs:
             type=semver,pattern=v{{major}}
             type=raw,value=latest
 
-      # Step 7: Build for amd64 + arm64 and push to GHCR.
+      # Step 6: Build for amd64 + arm64 and push to GHCR.
       # The GitHub Actions layer cache speeds up rebuilds when only source
       # code changes (the npm ci layer is cached).
       - name: Build and push
