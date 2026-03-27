@@ -92,38 +92,38 @@
 
 /* ============================================================
    Light Theme Overrides
-   Ice-blue tones — softer on the eyes, on-brand
+   Cool neutral — GitHub-inspired professional light
    ============================================================ */
 
 [data-theme='light'] {
 	/* ── Colors ───────────────────────────────────────────────── */
-	--color-base: #c8d5e3;
-	--color-surface: #dce4ee;
-	--color-surface-alt: #d0dae6;
-	--color-border: #b8c8d8;
-	--color-border-strong: #9ab0c6;
-	--color-accent: #3572a5;
-	--color-accent-dim: #2a5f8f;
-	--color-accent-glow: rgba(53, 114, 165, 0.15);
-	--color-text-primary: #1a1a1e;
-	--color-text-secondary: #5a5a64;
-	--color-text-muted: #8a8a94;
-	--color-success: #15803d;
-	--color-danger: #b91c1c;
-	--color-explore: #0e7490;
-	--color-explore-glow: rgba(14, 116, 144, 0.15);
+	--color-base: #e9ecf0;
+	--color-surface: #ffffff;
+	--color-surface-alt: #f2f4f7;
+	--color-border: #d0d7de;
+	--color-border-strong: #b8c2cc;
+	--color-accent: #2563a8;
+	--color-accent-dim: #1d4f8c;
+	--color-accent-glow: rgba(37, 99, 168, 0.1);
+	--color-text-primary: #1f2328;
+	--color-text-secondary: #59636e;
+	--color-text-muted: #8b949e;
+	--color-success: #16a34a;
+	--color-danger: #dc2626;
+	--color-explore: #0891b2;
+	--color-explore-glow: rgba(8, 145, 178, 0.12);
 	--color-eval-best: #2563a8;
-	--color-eval-good: #15803d;
-	--color-eval-inaccuracy: #b8860b;
-	--color-eval-mistake: #c26e12;
-	--color-eval-blunder: #b91c1c;
+	--color-eval-good: #16a34a;
+	--color-eval-inaccuracy: #ca8a04;
+	--color-eval-mistake: #ea580c;
+	--color-eval-blunder: #dc2626;
 
 	/* ── Header / Drawer backgrounds ─────────────────────────── */
-	--color-header-bg: #b0c4d8;
-	--color-header-bg-solid: #b0c4d8;
+	--color-header-bg: #dfe3e9;
+	--color-header-bg-solid: #dfe3e9;
 
 	/* ── Shadows & Glow ──────────────────────────────────────── */
-	--shadow-surface: 0 1px 2px rgba(0, 0, 0, 0.05), 0 2px 8px rgba(0, 0, 0, 0.03);
-	--shadow-elevated: 0 4px 16px rgba(0, 0, 0, 0.08), 0 1px 4px rgba(0, 0, 0, 0.05);
-	--glow-accent: 0 0 10px rgba(53, 114, 165, 0.18);
+	--shadow-surface: 0 1px 3px rgba(31, 35, 40, 0.06), 0 1px 2px rgba(31, 35, 40, 0.04);
+	--shadow-elevated: 0 4px 12px rgba(31, 35, 40, 0.1), 0 1px 4px rgba(31, 35, 40, 0.06);
+	--glow-accent: 0 0 8px rgba(37, 99, 168, 0.15);
 }

@@ -26,6 +26,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Smart worker filter preserves leaf moves at established positions so you can see the end of lines
   - Lichess game fetch prioritizes most recent games (dateDesc) so capped fetches get the latest data
 
+### Changed
+
+- **Light theme redesigned** — replaced heavy blue-grey backgrounds with a proper cool-neutral palette inspired by GitHub; cards are now white on a light off-white page with clear layering, tuned accent/eval/semantic colors, and softer border+shadow depth
+
 ### Fixed
 
 - Black prep export was including wrong opponent moves, causing broken drill cards — now correctly filters by expected opponent color
