@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Tournament Prep Mode** — new /prep page for opponent-specific preparation
+  - Download an opponent's games from Lichess or Chess.com, analyze tendencies, and build targeted responses
+  - Alternating turn-based UI: on the opponent's turn see their most-played moves with W/D/L stats; on your turn pick a response using Book/Masters/Stars/Players/Engine tabs plus data on what others played against them
+  - Gap detection walks your prep tree and highlights positions where you have no prepared response, prioritized by how often the opponent reaches them
+  - Animated "Next uncovered position" button replays the line move-by-move to the highest-priority gap
+  - Coverage dashboard shows reachable positions with green/yellow/red breakdown
+  - Move tree view (same collapsible tree from Build mode) shows the full prep structure
+  - Min-games filter to hide rare moves, and per-move exclusion with restore
+  - Export prep as a new repertoire with FSRS drill cards, or add prep moves to an existing repertoire with conflict resolution
+  - Configurable max games per fetch (50–5000), time window selector on refresh, and chunked server uploads for large datasets
+  - Refresh confirmation to prevent accidental data replacement
+
 ### Removed
 
 - Trivy filesystem scan from pre-push hooks and CI — redundant with npm audit and the Docker image scan, and caused SSH timeouts during database downloads

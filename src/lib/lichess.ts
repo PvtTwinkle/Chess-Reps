@@ -72,7 +72,7 @@ interface LichessNdjsonGame {
  */
 export async function fetchLichessGames(
 	username: string,
-	options: { since?: number; max?: number } = {}
+	options: { since?: number; max?: number; sort?: 'dateAsc' | 'dateDesc' } = {}
 ): Promise<LichessGame[]> {
 	const max = options.max ?? 50;
 
@@ -84,7 +84,7 @@ export async function fetchLichessGames(
 		clocks: 'false',
 		evals: 'false',
 		opening: 'false',
-		sort: 'dateAsc'
+		sort: options.sort ?? 'dateAsc'
 	});
 
 	if (options.since !== undefined) {

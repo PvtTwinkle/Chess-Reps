@@ -422,3 +422,91 @@ export const puzzleAttempt = pgTable(
 		userPuzzleIdx: index('idx_puzzle_attempt_user_puzzle').on(table.userId, table.puzzleId)
 	})
 );
+
+// ─────────────────────────────────────────────────────────────────────────────
+// OPPONENT PREP TABLES
+// Tournament preparation — download an opponent's games, analyze tendencies,
+// and build targeted responses in a sandboxed workspace separate from the
+// user's real repertoires. Data is per-user, per-opponent.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// One row per opponent prep session. Tracks who the opponent is, which platform
+// their games were fetched from, and a watermark for incremental refreshes.
+export const opponentPreps = pgTable(
+	'opponent_preps',
+	{
+		id: serial('id').primaryKey(),
+		userId: integer('user_id')
+			.notNull()
+			.references(() => user.id, { onDelete: 'cascade' }),
+		opponentName: text('opponent_name').notNull(), // display name shown in the UI
+		platform: text('platform').notNull(), // 'LICHESS' or 'CHESSCOM'
+		platformUsername: text('platform_username').notNull(), // exact username used for API calls
+		timeWindow: text('time_window'), // '1m' | '3m' | '6m' | '1y' | 'all'
+		gamesAsWhite: integer('games_as_white').notNull().default(0),
+		gamesAsBlack: integer('games_as_black').notNull().default(0),
+		lastFetchedAt: timestamp('last_fetched_at').notNull(), // watermark for incremental refresh
+		createdAt: timestamp('created_at').notNull(),
+		minGames: integer('min_games').notNull().default(2), // hide moves played fewer than this many times
+		excludedMoves: text('excluded_moves') // JSON array of "fen|san" strings to hide from prep view
+	},
+	(table) => ({
+		userIdIdx: index('idx_opponent_preps_user_id').on(table.userId)
+	})
+);
+
+// Aggregated move statistics from the opponent's games. Every position+move
+// the opponent (or their opponents) played is stored with W/D/L counts.
+//
+// The opponent_color column determines move meaning via the color model:
+//   opponent_color == FEN active color → Opponent's choice (what they play)
+//   opponent_color != FEN active color → Context move (what others played against them)
+export const opponentMoves = pgTable(
+	'opponent_moves',
+	{
+		prepId: integer('prep_id')
+			.notNull()
+			.references(() => opponentPreps.id, { onDelete: 'cascade' }),
+		positionFen: text('position_fen').notNull(), // 4-field normalized FEN
+		moveSan: text('move_san').notNull(),
+		opponentColor: text('opponent_color').notNull(), // 'w' or 'b' — which color the opponent was playing
+		resultingFen: text('resulting_fen').notNull(),
+		gamesPlayed: integer('games_played').notNull().default(0),
+		whiteWins: integer('white_wins').notNull().default(0),
+		blackWins: integer('black_wins').notNull().default(0),
+		draws: integer('draws').notNull().default(0)
+	},
+	(table) => ({
+		pk: primaryKey({
+			columns: [table.prepId, table.positionFen, table.moveSan, table.opponentColor]
+		}),
+		positionColorIdx: index('idx_opponent_moves_position_color').on(
+			table.prepId,
+			table.positionFen,
+			table.opponentColor
+		)
+	})
+);
+
+// User's sandboxed prep responses — moves the user builds during a prep session.
+// Completely separate from repertoire/userMove tables. Cascade-deletes with the prep.
+export const prepMoves = pgTable(
+	'prep_moves',
+	{
+		id: serial('id').primaryKey(),
+		prepId: integer('prep_id')
+			.notNull()
+			.references(() => opponentPreps.id, { onDelete: 'cascade' }),
+		userId: integer('user_id')
+			.notNull()
+			.references(() => user.id, { onDelete: 'cascade' }),
+		fromFen: text('from_fen').notNull(), // position before the move
+		toFen: text('to_fen').notNull(), // position after the move (computed server-side)
+		san: text('san').notNull(), // move in Standard Algebraic Notation
+		color: text('color').notNull(), // 'white' or 'black' — which side the user is prepping as
+		createdAt: timestamp('created_at').notNull()
+	},
+	(table) => ({
+		prepFromFenIdx: index('idx_prep_moves_prep_from_fen').on(table.prepId, table.fromFen)
+	})
+);

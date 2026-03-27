@@ -452,17 +452,25 @@ def aggregate_and_finalize(conn, min_games: int):
                 f"— {completed}/8 done, ~{eta_str} remaining"
             )
 
-        # Combine bracket tables into the final table
-        print("[lichess] Combining bracket tables into lichess_moves...")
+        # Move bracket tables into the final table one at a time,
+        # dropping each after insert to avoid doubling disk usage.
+        print("[lichess] Moving bracket tables into lichess_moves...")
         combine_start = time.time()
         with conn.cursor() as cur:
-            # Drop and recreate the final table without constraints for fast loading
             cur.execute("DROP TABLE IF EXISTS lichess_moves")
-            union_parts = " UNION ALL ".join(
-                f"SELECT * FROM {t}" for t in temp_tables
+            # Create the final table structure from the first bracket
+            cur.execute(
+                f"ALTER TABLE {temp_tables[0]} RENAME TO lichess_moves"
             )
-            cur.execute(f"CREATE TABLE lichess_moves AS {union_parts}")
-            # Add primary key and index
+            print(f"[lichess]   Bracket 0 renamed to lichess_moves")
+            # Append remaining brackets, dropping each after insert
+            for i, t in enumerate(temp_tables[1:], start=1):
+                cur.execute(f"INSERT INTO lichess_moves SELECT * FROM {t}")
+                cur.execute(f"DROP TABLE {t}")
+                conn.commit()
+                print(f"[lichess]   Bracket {i} merged and dropped")
+            # Add primary key and index after all data is loaded
+            print("[lichess] Building primary key and index...")
             cur.execute(
                 "ALTER TABLE lichess_moves "
                 "ADD PRIMARY KEY (position_fen, move_san, rating_bracket)"
@@ -471,9 +479,6 @@ def aggregate_and_finalize(conn, min_games: int):
                 "CREATE INDEX idx_lichess_position_bracket "
                 "ON lichess_moves (position_fen, rating_bracket)"
             )
-            # Clean up temp tables
-            for t in temp_tables:
-                cur.execute(f"DROP TABLE {t}")
         conn.commit()
         print(
             f"[lichess]   Combined and indexed in "
