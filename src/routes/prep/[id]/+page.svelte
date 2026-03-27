@@ -625,6 +625,15 @@
 		</div>
 
 		<div class="board-col">
+			{#if s.conflictSan}
+				<div class="conflict-banner">
+					<span
+						>You already have <strong>{s.conflictSan}</strong> at this position. Delete it first to play
+						a different move.</span
+					>
+					<button class="dismiss-btn" onclick={() => s.dismissConflict()}>&times;</button>
+				</div>
+			{/if}
 			<ResizableBoard boardSize={data.settings?.boardSize ?? 0}>
 				{#key s.boardKey}
 					<ChessBoard
@@ -1204,7 +1213,19 @@
 		background: var(--color-surface-alt);
 	}
 
-	/* ── Error banner ─────────────────────────────────────────────────── */
+	/* ── Conflict + error banners ────────────────────────────────────── */
+
+	.conflict-banner {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		background: var(--color-eval-inaccuracy);
+		color: white;
+		border-radius: var(--radius-sm);
+		padding: var(--space-1) var(--space-2);
+		margin-bottom: var(--space-2);
+		font-size: 0.8rem;
+	}
 
 	.error-banner {
 		display: flex;

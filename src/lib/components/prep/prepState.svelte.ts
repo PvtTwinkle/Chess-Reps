@@ -99,6 +99,7 @@ export function createPrepState(params: CreatePrepStateParams) {
 	let currentFen = $state(STARTING_FEN);
 	let lastMove = $state<[string, string] | undefined>(undefined);
 	let saving = $state(false);
+	let conflictSan = $state<string | null>(null);
 	let errorMsg = $state<string | null>(null);
 	let boardKey = $state(0);
 
@@ -427,6 +428,7 @@ export function createPrepState(params: CreatePrepStateParams) {
 
 	function handleUndo(): void {
 		stopAnimation();
+		conflictSan = null;
 		if (navHistory.length === 0) return;
 		const prev = navHistory[navHistory.length - 1];
 		navHistory = navHistory.slice(0, -1);
@@ -443,6 +445,7 @@ export function createPrepState(params: CreatePrepStateParams) {
 		navHistory = [];
 		currentFen = STARTING_FEN;
 		lastMove = undefined;
+		conflictSan = null;
 		errorMsg = null;
 	}
 
@@ -646,6 +649,7 @@ export function createPrepState(params: CreatePrepStateParams) {
 		newFen: string,
 		isCapture = false
 	): Promise<void> {
+		conflictSan = null;
 		errorMsg = null;
 
 		const navigate = () => {
@@ -662,13 +666,19 @@ export function createPrepState(params: CreatePrepStateParams) {
 			return;
 		}
 
-		// User's turn — check if this exact prep move already exists
-		const existingPrep = (prepMovesByFen.get(fenKey(currentFen)) ?? []).find(
-			(m) => m.san === san && m.color === activeColor
+		// User's turn — check if a move already exists at this position
+		const existingPreps = (prepMovesByFen.get(fenKey(currentFen)) ?? []).filter(
+			(m) => m.color === activeColor
 		);
-		if (existingPrep) {
-			// Already saved — just navigate
-			navigate();
+		if (existingPreps.length > 0) {
+			if (existingPreps[0].san === san) {
+				// Exact same move — just navigate
+				navigate();
+				return;
+			}
+			// Different move exists — conflict, snap board back
+			conflictSan = existingPreps[0].san;
+			boardKey += 1;
 			return;
 		}
 
@@ -684,6 +694,14 @@ export function createPrepState(params: CreatePrepStateParams) {
 					color: activeColor
 				})
 			});
+
+			if (res.status === 409) {
+				// Server-side conflict (race condition fallback)
+				const body = await res.json();
+				conflictSan = body.existing?.san ?? '?';
+				boardKey += 1;
+				return;
+			}
 
 			if (!res.ok) {
 				errorMsg = 'Failed to save prep move.';
@@ -796,6 +814,9 @@ export function createPrepState(params: CreatePrepStateParams) {
 		get saving() {
 			return saving;
 		},
+		get conflictSan() {
+			return conflictSan;
+		},
 		get errorMsg() {
 			return errorMsg;
 		},
@@ -873,6 +894,9 @@ export function createPrepState(params: CreatePrepStateParams) {
 		excludeMove,
 		restoreMove,
 		restoreAllMoves,
+		dismissConflict() {
+			conflictSan = null;
+		},
 		dismissError() {
 			errorMsg = null;
 		}

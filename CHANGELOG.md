@@ -22,6 +22,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Export prep as a new repertoire with FSRS drill cards, or add prep moves to an existing repertoire with conflict resolution
   - Configurable max games per fetch (50–5000), time window selector on refresh, and chunked server uploads for large datasets
   - Refresh confirmation to prevent accidental data replacement
+  - One-move-per-position enforcement (matching Build mode) — conflict banner warns when a different move already exists
+  - Smart worker filter preserves leaf moves at established positions so you can see the end of lines
+  - Lichess game fetch prioritizes most recent games (dateDesc) so capped fetches get the latest data
+
+### Fixed
+
+- Black prep export was including wrong opponent moves, causing broken drill cards — now correctly filters by expected opponent color
+- "Next uncovered position" was stuck at the first move because gap detection only walked opponent moves — now follows prep moves and coverage deeper into the tree
+- Dashboard stats (coverage %, position count) were counting unreachable positions — now consistent with gap detection by only counting positions reachable through your prep
+- Suggestions in "Played against your opponent" could bypass the one-move-per-position rule — now routed through the conflict check
+- Large opponent datasets (2700+ games) failed on merge due to PostgreSQL parameter limits and SvelteKit body size — chunked into 1000-move batches sent as separate requests
+- Duplicate `{#each}` keys in move panels caused page crashes after export — switched to index-based keys
 
 ### Removed
 

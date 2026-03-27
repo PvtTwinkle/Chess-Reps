@@ -115,8 +115,19 @@ function handleParse(data: WorkerParseMessage): void {
 		}
 	}
 
-	// Filter out noise: only include moves played at least MIN_GAMES times
-	const moves = Array.from(moveMap.values()).filter((m) => m.gamesPlayed >= MIN_GAMES);
+	// Two-pass filter: keep moves played >= MIN_GAMES ("core" tree), plus any
+	// single-game continuations at positions reachable through the core tree.
+	// This preserves leaf moves so users can see the end of established lines.
+	const allMoves = Array.from(moveMap.values());
+	const coreMoves = allMoves.filter((m) => m.gamesPlayed >= MIN_GAMES);
+	const corePositions = new Set<string>();
+	for (const m of coreMoves) {
+		corePositions.add(m.positionFen);
+		corePositions.add(m.resultingFen);
+	}
+	const moves = allMoves.filter(
+		(m) => m.gamesPlayed >= MIN_GAMES || corePositions.has(m.positionFen)
+	);
 
 	post({
 		type: 'result',

@@ -54,6 +54,42 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 		throw error(400, 'Invalid FEN or move');
 	}
 
+	// Determine if this is the user's turn — only one move per position allowed
+	try {
+		const chess = new Chess(fromFen);
+		const fenTurn = chess.turn();
+		const isUserTurn =
+			(color === 'white' && fenTurn === 'w') || (color === 'black' && fenTurn === 'b');
+
+		if (isUserTurn) {
+			// Check if ANY move already exists at this position for this color
+			const [existingAtPosition] = await db
+				.select()
+				.from(prepMoves)
+				.where(
+					and(
+						eq(prepMoves.prepId, prepId),
+						eq(prepMoves.fromFen, fromFen),
+						eq(prepMoves.color, color)
+					)
+				);
+
+			if (existingAtPosition) {
+				if (existingAtPosition.san === san) {
+					// Exact same move — idempotent, return it
+					return json(existingAtPosition);
+				}
+				// Different move — conflict, signal 409
+				return json(
+					{ error: 'A prep move already exists from this position', existing: existingAtPosition },
+					{ status: 409 }
+				);
+			}
+		}
+	} catch {
+		// If FEN is invalid for Chess.js, fall through to the insert
+	}
+
 	// Check-and-insert in a transaction to prevent duplicate race conditions
 	const result = await db.transaction(async (tx) => {
 		const [existing] = await tx

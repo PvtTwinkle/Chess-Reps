@@ -64,7 +64,7 @@
 						<button
 							class="move-row wdl-row"
 							class:highlighted={highlightedIdx === idx && state.prepMovesAtPosition.length === 0}
-							onclick={() => state.clickOpponentMove(move.moveSan, move.resultingFen)}
+							onclick={() => state.handleCandidateSelect(move.moveSan)}
 							title="{pct.winPct.toFixed(1)}% W / {pct.drawPct.toFixed(
 								1
 							)}% D / {pct.lossPct.toFixed(1)}% L"
