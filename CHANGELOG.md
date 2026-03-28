@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Rewrote README with grouped feature sections, screenshot placeholders, tech stack table, and all features through v1.2.1
+- Updated THIRD-PARTY-NOTICES with Lichess Open Database and Star Player Games (PGN Mentor, Lichess API, Chess.com API)
+
 ---
 
 ## [1.2.1] — 2026-03-28

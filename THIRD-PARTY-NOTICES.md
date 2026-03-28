@@ -42,6 +42,40 @@ the `eco_opening` and `book_move` tables.
 
 ---
 
+## Lichess Open Database
+
+- **Source**: https://database.lichess.org/
+- **Creator**: [Lichess](https://lichess.org)
+- **License**: [CC0 1.0 (Public Domain)](https://creativecommons.org/publicdomain/zero/1.0/)
+
+**What we use**: Aggregated move statistics from Lichess games, broken down by
+rating bracket. This data powers the "Players" tab in Build Mode and is stored
+in the `lichess_moves` table.
+
+**Modifications**: Monthly game exports were downloaded, parsed, and aggregated
+into per-position move statistics (wins, draws, losses, game count) grouped by
+rating bracket. The aggregated data is shipped pre-loaded in the Docker image.
+
+---
+
+## Star Player Games
+
+- **Sources**:
+  - [PGN Mentor](https://www.pgnmentor.com/) (OTB tournament game archives for classic players)
+  - [Lichess API](https://lichess.org/api) (game exports, [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/))
+  - [Chess.com Published Data API](https://www.chess.com/news/view/published-data-api) (game archives)
+
+**What we use**: Games from notable players (legends, super-GMs, streamers)
+sourced from PGN Mentor archives and the Lichess/Chess.com public APIs. This
+data powers the "Stars" tab in Build Mode and is stored in the `star_players`
+and `celebrity_moves` tables.
+
+**Modifications**: PGN files were parsed, positions were normalized to 4-field
+FEN format, and move statistics were aggregated per player per position-move pair.
+The aggregated data is shipped pre-loaded in the Docker image.
+
+---
+
 ## Lichess Sound Assets
 
 - **Source**: https://github.com/lichess-org/lila

@@ -1,21 +1,80 @@
-# Chessstack
+<p align="center">
+  <img src="logos/logo.svg" alt="Chessstack Logo" width="120" />
+</p>
 
-A self-hosted web application for learning and drilling chess openings using spaced
-repetition. Build your own opening repertoire on an interactive board, then let the
-app quiz you on it.
+<h1 align="center">Chessstack</h1>
+
+<p align="center">
+  A self-hosted web application for learning and drilling chess openings using spaced repetition.
+</p>
+
+<p align="center">
+  Build your own opening repertoire on an interactive board, train with intelligent spaced repetition,
+  prepare against specific opponents, and review your games - all offline, all yours.
+</p>
 
 ---
 
-## What It Does
+<!-- Replace the placeholder paths below with actual screenshot paths once available -->
 
-- **Build Mode** — Play out moves to construct your repertoire. The app suggests
-  known book moves, moves played by Masters (2500+) extracted from 21 million+ games, and Stockfish suggestions.
-- **Drill Mode** — Spaced repetition (FSRS algorithm) surfaces positions due for
-  review. Grade yourself and the algorithm schedules the next session.
-- **Puzzles** — Test your tactics derived from the openings you play.
-- **Game Review** — Paste a PGN or import from Lichess & Chess.com to find where you or your opponent deviated from your prep.
-- **Dashboard** — Track your repertoire health: due cards, mastered positions,
-  gaps, streaks, and review history.
+<p align="center">
+  <img src="" alt="Dashboard" width="400" />
+  &nbsp;&nbsp;
+  <img src="" alt="Build Mode" width="400" />
+</p>
+<p align="center">
+  <img src="" alt="Drill Mode" width="400" />
+  &nbsp;&nbsp;
+  <img src="" alt="Opponent Prep" width="400" />
+</p>
+
+---
+
+## Features
+
+### Repertoire Building
+
+Build your opening repertoire on an interactive board. As you play moves, the app
+shows candidate moves from multiple sources to help you choose your lines:
+
+- Book moves from opening theory
+- Master game statistics from 8.8 million+ games (ELO 2500+)
+- Famous player lines (legends, super-GMs, streamers)
+- Crowd-sourced Lichess data broken down by rating bracket
+- Stockfish engine evaluations
+
+You can annotate any move with notes, bulk-import variations from PGN files, and
+export your full repertoire as PGN.
+
+### Training
+
+The drill system uses the FSRS spaced repetition algorithm to schedule your reviews.
+The board auto-plays your opponent's moves, you respond, and the algorithm adjusts
+the schedule based on how well you know each position.
+
+Puzzles are pulled from the Lichess puzzle database, filtered to match the openings
+in your repertoire. You can also filter by rating, theme, and opening family.
+
+### Preparation
+
+Download an opponent's games from Lichess or Chess.com to see their most-played
+moves and find gaps in your repertoire. Add any missing lines directly from the
+prep view and export them as drill cards.
+
+For post-game review, paste a PGN or import games to see where you or your opponent
+deviated from your prep. You can add new moves to your repertoire right from the
+review screen.
+
+### Dashboard & Analytics
+
+The dashboard shows your repertoire health at a glance: due cards, mastered
+positions, review streaks, and an overall health score.
+
+The gap finder detects opponent moves your repertoire doesn't cover, weighted by
+how often they appear in master games. Trouble spots highlight positions you
+repeatedly get wrong. Accuracy trends chart your drill performance over time.
+
+You can also set daily, weekly, or monthly puzzle goals.
 
 ---
 
@@ -28,7 +87,7 @@ app quiz you on it.
 
 ### Docker Setup
 
-**1. Create a docker-compose.yml file**
+**1. Create a `docker-compose.yml` file:**
 
 ```yaml
 services:
@@ -44,7 +103,6 @@ services:
       - DEFAULT_USERNAME=admin
       - DEFAULT_PASSWORD=changeme
       - REGISTRATION_MODE=invite
-      - GAME_IMPORT_INTERVAL_MINUTES=0
     depends_on:
       postgres:
         condition: service_healthy
@@ -85,28 +143,30 @@ docker compose up -d
 http://localhost:3000
 ```
 
-Log in with the username and password you set above.
+Log in with the username and password you set above. Change the default password
+after your first login.
 
 ---
 
 ## Included Data
 
-The Docker image ships with three large reference datasets that are loaded
-automatically on first startup (no extra steps required):
+The Docker image ships with four reference datasets that load automatically on first
+startup - no extra steps required:
 
-| Dataset              | Description                                                                                           | Approx. Size |
-| -------------------- | ----------------------------------------------------------------------------------------------------- | ------------ |
-| **Masters Database** | ~8.8M moves from master-level games (Chessmont, ELO >= 2500). Powers the "Masters" tab in Build Mode. | ~131 MB      |
-| **Lichess Puzzles**  | Opening-tagged tactical puzzles. Powers the Puzzles page.                                             | ~69 MB       |
-| **Stars Database**   | Moves from famous players throughout chess history. Powers the "Stars" tab in Build Mode.             | ~34 MB       |
+| Dataset              | Description                                                                                                                                                     | Approx. Size |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
+| **Masters Database** | ~8.8M moves from master-level games (ELO 2500+). Powers the "Masters" tab. Filtered to positions that have only occurred at least two times.                    | ~131 MB      |
+| **Lichess Puzzles**  | Opening-tagged tactical puzzles. Powers the Puzzles page.                                                                                                       | ~69 MB       |
+| **Stars Database**   | Moves from famous players throughout chess history. Powers the "Stars" tab.                                                                                     | ~34 MB       |
+| **Players Database** | Most-played moves from the Lichess Open Database by rating bracket. Powers the "Players" tab. Filtered to positions that have only occurred at least 100 times. | ~14 MB       |
 
 The first boot takes a little longer while the data loads into PostgreSQL.
-Check `docker compose logs -f app` for progress. Subsequent startups skip
-this step entirely.
+Check `docker compose logs -f app` for progress. Subsequent startups skip this step
+entirely.
 
 ---
 
-## Environment Variables
+## Configuration
 
 | Variable                       | Required  | Description                                                                                                                           |
 | ------------------------------ | --------- | ------------------------------------------------------------------------------------------------------------------------------------- |
@@ -114,8 +174,9 @@ this step entirely.
 | `ORIGIN`                       | Yes       | The URL you use to access the app. Change this if using a reverse proxy (e.g. `https://chess.yourdomain.com`). Required for security. |
 | `DEFAULT_USERNAME`             | First run | Username created when the database is empty. Ignored after first run.                                                                 |
 | `DEFAULT_PASSWORD`             | First run | Password created when the database is empty. **Change this before first run.** Ignored after first run.                               |
-| `REGISTRATION_MODE`            | No        | `invite` (admin creates users) or `open` (login page includes registration). Default: `invite`.                                       |
-| `GAME_IMPORT_INTERVAL_MINUTES` | No        | How often (in minutes) the app syncs user Chess.com & Lichess public games for review. `0` = manual only. Default: `0`.               |
+| `STOCKFISH_BIN`                | No        | Path to the Stockfish binary. Default: `/usr/games/stockfish` (pre-installed in the Docker image).                                    |
+| `REGISTRATION_MODE`            | No        | `invite` (admin creates users) or `open` (anyone can register at `/register`). Default: `invite`.                                     |
+| `GAME_IMPORT_INTERVAL_MINUTES` | No        | How often (in minutes) the app syncs games from Lichess & Chess.com for review. `0` = manual only. Default: `0`.                      |
 
 ---
 
@@ -127,7 +188,7 @@ docker compose pull && docker compose up -d
 
 ---
 
-## Backup
+## Backup & Restore
 
 Your data lives in the PostgreSQL container's named volume (`pgdata`).
 
@@ -146,15 +207,16 @@ docker exec -i chessstack-postgres psql -U chessstack chessstack < backup.sql
 
 ## Reverse Proxy
 
-If you expose this to the internet via Nginx Proxy Manager, Caddy, or Traefik,
-set `ORIGIN` to your full domain:
+If you expose Chessstack through Nginx Proxy Manager, Caddy, or Traefik, set
+`ORIGIN` to your full domain:
 
 ```yaml
 - ORIGIN=https://chess.yourdomain.com
 ```
 
-The login screen protects the instance from unauthorized access. SvelteKit uses
-the `ORIGIN` value to validate requests and prevent cross-site attacks.
+SvelteKit uses the `ORIGIN` value to validate requests and prevent cross-site
+attacks. When `ORIGIN` starts with `https://`, cookies are automatically marked
+as secure.
 
 ---
 
@@ -165,8 +227,22 @@ GET /api/health
 ```
 
 Returns `{ "status": "ok", "db": "ok" }` when the app and database are running.
-No authentication required. Compatible with [Uptime Kuma](https://github.com/louislam/uptime-kuma)
-and any other monitoring tool.
+No authentication required. Compatible with
+[Uptime Kuma](https://github.com/louislam/uptime-kuma) and other monitoring tools.
+
+---
+
+## Built With
+
+|                                                              |                                 |
+| ------------------------------------------------------------ | ------------------------------- |
+| [SvelteKit](https://kit.svelte.dev/)                         | Full-stack framework            |
+| [PostgreSQL](https://www.postgresql.org/)                    | Database                        |
+| [Chessground](https://github.com/lichess-org/chessground)    | Interactive board UI            |
+| [chess.js](https://github.com/jhlywa/chess.js)               | Move validation and PGN parsing |
+| [Stockfish](https://stockfishchess.org/)                     | Chess engine analysis           |
+| [ts-fsrs](https://github.com/open-spaced-repetition/ts-fsrs) | Spaced repetition algorithm     |
+| [Drizzle ORM](https://orm.drizzle.team/)                     | TypeScript ORM                  |
 
 ---
 
@@ -174,10 +250,12 @@ and any other monitoring tool.
 
 Chessstack uses data from the following open-source projects:
 
-- **[Chessmont](https://www.kaggle.com/datasets/chessmontdb/chessmont-big-dataset)** — Master game database (CC BY-SA 4.0)
-- **[Lichess Puzzle Database](https://database.lichess.org/#puzzles)** — Tactical puzzles (CC0)
-- **[Lichess Chess Openings](https://github.com/lichess-org/chess-openings)** — ECO opening names (CC0)
-- **[Lichess](https://github.com/lichess-org/lila)** — Sound assets (AGPL v3+)
+- **[Chessmont](https://www.kaggle.com/datasets/chessmontdb/chessmont-big-dataset)** - Master game database (CC BY-SA 4.0)
+- **[Lichess Puzzle Database](https://database.lichess.org/#puzzles)** - Tactical puzzles (CC0)
+- **[Lichess Chess Openings](https://github.com/lichess-org/chess-openings)** - ECO opening names (CC0)
+- **[Lichess Open Database](https://database.lichess.org/)** - Player game data (CC0)
+- **[PGN Mentor](https://www.pgnmentor.com/)** - Classic player game archives
+- **[Lichess](https://github.com/lichess-org/lila)** - Sound assets (AGPL v3+)
 
 See [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) for full attribution and license details.
 

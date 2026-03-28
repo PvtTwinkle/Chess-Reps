@@ -12,10 +12,14 @@ function fenKey(fen: string): string {
 	return fen.split(' ').slice(0, 4).join(' ');
 }
 
-/** Extract a PGN header value by name, e.g. getHeader(pgn, 'White') → 'DrNykterstein'. */
-function getHeader(pgn: string, name: string): string | null {
-	const regex = new RegExp(`\\[${name}\\s+"([^"]*)"\\]`);
-	const match = pgn.match(regex);
+/** Extract a PGN header value by name, e.g. getHeader(pgn, 'Result') → '1-0'. */
+function getHeader(pgn: string, name: 'Result' | 'White' | 'Black'): string | null {
+	const patterns: Record<typeof name, RegExp> = {
+		Result: /\[Result\s+"([^"]*)"\]/,
+		White: /\[White\s+"([^"]*)"\]/,
+		Black: /\[Black\s+"([^"]*)"\]/
+	};
+	const match = pgn.match(patterns[name]);
 	return match ? match[1] : null;
 }
 
