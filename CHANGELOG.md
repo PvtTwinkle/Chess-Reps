@@ -11,6 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.1] — 2026-03-28
+
+### Added
+
+- **Players move database** — Lichess open database seeded on first boot, showing the most commonly played moves per rating bracket
+
+---
+
 ## [1.2.0] — 2026-03-27
 
 ### Added

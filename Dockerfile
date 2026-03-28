@@ -32,7 +32,7 @@ ARG GITHUB_REPO=pvttwinkle/chessstack
 ARG DATA_RELEASE=data-v1.0
 
 WORKDIR /seeds
-RUN for f in chessmont-moves-dump.sql.gz puzzles-dump.sql.gz celebrity-moves-dump.sql.gz; do \
+RUN for f in chessmont-moves-dump.sql.gz puzzles-dump.sql.gz celebrity-moves-dump.sql.gz lichess-moves-dump.sql.gz; do \
       echo "Downloading $f..." && \
       curl -fSL -o "$f" \
         "https://github.com/${GITHUB_REPO}/releases/download/${DATA_RELEASE}/$f"; \
