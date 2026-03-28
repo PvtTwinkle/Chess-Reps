@@ -836,7 +836,8 @@
 				<div class="setting-row">
 					<span class="setting-label">Guided Walkthrough</span>
 					<p class="setting-hint">
-						Replay the first-time tutorial that walks through Build, Drill, Puzzles, and Review.
+						Replay the first-time tutorial that walks through Build, Drill, Puzzles, Review, Prep,
+						and Dashboard.
 					</p>
 					<button class="btn-primary" onclick={restartTutorial} disabled={restartingTutorial}>
 						{restartingTutorial ? 'Restarting...' : 'Restart Tutorial'}

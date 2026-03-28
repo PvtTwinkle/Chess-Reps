@@ -920,12 +920,12 @@
 		grading = false;
 		awaitingNext = true;
 
-		// Tutorial: after grading 2+ cards, advance to step 4 (puzzles)
-		if ($tutorialStep === 3 && totalReviewed >= 2) {
+		// Tutorial: after grading 2+ cards, advance to step 5 (drill options)
+		if ($tutorialStep === 4 && totalReviewed >= 2) {
 			fetch('/api/settings', {
 				method: 'PATCH',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ tutorialStep: 4 })
+				body: JSON.stringify({ tutorialStep: 5 })
 			}).then(() => invalidateAll());
 		}
 	}

@@ -3,7 +3,7 @@
 // Pages (build, drill) subscribe to trigger tutorial-specific behavior.
 //
 // null  = tutorial completed or skipped (no overlay shown)
-// 0–6   = active tutorial step
+// 0–9   = active tutorial step
 
 import { writable } from 'svelte/store';
 

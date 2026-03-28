@@ -9,6 +9,7 @@ import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
 import { userSettings } from '$lib/db/schema';
+import { TOTAL_STEPS } from '$lib/components/tutorial/tutorialSteps';
 import { eq } from 'drizzle-orm';
 
 export const PATCH: RequestHandler = async ({ locals, request }) => {
@@ -162,12 +163,12 @@ export const PATCH: RequestHandler = async ({ locals, request }) => {
 		}
 	}
 
-	// Tutorial step: null = completed/skipped, integer 0–5 = active step.
+	// Tutorial step: null = completed/skipped, integer 0–9 = active step.
 	if (body.tutorialStep !== undefined) {
 		if (body.tutorialStep === null) {
 			updates.tutorialStep = null;
 		} else if (typeof body.tutorialStep === 'number') {
-			updates.tutorialStep = Math.max(0, Math.min(5, Math.round(body.tutorialStep)));
+			updates.tutorialStep = Math.max(0, Math.min(TOTAL_STEPS - 1, Math.round(body.tutorialStep)));
 		}
 	}
 
