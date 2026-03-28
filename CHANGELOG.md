@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Dropped arm64 from the release Docker image to fix builds timing out under QEMU emulation (amd64 only for now)
 - Improved mobile responsive layout across all pages with standardized breakpoints and small-phone support
 - Dashboard switches to single-column grid on phones under 480px
 - Settings page now has full responsive support (touch targets, stacked forms, iOS zoom prevention)
