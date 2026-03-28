@@ -2697,5 +2697,37 @@
 		margin-top: var(--space-2);
 	}
 
-	/* ── Mobile responsive ────────────────────────────────────────────── */
+	/* ── Tablets and phones (< 768px) ── --bp-md */
+	@media (max-width: 767px) {
+		.section-tab {
+			min-height: 44px;
+			font-size: 0.8rem;
+			padding: var(--space-2) var(--space-3);
+			display: flex;
+			align-items: center;
+			justify-content: center;
+		}
+	}
+
+	/* ── Small phones (< 480px) ── --bp-sm */
+	@media (max-width: 479px) {
+		.page {
+			padding: var(--space-2);
+			gap: var(--space-2);
+		}
+
+		.sidebar {
+			padding: var(--space-3);
+			gap: var(--space-3);
+		}
+
+		.grade-btn {
+			min-height: 44px;
+			padding: var(--space-2);
+		}
+
+		.grade-buttons {
+			gap: var(--space-1);
+		}
+	}
 </style>

@@ -352,7 +352,7 @@
 
 	/* ── Mobile ────────────────────────────────────────────────────────────── */
 
-	@media (max-width: 559px) {
+	@media (max-width: 479px) {
 		.tutorial-overlay {
 			bottom: var(--space-3);
 			right: var(--space-3);

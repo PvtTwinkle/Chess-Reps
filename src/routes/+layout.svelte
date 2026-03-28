@@ -445,4 +445,28 @@
 			padding-top: calc(56px + var(--space-4));
 		}
 	}
+
+	/* ── Landscape phones — shorter header, hide brand text ── */
+	@media (max-width: 767px) and (orientation: landscape) {
+		.app-header {
+			height: 48px;
+		}
+
+		.app-main {
+			padding-top: calc(48px + var(--space-3));
+		}
+
+		.mobile-drawer {
+			top: 48px;
+		}
+
+		.brand-text {
+			display: none;
+		}
+
+		.brand-icon {
+			width: 36px;
+			height: 36px;
+		}
+	}
 </style>

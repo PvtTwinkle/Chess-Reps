@@ -1042,4 +1042,18 @@
 			display: none;
 		}
 	}
+
+	/* ── Small phones (< 480px) ── --bp-sm */
+	@media (max-width: 479px) {
+		.tab-bar {
+			overflow-x: auto;
+			-webkit-overflow-scrolling: touch;
+		}
+
+		.tab {
+			font-size: 11px;
+			padding: var(--space-2) var(--space-1);
+			white-space: nowrap;
+		}
+	}
 </style>

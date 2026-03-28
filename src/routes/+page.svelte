@@ -480,7 +480,7 @@
 		gap: var(--space-3);
 	}
 
-	@media (min-width: 640px) {
+	@media (min-width: 480px) {
 		.widget-grid {
 			grid-template-columns: repeat(3, 1fr);
 		}
@@ -876,7 +876,6 @@
 	}
 
 	.goal-input {
-		width: 45px;
 		min-width: 40px;
 		flex: 0 1 45px;
 		background: var(--color-surface-alt);
@@ -960,5 +959,21 @@
 
 	.goal-edit-btn:hover {
 		color: var(--color-text-secondary);
+	}
+
+	/* ── Small phones (< 480px) ── --bp-sm */
+	@media (max-width: 479px) {
+		.page-wrapper {
+			padding: 0;
+		}
+
+		.widget-grid {
+			grid-template-columns: 1fr;
+			gap: var(--space-2);
+		}
+
+		.widget {
+			padding: var(--space-3);
+		}
 	}
 </style>

@@ -898,7 +898,7 @@
 	}
 
 	/* ── Full-screen modal on narrow phones ── --bp-sm */
-	@media (max-width: 559px) {
+	@media (max-width: 479px) {
 		.modal {
 			position: fixed;
 			inset: 0;

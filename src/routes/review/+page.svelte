@@ -3178,4 +3178,25 @@
 			margin: 0 auto;
 		}
 	}
+
+	/* ── Small phones (< 480px) ── --bp-sm */
+	@media (max-width: 479px) {
+		.page {
+			padding: var(--space-2);
+			gap: var(--space-2);
+		}
+
+		.sidebar {
+			padding: var(--space-3);
+			gap: var(--space-3);
+		}
+
+		.btn--import {
+			min-width: 100%;
+		}
+
+		.notes-input {
+			max-height: 30vh;
+		}
+	}
 </style>

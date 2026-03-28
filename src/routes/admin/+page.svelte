@@ -670,7 +670,7 @@
 
 	/* ── Responsive ───────────────────────────────────────────────── */
 
-	@media (max-width: 600px) {
+	@media (max-width: 767px) {
 		.user-card {
 			flex-direction: column;
 		}
@@ -682,6 +682,31 @@
 		.info-bar {
 			flex-direction: column;
 			gap: var(--space-3);
+		}
+	}
+
+	/* ── Small phones (< 480px) ── --bp-sm */
+	@media (max-width: 479px) {
+		.admin-section {
+			padding: var(--space-3);
+		}
+
+		.user-card {
+			padding: var(--space-3);
+		}
+
+		.action-btn {
+			min-height: 44px;
+			padding: var(--space-2) var(--space-3);
+		}
+
+		.inline-form input {
+			width: 100%;
+			font-size: 16px; /* prevents iOS auto-zoom */
+		}
+
+		.inline-form {
+			flex-direction: column;
 		}
 	}
 </style>

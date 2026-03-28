@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Improved mobile responsive layout across all pages with standardized breakpoints and small-phone support
+- Dashboard switches to single-column grid on phones under 480px
+- Settings page now has full responsive support (touch targets, stacked forms, iOS zoom prevention)
+- Admin user cards stack earlier (at tablet width) for better readability
+- Header compacts in landscape orientation on phones (shorter bar, hidden brand text)
+- Fullscreen modals now trigger at 479px instead of 559px, keeping centered dialogs on larger phones
 - Expanded the tutorial from 5 steps to 9, covering all major pages including Puzzles, Review, Prep, and Dashboard
 - Tutorial now highlights more features per page: all five suggestion tabs in Build, Explore mode, Cards/Lines drill modes, Blindfold mode, and PGN import/export
 - Rewrote README with grouped feature sections, screenshots, tech stack table, and all features through v1.2.1
@@ -19,6 +25,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Resolved security lint warning in PGN header parser by using static regex patterns
+- Fixed hardcoded goal input width on dashboard that could overflow on small screens
+- Fixed prep detail panel overflowing on narrow phones due to min-width: 250px constraint
+- Added 44px touch targets to drill grading buttons, filter tabs, puzzle checkboxes, and admin action buttons
 
 ---
 

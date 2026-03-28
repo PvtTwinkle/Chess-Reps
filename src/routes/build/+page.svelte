@@ -1543,7 +1543,7 @@
 		}
 	}
 
-	@media (max-width: 559px) {
+	@media (max-width: 479px) {
 		.modal {
 			position: fixed;
 			inset: 0;
@@ -1563,6 +1563,19 @@
 			height: 4px;
 			border-radius: 2px;
 			background: var(--color-border);
+		}
+	}
+
+	/* ── Small phones (< 480px) ── --bp-sm */
+	@media (max-width: 479px) {
+		.page {
+			padding: var(--space-2);
+			gap: var(--space-2);
+		}
+
+		.sidebar {
+			padding: var(--space-3);
+			gap: var(--space-3);
 		}
 	}
 </style>

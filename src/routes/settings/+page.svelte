@@ -1242,4 +1242,61 @@
 		font-size: 13px;
 		color: var(--color-success);
 	}
+
+	/* ── Tablets and phones (< 768px) ── --bp-md */
+	@media (max-width: 767px) {
+		.toggle-btn {
+			min-height: 44px;
+		}
+
+		.btn-save {
+			min-height: 44px;
+		}
+
+		.btn-primary {
+			min-height: 44px;
+		}
+
+		.username-input-row {
+			max-width: 100%;
+		}
+
+		.password-form {
+			max-width: 100%;
+		}
+
+		.password-form input,
+		.username-input {
+			font-size: 16px; /* prevents iOS auto-zoom on focus */
+		}
+	}
+
+	/* ── Small phones (< 480px) ── --bp-sm */
+	@media (max-width: 479px) {
+		.settings-page {
+			padding: 0;
+		}
+
+		.settings-section {
+			padding: var(--space-3);
+		}
+
+		.settings-content {
+			gap: var(--space-3);
+		}
+
+		.slider-wrap {
+			flex-direction: column;
+			align-items: stretch;
+		}
+
+		.username-input-row {
+			flex-direction: column;
+		}
+
+		.board-preview {
+			width: 100%;
+			max-width: 240px;
+		}
+	}
 </style>

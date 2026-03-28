@@ -1164,4 +1164,30 @@
 			max-width: 100%;
 		}
 	}
+
+	/* ── Small phones (< 480px) ── --bp-sm */
+	@media (max-width: 479px) {
+		.page {
+			padding: var(--space-2);
+			gap: var(--space-2);
+		}
+
+		.sidebar {
+			padding: var(--space-3);
+			gap: var(--space-3);
+		}
+
+		.filter-input {
+			font-size: 16px; /* prevents iOS auto-zoom on focus */
+		}
+
+		.theme-checkbox-label {
+			min-height: 44px;
+			align-items: center;
+		}
+
+		.color-filter-label {
+			min-height: 44px;
+		}
+	}
 </style>

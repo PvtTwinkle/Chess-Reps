@@ -1284,4 +1284,19 @@
 			padding: var(--space-2);
 		}
 	}
+
+	/* ── Small phones (< 480px) ── --bp-sm */
+	@media (max-width: 479px) {
+		.prep-detail {
+			padding: var(--space-1);
+		}
+
+		.panel-col {
+			min-width: 0;
+		}
+
+		.dashboard-col {
+			padding: var(--space-2);
+		}
+	}
 </style>
