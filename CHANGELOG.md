@@ -13,8 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Expanded the tutorial from 5 steps to 9, covering all major pages including Puzzles, Review, Prep, and Dashboard
 - Tutorial now highlights more features per page: all five suggestion tabs in Build, Explore mode, Cards/Lines drill modes, Blindfold mode, and PGN import/export
-- Rewrote README with grouped feature sections, screenshot placeholders, tech stack table, and all features through v1.2.1
+- Rewrote README with grouped feature sections, screenshots, tech stack table, and all features through v1.2.1
 - Updated THIRD-PARTY-NOTICES with Lichess Open Database and Star Player Games (PGN Mentor, Lichess API, Chess.com API)
+
+### Fixed
+
+- Resolved security lint warning in PGN header parser by using static regex patterns
 
 ---
 

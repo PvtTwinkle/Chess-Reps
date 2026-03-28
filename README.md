@@ -15,17 +15,15 @@
 
 ---
 
-<!-- Replace the placeholder paths below with actual screenshot paths once available -->
-
 <p align="center">
-  <img src="" alt="Dashboard" width="400" />
+  <img src="docs/screenshots/dashboard.png" alt="Dashboard" width="400" />
   &nbsp;&nbsp;
-  <img src="" alt="Build Mode" width="400" />
+  <img src="docs/screenshots/build.png" alt="Build Mode" width="400" />
 </p>
 <p align="center">
-  <img src="" alt="Drill Mode" width="400" />
+  <img src="docs/screenshots/drill.png" alt="Drill Mode" width="400" />
   &nbsp;&nbsp;
-  <img src="" alt="Opponent Prep" width="400" />
+  <img src="docs/screenshots/prep.png" alt="Opponent Prep" width="400" />
 </p>
 
 ---
