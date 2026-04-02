@@ -5,6 +5,7 @@ Run this after the main import script crashed during the combine step.
 The 8 bracket tables must already exist from a successful aggregation run.
 """
 
+import argparse
 import os
 import sys
 import time
@@ -23,6 +24,15 @@ def format_duration(seconds):
 
 
 def main():
+    parser = argparse.ArgumentParser(
+        description="Recovery: combine _lichess_bracket_* tables into lichess_moves."
+    )
+    parser.add_argument(
+        "--min-games", type=int, default=100,
+        help="Minimum games for a move to be kept (default: 100)"
+    )
+    args = parser.parse_args()
+
     db_url = os.environ.get("DATABASE_URL")
     if not db_url:
         print("[recover] ERROR: DATABASE_URL environment variable is required")
@@ -91,9 +101,12 @@ def main():
     print(f"[recover]   Index created in {format_duration(time.time() - idx_start)}")
 
     # Filter rare moves
-    print("[recover] Removing moves with fewer than 100 games...")
+    print(f"[recover] Removing moves with fewer than {args.min_games} games...")
     with conn.cursor() as cur:
-        cur.execute("DELETE FROM lichess_moves WHERE games_played < 100")
+        cur.execute(
+            "DELETE FROM lichess_moves WHERE games_played < %s",
+            (args.min_games,)
+        )
         deleted = cur.rowcount
         print(f"[recover]   Deleted {deleted:,} rare move entries")
     conn.commit()

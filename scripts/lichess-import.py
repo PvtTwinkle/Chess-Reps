@@ -533,17 +533,65 @@ def aggregate_and_finalize(conn, min_games: int):
 
 # ── pg_dump export ───────────────────────────────────────────────────────────
 
-def dump_table(db_url: str, output_path: str = "lichess-moves-dump.sql.gz"):
-    """Export the lichess_moves table to a compressed SQL dump file."""
-    print(f"[lichess] Dumping lichess_moves table to {output_path}...")
+def dump_table(
+    db_url: str,
+    output_path: str = "lichess-moves-dump.sql.gz",
+    min_dump_games: int | None = None,
+):
+    """Export the lichess_moves table to a compressed SQL dump file.
+
+    When min_dump_games is set, only rows with games_played >= that value
+    are included.  Uses psycopg2 COPY … TO STDOUT so the output is valid
+    SQL (COPY … FROM stdin block) that can be restored with psql.
+
+    When min_dump_games is None, falls back to pg_dump for the full table.
+    """
+    if min_dump_games is not None:
+        print(
+            f"[lichess] Dumping lichess_moves (games >= {min_dump_games}) "
+            f"to {output_path}..."
+        )
+    else:
+        print(f"[lichess] Dumping lichess_moves table to {output_path}...")
     start = time.time()
 
-    cmd = f'pg_dump -t lichess_moves --no-owner --no-privileges "{db_url}" | gzip > "{output_path}"'
-    result = subprocess.run(["sh", "-c", cmd], capture_output=True, text=True)
+    if min_dump_games is not None:
+        # Filtered export via COPY … TO STDOUT, wrapped in a valid
+        # COPY … FROM stdin block so `gunzip -c | psql` can restore it.
+        import gzip as gz
 
-    if result.returncode != 0:
-        print(f"[lichess] ERROR: pg_dump failed: {result.stderr.strip()}")
-        sys.exit(1)
+        columns = (
+            "position_fen, move_san, rating_bracket, resulting_fen, "
+            "games_played, white_wins, black_wins, draws"
+        )
+        copy_sql = (
+            f"COPY (SELECT {columns} FROM lichess_moves "
+            f"WHERE games_played >= {int(min_dump_games)}) TO STDOUT"
+        )
+        header = f"COPY lichess_moves ({columns}) FROM stdin;\n"
+
+        conn = psycopg2.connect(db_url)
+        try:
+            with gz.open(output_path, "wb") as f:
+                # Write the COPY … FROM stdin header
+                f.write(header.encode("utf-8"))
+                # Stream filtered rows as tab-separated data
+                with conn.cursor() as cur:
+                    cur.copy_expert(copy_sql, f)
+                # Write the end-of-data marker
+                f.write(b"\\.\n\n")
+        finally:
+            conn.close()
+    else:
+        # Full table dump via pg_dump (original behavior)
+        cmd = (
+            f'pg_dump -t lichess_moves --no-owner --no-privileges '
+            f'"{db_url}" | gzip > "{output_path}"'
+        )
+        result = subprocess.run(["sh", "-c", cmd], capture_output=True, text=True)
+        if result.returncode != 0:
+            print(f"[lichess] ERROR: pg_dump failed: {result.stderr.strip()}")
+            sys.exit(1)
 
     elapsed = time.time() - start
     size_mb = os.path.getsize(output_path) / (1024 * 1024)
@@ -622,6 +670,11 @@ def main():
         help="After finalization, export lichess_moves to "
              "lichess-moves-dump.sql.gz via pg_dump."
     )
+    parser.add_argument(
+        "--min-dump-games", type=int, default=None,
+        help="Minimum games for a move to be included in the dump file. "
+             "If not set, uses --min-games value. Only applies with --dump."
+    )
     args = parser.parse_args()
 
     if args.no_finalize and args.finalize_only:
@@ -645,7 +698,7 @@ def main():
         aggregate_and_finalize(conn, args.min_games)
         drop_progress_table(conn)
         if args.dump:
-            dump_table(db_url)
+            dump_table(db_url, min_dump_games=args.min_dump_games)
         print("[lichess] Finalize complete.")
         conn.close()
         return
@@ -782,7 +835,7 @@ def main():
         aggregate_and_finalize(conn, args.min_games)
         drop_progress_table(conn)
         if args.dump:
-            dump_table(db_url)
+            dump_table(db_url, min_dump_games=args.min_dump_games)
         print("[lichess] Import complete.")
 
     conn.close()
