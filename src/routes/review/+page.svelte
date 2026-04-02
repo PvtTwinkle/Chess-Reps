@@ -1980,6 +1980,8 @@
 
 	.board-col {
 		width: 100%;
+		min-width: 0;
+		max-width: min(100%, calc(100vh - 100px));
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-3);

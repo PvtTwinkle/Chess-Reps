@@ -24,6 +24,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - First-visit prompt to set an initial trainer rating, also editable from the Settings page
 - Rated/unrated session toggle
 
+### Fixed
+
+- Game review move list no longer pushes the board and sidebar apart as the game gets longer
+
 ### Changed
 
 - Updated all dependencies to latest compatible versions: Svelte 5.55, Vite 8, ESLint 10, Drizzle ORM 0.45.2, and others
