@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [1.3.0] -- 2026-04-02
+
 ### Added
 
 - Opening Trainer mode -- practice openings against a computer that plays moves weighted by real game statistics from the Lichess open database or masters database
@@ -34,6 +38,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated all dependencies to latest compatible versions: Svelte 5.55, Vite 8, ESLint 10, Drizzle ORM 0.45.2, and others
 - Lichess import script supports cumulative multi-month imports with separate retention and dump thresholds (`--min-games` and `--min-dump-games`)
 - Recovery script accepts `--min-games` argument instead of using a hardcoded value
+
+### Known Issues
+
+- Opening Trainer sessions tend to run out of database moves earlier than expected because only one month of Lichess game data is currently loaded, filtered to positions reached at least 100 times. Work is in progress to import at least a year of data and lower the threshold to 50 games.
 
 ---
 
@@ -366,7 +374,8 @@ game review, puzzle training, and a local masters database — all running offli
 
 ---
 
-[Unreleased]: https://github.com/PvtTwinkle/Chessstack/compare/v1.2.2...HEAD
+[Unreleased]: https://github.com/PvtTwinkle/Chessstack/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/PvtTwinkle/Chessstack/compare/v1.2.2...v1.3.0
 [1.2.2]: https://github.com/PvtTwinkle/Chessstack/compare/v1.2.1...v1.2.2
 [1.2.1]: https://github.com/PvtTwinkle/Chessstack/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/PvtTwinkle/Chessstack/compare/v1.1.2...v1.2.0
