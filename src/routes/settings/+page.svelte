@@ -389,6 +389,42 @@
 		}
 	}
 
+	// ── Trainer Rating ─────────────────────────────────────────────────────
+	let trainerRating = $state<number | null>(null);
+	let trainerRatingInput = $state('');
+	let trainerRatingStatus = $state('');
+	let savingTrainerRating = $state(false);
+
+	$effect(() => {
+		trainerRating = data.settings?.trainerRating ?? null;
+		trainerRatingInput = trainerRating !== null ? String(trainerRating) : '';
+	});
+
+	async function saveTrainerRating() {
+		const parsed = parseInt(trainerRatingInput, 10);
+		if (isNaN(parsed) || parsed < 100 || parsed > 3000) {
+			trainerRatingStatus = 'Must be 100-3000';
+			return;
+		}
+		savingTrainerRating = true;
+		trainerRatingStatus = '';
+		try {
+			const res = await fetch('/api/settings', {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ trainerRating: parsed })
+			});
+			if (!res.ok) throw new Error('Failed to save');
+			await invalidateAll();
+			trainerRatingStatus = 'Saved';
+			safeTimeout(() => (trainerRatingStatus = ''), 2000);
+		} catch {
+			trainerRatingStatus = 'Error saving';
+		} finally {
+			savingTrainerRating = false;
+		}
+	}
+
 	// ── Game Import Accounts ────────────────────────────────────────────────
 	// eslint-disable-next-line svelte/prefer-writable-derived
 	let lichessUsername = $state('');
@@ -777,6 +813,37 @@
 				</p>
 				{#if relearningStatus}
 					<span class="status-msg">{relearningStatus}</span>
+				{/if}
+			</div>
+		</section>
+
+		<!-- ── Opening Trainer ──────────────────────────────────────────────── -->
+		<section class="settings-section">
+			<h2>Opening Trainer</h2>
+
+			<div class="setting-row">
+				<label class="setting-label" for="trainer-rating">Trainer Rating</label>
+				<div class="username-input-row">
+					<input
+						id="trainer-rating"
+						type="number"
+						min="100"
+						max="3000"
+						placeholder="1200"
+						bind:value={trainerRatingInput}
+						class="username-input"
+						style="width: 100px"
+					/>
+					<button class="btn-save" onclick={saveTrainerRating} disabled={savingTrainerRating}>
+						{savingTrainerRating ? 'Saving...' : 'Save'}
+					</button>
+				</div>
+				<p class="setting-hint">
+					Your opening trainer Elo rating (100-3000). Updates automatically after rated training
+					sessions.
+				</p>
+				{#if trainerRatingStatus}
+					<span class="status-msg">{trainerRatingStatus}</span>
 				{/if}
 			</div>
 		</section>

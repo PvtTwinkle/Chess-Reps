@@ -243,6 +243,7 @@ export const userSettings = pgTable('user_settings', {
 	fsrsDesiredRetention: doublePrecision('fsrs_desired_retention').notNull().default(0.9), // target recall probability (0.70–0.97)
 	fsrsMaximumInterval: integer('fsrs_maximum_interval').notNull().default(365), // max days between reviews (30–3650)
 	fsrsRelearningMinutes: integer('fsrs_relearning_minutes').notNull().default(10), // minutes before forgotten card reappears (1–60)
+	trainerRating: integer('trainer_rating'), // opening trainer mode Elo rating (null = not set yet, first-visit prompt)
 	updatedAt: timestamp('updated_at').notNull()
 });
 
@@ -420,6 +421,57 @@ export const puzzleAttempt = pgTable(
 	},
 	(table) => ({
 		userPuzzleIdx: index('idx_puzzle_attempt_user_puzzle').on(table.userId, table.puzzleId)
+	})
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// OPENING TRAINER TABLES
+// Practice openings against a computer that plays moves weighted by real game
+// statistics. Trainer sessions track game history and a per-user Elo rating.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// A completed opening trainer session — one row per training game.
+export const trainerSession = pgTable(
+	'trainer_session',
+	{
+		id: serial('id').primaryKey(),
+		userId: integer('user_id')
+			.notNull()
+			.references(() => user.id, { onDelete: 'cascade' }),
+		repertoireId: integer('repertoire_id')
+			.notNull()
+			.references(() => repertoire.id, { onDelete: 'cascade' }),
+		startFen: text('start_fen').notNull(), // position training started from
+		pgn: text('pgn').notNull(), // full PGN of the training game
+		movesPlayed: integer('moves_played').notNull(), // half-moves the user played
+		finalEvalCp: integer('final_eval_cp'), // Stockfish centipawn eval (null if engine unavailable)
+		rated: boolean('rated').notNull(), // whether this session counted toward trainerRating
+		ratingBefore: integer('rating_before'), // null if unrated
+		ratingAfter: integer('rating_after'), // null if unrated
+		moveSource: text('move_source').notNull(), // 'PLAYERS' or 'MASTERS'
+		completedAt: timestamp('completed_at').notNull()
+	},
+	(table) => ({
+		userIdIdx: index('idx_trainer_session_user_id').on(table.userId)
+	})
+);
+
+// Named starting positions saved by the user for reuse in opening trainer.
+export const trainerSavedPosition = pgTable(
+	'trainer_saved_position',
+	{
+		id: serial('id').primaryKey(),
+		userId: integer('user_id')
+			.notNull()
+			.references(() => user.id, { onDelete: 'cascade' }),
+		fen: text('fen').notNull(), // 4-field normalized FEN
+		name: text('name').notNull(), // user label, e.g. "Najdorf after 6.Be3"
+		leadInMoves: text('lead_in_moves'), // JSON array of SAN strings from standard position to this FEN
+		createdAt: timestamp('created_at').notNull()
+	},
+	(table) => ({
+		uniqueUserFen: unique().on(table.userId, table.fen),
+		userIdIdx: index('idx_trainer_saved_position_user_id').on(table.userId)
 	})
 );
 

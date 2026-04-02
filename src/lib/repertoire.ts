@@ -119,3 +119,35 @@ export function buildInScopeFens(startFens: string[], moves: MoveRow[]): Set<str
 
 	return inScope;
 }
+
+/**
+ * Reconstruct the SAN move sequence from the standard starting position to
+ * targetFen by walking the move tree backwards.
+ *
+ * When multiple paths exist (transpositions), any one is chosen — all are
+ * equally valid for replaying moves to reach the target position.
+ *
+ * Returns [] if the target is the starting position or unreachable.
+ */
+export function reconstructPath(moves: MoveRow[], targetFen: string): string[] {
+	const targetKey = fenKey(targetFen);
+	if (targetKey === STARTING_FEN) return [];
+
+	// Build a reverse map: normalized(toFen) -> { fromFen, san }
+	const reverse = new Map<string, { fromFen: string; san: string }>();
+	for (const m of moves) {
+		reverse.set(fenKey(m.toFen), { fromFen: m.fromFen, san: m.san });
+	}
+
+	const pathSans: string[] = [];
+	let current = targetKey;
+
+	while (current !== STARTING_FEN) {
+		const prev = reverse.get(current);
+		if (!prev) break;
+		pathSans.unshift(prev.san);
+		current = fenKey(prev.fromFen);
+	}
+
+	return pathSans;
+}

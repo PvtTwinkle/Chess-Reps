@@ -314,6 +314,30 @@
 
 	onMount(() => {
 		initSounds();
+
+		// Check for a training game passed via sessionStorage from /train
+		const trainerData = sessionStorage.getItem('chessstack:trainer-review');
+		if (trainerData) {
+			sessionStorage.removeItem('chessstack:trainer-review');
+			try {
+				const { pgn, playerColor: color, repertoireId } = JSON.parse(trainerData);
+				if (pgn && color) {
+					pgnText = pgn;
+					playerColor = color;
+					if (repertoireId) overrideRepertoireId = repertoireId;
+					inputTab = 'paste';
+					// Auto-submit after a tick to let the textarea render
+					setTimeout(() => {
+						const formEl = document.querySelector(
+							'form[action="?/analyzeGame"]'
+						) as HTMLFormElement | null;
+						if (formEl) formEl.requestSubmit();
+					}, 100);
+				}
+			} catch {
+				// Malformed data, ignore
+			}
+		}
 	});
 
 	// Keep the sounds module in sync with the user's saved preference.

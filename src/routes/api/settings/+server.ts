@@ -163,6 +163,15 @@ export const PATCH: RequestHandler = async ({ locals, request }) => {
 		}
 	}
 
+	// Trainer rating: integer clamped to 100–3000, or null to clear.
+	if (body.trainerRating !== undefined) {
+		if (body.trainerRating === null) {
+			updates.trainerRating = null;
+		} else if (typeof body.trainerRating === 'number') {
+			updates.trainerRating = Math.max(100, Math.min(3000, Math.round(body.trainerRating)));
+		}
+	}
+
 	// Tutorial step: null = completed/skipped, integer 0–9 = active step.
 	if (body.tutorialStep !== undefined) {
 		if (body.tutorialStep === null) {

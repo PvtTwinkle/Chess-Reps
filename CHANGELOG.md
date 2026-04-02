@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Opening Trainer mode -- practice openings against a computer that plays moves weighted by real game statistics from the Lichess open database or masters database
+- Computer opponent selects moves with probability proportional to how often each move is played at the chosen rating bracket
+- Rating bracket selector with human-readable labels (e.g. "1401-1600"), defaulting to the bracket matching the user's trainer rating
+- Per-user trainer Elo rating that updates after rated sessions, with difficulty scaling based on the selected rating bracket relative to your rating
+- Configurable depth limit (full moves), with training always stopping on database exhaustion, game over, or manual stop
+- Stockfish evaluation of the final position shown on the end screen with rating change breakdown
+- Review Game button sends the completed PGN to the review page with full move history, player names, date, rating, and result headers
+- Analyze on Lichess link on the end screen to open the final position in the Lichess analysis explorer
+- Save and reuse custom starting positions with lead-in move tracking so PGNs always start from move 1
+- Repertoire start position support with automatic path reconstruction from the move tree
+- First-visit prompt to set an initial trainer rating, also editable from the Settings page
+- Rated/unrated session toggle
+
 ---
 
 ## [1.2.2] — 2026-03-28
