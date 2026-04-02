@@ -132,8 +132,8 @@ export const actions: Actions = {
 		type RepRow = typeof repertoire.$inferSelect;
 		type MoveRow = (typeof userMove.$inferSelect)[];
 
-		let bestRep: RepRow | null = null;
-		let bestMoves: MoveRow = [];
+		let bestRep: RepRow | null;
+		let bestMoves: MoveRow;
 
 		if (repertoireIdOverride) {
 			// Import flow — use the explicitly specified repertoire.
