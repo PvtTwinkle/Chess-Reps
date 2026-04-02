@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Repertoire start position support with automatic path reconstruction from the move tree
 - First-visit prompt to set an initial trainer rating, also editable from the Settings page
 - Rated/unrated session toggle
+- Tutorial now includes an Opening Trainer step after Drill, explaining the feature and its rating system
 
 ### Fixed
 

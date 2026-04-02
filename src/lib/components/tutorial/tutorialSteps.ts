@@ -51,6 +51,13 @@ export const TUTORIAL_STEPS: TutorialStepDef[] = [
 		title: 'Drill Options',
 		body: 'In Cards mode you can focus on Foundation, Mainlines, or Deep Lines. Switch to Lines mode to practice entire variations. Try Blindfold mode for an extra challenge.',
 		nextLabel: 'Continue',
+		navTo: '/train'
+	},
+	{
+		page: '/train',
+		title: 'Opening Trainer',
+		body: 'Play against a computer that mimics human moves, weighted by popularity from the Lichess rating brackets or Masters database. Games end when the database runs out of moves or you hit your depth limit. Rated sessions track your Elo so you can measure progress. Afterwards, review the game to spot deviations and grow your repertoire without playing real opponents.',
+		nextLabel: 'Continue',
 		navTo: '/puzzles'
 	},
 	{

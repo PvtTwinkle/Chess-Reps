@@ -239,7 +239,7 @@ export const userSettings = pgTable('user_settings', {
 	boardSize: integer('board_size').notNull().default(0), // 0 = auto (fill container), >0 = pixel width (320–800)
 	playersRatingBracket: integer('players_rating_bracket').notNull().default(3), // 0–7 bracket ID for Players tab (3 = 1401–1600)
 	starsPlayerSlug: text('stars_player_slug'), // last-selected player slug for Stars tab (null = first available)
-	tutorialStep: integer('tutorial_step'), // null = done/skipped, 0-9 = active tutorial step
+	tutorialStep: integer('tutorial_step'), // null = done/skipped, 0-10 = active tutorial step
 	fsrsDesiredRetention: doublePrecision('fsrs_desired_retention').notNull().default(0.9), // target recall probability (0.70–0.97)
 	fsrsMaximumInterval: integer('fsrs_maximum_interval').notNull().default(365), // max days between reviews (30–3650)
 	fsrsRelearningMinutes: integer('fsrs_relearning_minutes').notNull().default(10), // minutes before forgotten card reappears (1–60)
