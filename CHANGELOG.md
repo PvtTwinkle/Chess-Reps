@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Contributor License Agreement (CLA) granting Chessstack LLC the right to use contributions under any license, including proprietary and commercial licenses
+
 ---
 
 ## [1.3.0] -- 2026-04-02

@@ -34,7 +34,7 @@
 	import type { DrawShape } from '@lichess-org/chessground/draw';
 	import type { Key } from '@lichess-org/chessground/types';
 	import { Chess } from 'chess.js';
-	import { STARTING_FEN } from '$lib/fen';
+	import { STARTING_FEN, fenKey } from '$lib/fen';
 
 	let { data, form }: { data: PageData; form: Record<string, unknown> | null } = $props();
 
@@ -258,10 +258,37 @@
 		userFen: string | null; // FEN after the opponent's move (where user must respond), or null if game ended
 		userSan: string | null; // user's actual in-game response, or null if game ended
 		plyInGame: number; // 1-indexed ply of the opponent's move (used to advance the chain)
+		// Non-null when the user-response position is already in the repertoire (transposition).
+		transposition: {
+			existingSan: string; // the move already in the repertoire at this FEN
+			userPlayedCorrect: boolean; // did the user play the repertoire move in the game?
+		} | null;
 	}
 
 	// Keyed by issue.ply — only one active chain leg per issue at a time.
 	let chainExtensions = new SvelteMap<number, ChainLeg>();
+
+	// ── Client-side repertoire lookup (for transposition detection) ──────────
+	// Tracks user-turn moves added during this review session so buildChainLeg()
+	// can detect when the chain walks into a position already in the repertoire.
+	let addedUserMoves = new SvelteMap<string, string>(); // fenKey → san
+
+	// Combines server-loaded moves with session additions for transposition checks.
+	function getUserMoveAt(fen: string): string | undefined {
+		const key = fenKey(fen);
+		// Session additions take priority (may have replaced an existing move).
+		const added = addedUserMoves.get(key);
+		if (added !== undefined) return added;
+		const repId = overrideRepertoireId ?? data.repertoire.id;
+		const color = analysedPlayerColor;
+		for (const m of data.moves) {
+			if (m.repertoireId !== repId) continue;
+			const turn = m.fromFen.split(' ')[1];
+			const isUserTurn = (color === 'WHITE' && turn === 'w') || (color === 'BLACK' && turn === 'b');
+			if (isUserTurn && fenKey(m.fromFen) === key) return m.san;
+		}
+		return undefined;
+	}
 
 	// Evals for DEVIATION issues: evalCp from White's perspective after each move.
 	// Fetched in the background when analysis loads; populated as results arrive.
@@ -388,6 +415,7 @@
 				resolvedIssues.clear();
 				opponentMoveAdded.clear();
 				chainExtensions.clear();
+				addedUserMoves.clear();
 				actionLoading.clear();
 				actionError.clear();
 				deviationEvals.clear();
@@ -926,6 +954,7 @@
 				san: issue.playedSan,
 				forceReplace: true
 			});
+			addedUserMoves.set(fenKey(issue.fromFen), issue.playedSan);
 			resolveIssue(issue.ply);
 		} catch (e) {
 			actionError.set(
@@ -1011,13 +1040,26 @@
 		const userFen = analysis.fenHistory[opponentPlyInGame] ?? null; // FEN after opponent's move
 		const userSan = analysis.sanHistory[opponentPlyInGame] ?? null; // user's game response (may not exist)
 
+		// Check if the user-response position is already in the repertoire (transposition).
+		let transposition: ChainLeg['transposition'] = null;
+		if (userFen && userSan) {
+			const existingSan = getUserMoveAt(userFen);
+			if (existingSan) {
+				transposition = {
+					existingSan,
+					userPlayedCorrect: userSan === existingSan
+				};
+			}
+		}
+
 		return {
 			opponentFen,
 			opponentSan,
 			opponentAdded: false,
 			userFen,
 			userSan,
-			plyInGame: opponentPlyInGame
+			plyInGame: opponentPlyInGame,
+			transposition
 		};
 	}
 
@@ -1073,6 +1115,7 @@
 				fromFen,
 				san
 			});
+			addedUserMoves.set(fenKey(fromFen), san);
 			// If the picked move matches the game continuation, try to chain-extend.
 			if (san === gameSan) {
 				const nextOpponentPly = issue.type === 'OPPONENT_SURPRISE' ? issue.ply + 2 : issue.ply + 1;
@@ -1108,6 +1151,7 @@
 				fromFen: leg.userFen,
 				san
 			});
+			addedUserMoves.set(fenKey(leg.userFen), san);
 			if (san === leg.userSan) {
 				// Same move as the game — advance the chain.
 				const nextLeg = buildChainLeg(leg.plyInGame + 2);
@@ -1123,6 +1167,59 @@
 			actionError.set(
 				issuePly,
 				(e instanceof Error ? e.message : String(e)) || 'Failed to add move'
+			);
+		} finally {
+			actionLoading.set(issuePly, false);
+		}
+	}
+
+	// ── Transposition handlers ──────────────────────────────────────────────────
+	// Called from the chain-extension UI when buildChainLeg() detected that the
+	// user-response position already has a repertoire move (transposition).
+
+	// Fail the SR card for the existing repertoire move (user deviated from it in-game).
+	async function handleTranspositionFailCard(issuePly: number): Promise<void> {
+		const leg = chainExtensions.get(issuePly);
+		if (!leg?.userFen || !leg.transposition) return;
+		actionLoading.set(issuePly, true);
+		actionError.delete(issuePly);
+		try {
+			await callApi('/api/review/fail-card', {
+				repertoireId: overrideRepertoireId ?? data.repertoire.id,
+				fromFen: leg.userFen
+			});
+			chainExtensions.delete(issuePly);
+			resolveIssue(issuePly);
+		} catch (e) {
+			actionError.set(
+				issuePly,
+				(e instanceof Error ? e.message : String(e)) || 'Failed to fail card'
+			);
+		} finally {
+			actionLoading.set(issuePly, false);
+		}
+	}
+
+	// Replace the existing repertoire move at the transposition with the user's game move.
+	async function handleTranspositionReplace(issuePly: number): Promise<void> {
+		const leg = chainExtensions.get(issuePly);
+		if (!leg?.userFen || !leg.userSan) return;
+		actionLoading.set(issuePly, true);
+		actionError.delete(issuePly);
+		try {
+			await callApi('/api/review/add-move', {
+				repertoireId: overrideRepertoireId ?? data.repertoire.id,
+				fromFen: leg.userFen,
+				san: leg.userSan,
+				forceReplace: true
+			});
+			addedUserMoves.set(fenKey(leg.userFen), leg.userSan);
+			chainExtensions.delete(issuePly);
+			resolveIssue(issuePly);
+		} catch (e) {
+			actionError.set(
+				issuePly,
+				(e instanceof Error ? e.message : String(e)) || 'Failed to replace move'
 			);
 		} finally {
 			actionLoading.set(issuePly, false);
@@ -1678,24 +1775,88 @@
 											</button>
 										</div>
 									{:else if chainLeg.userFen}
-										<div class="issue-details">
-											<span><strong>{chainLeg.opponentSan}</strong> added. Pick your response:</span
-											>
-										</div>
-										<div class="issue-picker-wrap">
-											<ReviewIssuePicker
-												fen={chainLeg.userFen}
-												playerColor={analysedPlayerColor}
-												gameMoveSan={chainLeg.userSan}
-												gameMoveEvalCp={positionEvals.get(chainLeg.plyInGame + 1)?.evalCp ?? null}
-												cplClass={getCplClassForPly(chainLeg.plyInGame + 1)}
-												onSelectMove={(san) => handlePickChainResponse(issue.ply, san)}
-												onHoverMove={(san) => handleHoverMove(chainLeg.userFen ?? '', san)}
-												onSkip={() => skipChain(issue.ply)}
-												disabled={isLoading}
-												loading={isLoading}
-											/>
-										</div>
+										{#if chainLeg.transposition}
+											<!-- Transposition: this position is already in the repertoire -->
+											<div class="issue-details">
+												<span class="transposition-label">Transposition</span>
+												{#if chainLeg.transposition.userPlayedCorrect}
+													<span
+														>This position is already in your repertoire. You played <strong
+															>{chainLeg.userSan}</strong
+														> — the correct move.</span
+													>
+												{:else}
+													<span
+														>This position is already in your repertoire (book: <strong
+															>{chainLeg.transposition.existingSan}</strong
+														>). You played <strong>{chainLeg.userSan}</strong>.</span
+													>
+												{/if}
+											</div>
+											<div class="issue-actions">
+												{#if chainLeg.transposition.userPlayedCorrect}
+													<button
+														class="act-btn act-btn--primary"
+														onclick={() => skipChain(issue.ply)}
+														disabled={isLoading}
+													>
+														Done
+													</button>
+													<button
+														class="act-btn act-btn--ghost"
+														onclick={() => handleTranspositionReplace(issue.ply)}
+														disabled={isLoading}
+														title="Replace the existing repertoire path to this position with the path from this game"
+													>
+														Replace path in tree
+													</button>
+												{:else}
+													<button
+														class="act-btn act-btn--warn"
+														onclick={() => handleTranspositionFailCard(issue.ply)}
+														disabled={isLoading}
+													>
+														Fail card
+													</button>
+													<button
+														class="act-btn act-btn--warn"
+														onclick={() => handleTranspositionReplace(issue.ply)}
+														disabled={isLoading}
+														title="Replace the existing repertoire move with what you played in this game"
+													>
+														Replace with {chainLeg.userSan}
+													</button>
+													<button
+														class="act-btn act-btn--ghost"
+														onclick={() => skipChain(issue.ply)}
+														disabled={isLoading}
+													>
+														Skip
+													</button>
+												{/if}
+											</div>
+										{:else}
+											<!-- Normal chain phase B — pick a response -->
+											<div class="issue-details">
+												<span
+													><strong>{chainLeg.opponentSan}</strong> added. Pick your response:</span
+												>
+											</div>
+											<div class="issue-picker-wrap">
+												<ReviewIssuePicker
+													fen={chainLeg.userFen}
+													playerColor={analysedPlayerColor}
+													gameMoveSan={chainLeg.userSan}
+													gameMoveEvalCp={positionEvals.get(chainLeg.plyInGame + 1)?.evalCp ?? null}
+													cplClass={getCplClassForPly(chainLeg.plyInGame + 1)}
+													onSelectMove={(san) => handlePickChainResponse(issue.ply, san)}
+													onHoverMove={(san) => handleHoverMove(chainLeg.userFen ?? '', san)}
+													onSkip={() => skipChain(issue.ply)}
+													disabled={isLoading}
+													loading={isLoading}
+												/>
+											</div>
+										{/if}
 									{/if}
 								{:else}
 									<!-- ── Original issue phases ──────────────────────────────────── -->
@@ -2809,6 +2970,18 @@
 
 	.issue-details strong {
 		color: var(--color-text-primary);
+	}
+
+	.transposition-label {
+		display: inline-block;
+		font-size: 10px;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
+		color: var(--color-accent);
+		background: rgba(91, 127, 164, 0.12);
+		padding: 1px 6px;
+		border-radius: var(--radius-sm);
 	}
 
 	.move-eval {

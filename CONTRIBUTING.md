@@ -106,6 +106,18 @@ committing. The CI check will fail if formatting is off.
 
 ---
 
+## Contributor License Agreement
+
+Before your pull request can be merged, you must agree to the
+[Contributor License Agreement](CLA.md).
+
+No separate action is needed — opening a pull request constitutes your agreement.
+The short version: you confirm you have the right to submit your code, and you
+grant the project owner the right to use it under any license, including for a
+hosted or commercial version of the software. You keep your own copyright.
+
+---
+
 ## Submitting a Pull Request
 
 1. Fork the repo and create a feature branch from `main`:
