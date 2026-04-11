@@ -381,17 +381,20 @@ def aggregate_and_finalize(conn, min_games: int, start_bracket: int = 0):
     # which is much faster with many parallel workers than a single-threaded
     # index scan on a billion-row table.
 
-    # Step 1: Aggregate each bracket from raw into a small temp table using
-    # CREATE TABLE AS (enables parallel query). Each bracket is ~1/8 of the
-    # raw data. Temp tables are much smaller than raw (duplicates collapsed).
-    print("[lichess] Aggregating raw data into bracket tables...")
+    # Process one bracket at a time: aggregate → merge → drop before moving to
+    # the next bracket. This keeps peak disk usage at raw table + one bracket
+    # temp table, instead of raw table + all 8 bracket temp tables simultaneously.
+    print("[lichess] Aggregating and merging raw data (one bracket at a time)...")
     agg_start = time.time()
-    total_agg = 0
-    brackets_to_run = range(start_bracket, 8)
+    total_merged = 0
+    total_brackets = 8 - start_bracket
 
-    for bracket in brackets_to_run:
+    for bracket in range(start_bracket, 8):
         bracket_start = time.time()
         temp_name = f"_lichess_bracket_{bracket}"
+        completed = bracket - start_bracket + 1
+
+        # Aggregate this bracket from raw into a temp table (parallel via CREATE TABLE AS)
         with conn.cursor() as cur:
             cur.execute(f"DROP TABLE IF EXISTS {temp_name}")
             cur.execute(f"""
@@ -406,36 +409,13 @@ def aggregate_and_finalize(conn, min_games: int, start_bracket: int = 0):
                 WHERE rating_bracket = %s
                 GROUP BY position_fen, move_san, rating_bracket, resulting_fen
             """, (bracket,))
-            rows = cur.rowcount
-            total_agg += rows
+            agg_rows = cur.rowcount
         conn.commit()
-        bracket_elapsed = time.time() - bracket_start
-        elapsed_str = format_duration(bracket_elapsed)
-        completed = bracket - start_bracket + 1
-        total_brackets = 8 - start_bracket
-        avg_per_bracket = (time.time() - agg_start) / completed
-        remaining = avg_per_bracket * (total_brackets - completed)
-        eta_str = format_duration(remaining) if completed < total_brackets else "done"
-        print(
-            f"[lichess]   Bracket {bracket}: {rows:,} rows ({elapsed_str}) "
-            f"— {completed}/{total_brackets} done, ~{eta_str} remaining"
-        )
+        agg_elapsed = format_duration(time.time() - bracket_start)
 
-    print(
-        f"[lichess]   Aggregation complete: {total_agg:,} rows across "
-        f"{8 - start_bracket} brackets in {format_duration(time.time() - agg_start)}"
-    )
-
-    # Step 2: Merge each small aggregated bracket table into lichess_moves via
-    # ON CONFLICT. This is fast because the temp tables are small (collapsed
-    # duplicates), not the full raw data.
-    print("[lichess] Merging bracket tables into lichess_moves...")
-    merge_start = time.time()
-    total_merged = 0
-
-    for bracket in brackets_to_run:
-        step_start = time.time()
-        temp_name = f"_lichess_bracket_{bracket}"
+        # Immediately merge the temp table into lichess_moves and drop it,
+        # freeing disk space before the next bracket's temp table is created.
+        merge_start = time.time()
         with conn.cursor() as cur:
             cur.execute(f"""
                 INSERT INTO lichess_moves
@@ -449,18 +429,25 @@ def aggregate_and_finalize(conn, min_games: int, start_bracket: int = 0):
                     black_wins   = lichess_moves.black_wins   + EXCLUDED.black_wins,
                     draws        = lichess_moves.draws         + EXCLUDED.draws
             """)
-            rows = cur.rowcount
-            total_merged += rows
+            merged_rows = cur.rowcount
+            total_merged += merged_rows
             cur.execute(f"DROP TABLE {temp_name}")
         conn.commit()
+        merge_elapsed = format_duration(time.time() - merge_start)
+        total_elapsed = format_duration(time.time() - bracket_start)
+
+        avg_per_bracket = (time.time() - agg_start) / completed
+        remaining = avg_per_bracket * (total_brackets - completed)
+        eta_str = format_duration(remaining) if completed < total_brackets else "done"
         print(
-            f"[lichess]   Bracket {bracket} merged ({rows:,} rows, "
-            f"{format_duration(time.time() - step_start)}) and dropped"
+            f"[lichess]   Bracket {bracket}: {agg_rows:,} agg ({agg_elapsed}), "
+            f"{merged_rows:,} merged ({merge_elapsed}), total {total_elapsed} "
+            f"— {completed}/{total_brackets} done, ~{eta_str} remaining"
         )
 
     print(
-        f"[lichess]   Merge complete: {total_merged:,} rows in "
-        f"{format_duration(time.time() - merge_start)}"
+        f"[lichess]   All brackets complete: {total_merged:,} rows merged "
+        f"in {format_duration(time.time() - agg_start)}"
     )
 
     # Drop raw staging table
@@ -643,6 +630,11 @@ def main():
              "lichess-moves-dump.sql.gz via pg_dump."
     )
     parser.add_argument(
+        "--dump-only", action="store_true",
+        help="Skip aggregation and filtering. Just export lichess_moves to "
+             "lichess-moves-dump.sql.gz. Use after manual recovery steps."
+    )
+    parser.add_argument(
         "--min-dump-games", type=int, default=None,
         help="Minimum games for a move to be included in the dump file. "
              "If not set, uses --min-games value. Only applies with --dump."
@@ -678,6 +670,14 @@ def main():
         if args.dump:
             dump_table(db_url, min_dump_games=args.min_dump_games)
         print("[lichess] Finalize complete.")
+        conn.close()
+        return
+
+    # ── Dump-only mode: export lichess_moves without aggregation ─────────
+    if args.dump_only:
+        print("[lichess] Dump-only mode — exporting lichess_moves table")
+        dump_table(db_url, min_dump_games=args.min_dump_games)
+        print("[lichess] Dump complete.")
         conn.close()
         return
 
