@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Contributor License Agreement (CLA) granting Chessstack LLC the right to use contributions under any license, including proprietary and commercial licenses
 
+### Changed
+
+- Data export script now includes the players (Lichess) database in the exported release assets instead of creating an empty placeholder
+
 ---
 
 ## [1.3.0] -- 2026-04-02

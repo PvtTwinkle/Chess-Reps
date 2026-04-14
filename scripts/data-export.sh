@@ -64,11 +64,14 @@ docker exec "${CONTAINER}" pg_dump -U "${DB_USER}" \
 CELEBRITY_SIZE=$(du -h "${CELEBRITY_FILE}" | cut -f1)
 echo "      Done: ${CELEBRITY_FILE} (${CELEBRITY_SIZE})"
 
-# Create empty lichess_moves placeholder (user-generated data, not exported)
+# Export lichess_moves
 LICHESS_FILE="${OUTPUT_DIR}/lichess-moves-dump.sql.gz"
-echo "[4/4] Creating lichess_moves placeholder (user-generated data, not exported)..."
-touch "${LICHESS_FILE}"
-echo "      Done: ${LICHESS_FILE} (empty placeholder)"
+echo "[4/4] Dumping lichess_moves..."
+docker exec "${CONTAINER}" pg_dump -U "${DB_USER}" \
+  --table=lichess_moves --data-only --no-owner "${DB_NAME}" \
+  | gzip > "${LICHESS_FILE}"
+LICHESS_SIZE=$(du -h "${LICHESS_FILE}" | cut -f1)
+echo "      Done: ${LICHESS_FILE} (${LICHESS_SIZE})"
 
 echo ""
 echo "=== Export Complete ==="
@@ -76,8 +79,8 @@ echo ""
 echo "  chessmont_moves:  ${CHESSMONT_FILE} (${CHESSMONT_SIZE})"
 echo "  puzzle:           ${PUZZLE_FILE} (${PUZZLE_SIZE})"
 echo "  celebrity_moves:  ${CELEBRITY_FILE} (${CELEBRITY_SIZE})"
-echo "  lichess_moves:    ${LICHESS_FILE} (empty placeholder)"
+echo "  lichess_moves:    ${LICHESS_FILE} (${LICHESS_SIZE})"
 echo ""
 echo "Next steps:"
 echo "  1. git tag data-vX.Y && git push origin data-vX.Y"
-echo "  2. gh release create data-vX.Y ${CHESSMONT_FILE} ${PUZZLE_FILE} ${CELEBRITY_FILE}"
+echo "  2. gh release create data-vX.Y ${CHESSMONT_FILE} ${PUZZLE_FILE} ${CELEBRITY_FILE} ${LICHESS_FILE}"
