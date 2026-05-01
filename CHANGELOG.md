@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [1.3.1] -- 2026-04-30
+
 ### Added
 
 - Contributor License Agreement (CLA) granting Chessstack LLC the right to use contributions under any license, including proprietary and commercial licenses
@@ -384,7 +388,8 @@ game review, puzzle training, and a local masters database — all running offli
 
 ---
 
-[Unreleased]: https://github.com/PvtTwinkle/Chessstack/compare/v1.3.0...HEAD
+[Unreleased]: https://github.com/PvtTwinkle/Chessstack/compare/v1.3.1...HEAD
+[1.3.1]: https://github.com/PvtTwinkle/Chessstack/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/PvtTwinkle/Chessstack/compare/v1.2.2...v1.3.0
 [1.2.2]: https://github.com/PvtTwinkle/Chessstack/compare/v1.2.1...v1.2.2
 [1.2.1]: https://github.com/PvtTwinkle/Chessstack/compare/v1.2.0...v1.2.1
