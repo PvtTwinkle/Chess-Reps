@@ -63,7 +63,7 @@
 
 		// Step 4: Re-run all load functions, then redirect to Build Mode
 		await invalidateAll();
-		await goto(resolveRoute('/build')); // eslint-disable-line svelte/no-navigation-without-resolve
+		await goto(resolveRoute('/build'));
 	}
 </script>
 

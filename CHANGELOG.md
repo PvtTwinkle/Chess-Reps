@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Data export script now includes the players (Lichess) database in the exported release assets instead of creating an empty placeholder
+- Upgraded Vite to 8.0.10, patching two CVEs (path traversal and dev-server WebSocket RCE)
+- Upgraded SvelteKit to 2.58.0, Svelte to 5.55.5, ESLint to 10.2.1, Prettier to 3.8.3, and other minor dependency bumps
 
 ---
 

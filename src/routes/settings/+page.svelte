@@ -546,7 +546,7 @@
 			body: JSON.stringify({ tutorialStep: 1 })
 		});
 		await invalidateAll();
-		await goto(resolveRoute('/build')); // eslint-disable-line svelte/no-navigation-without-resolve
+		await goto(resolveRoute('/build'));
 	}
 </script>
 

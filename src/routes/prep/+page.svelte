@@ -121,7 +121,7 @@
 			}
 
 			// Step 4: Navigate to the new prep
-			await goto(resolveRoute('/prep/[id]', { id: String(prep.id) })); // eslint-disable-line svelte/no-navigation-without-resolve
+			await goto(resolveRoute('/prep/[id]', { id: String(prep.id) }));
 		} catch (e) {
 			errorMessage = e instanceof Error ? e.message : String(e);
 			loading = false;
